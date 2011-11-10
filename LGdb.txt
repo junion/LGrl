@@ -1,0 +1,2 @@
+bus,origin,destination,time
+28X,DOWNTOWN,CMU,now
