@@ -42,7 +42,7 @@ Configuration options:
   questions (such as "First name?"), uses field-specific grammars, which only
   recognize elements of that field.  Used by all dialog managers.
 
-  transferThreshold: if belief in the top unique (i.e., count=1) partition is
+  acceptThreshold: if belief in the top unique (i.e., count=1) partition is
   higher than this value, the call is transferred.  Otherwise, the system continues
   to ask questions.  Used by DirectedDialogManager and OpenDialogManager.
 
@@ -75,7 +75,7 @@ class DialogManager(object):
         self.beliefState = BeliefState()
         self.db = GetDB()
         self.fields = self.db.GetFields()
-        self.prompts = NameDialerPrompts()
+        self.prompts = LetsGoPrompts()
 
     def Init(self):
         pass
@@ -148,11 +148,11 @@ class RigidDialogManager(DialogManager):
     def TakeTurn(self,asrResult):
         self.beliefState.Update(asrResult,self.prevSysAction)
         if (len(self.actionsToTake)==0):
-            (callee,belief) = self.beliefState.GetTopUniqueUserGoal()
-            if (not callee == None):
-                destination = '%s' % (callee)
-                surface = self.prompts.Transfer(callee)
-                result = SystemAction('transfer',content=callee,surface=surface,destination=destination)
+            (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()
+            if (not travelSpec == None):
+                destination = '%s' % (travelSpec)
+                surface = self.prompts.BusSchedule(travelSpec)
+                result = SystemAction('transfer',content=travelSpec,surface=surface,destination=destination)
             else:
                 result = SystemAction('hangup',surface='Sorry, I didnt find anyone matching your request.')
         else:
@@ -167,7 +167,7 @@ class DirectedDialogManager(DialogManager):
     def __init__(self):
         DialogManager.__init__(self)
         self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
-        self.transferThreshold = self.config.getfloat(MY_ID,'transferThreshold')
+        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
 
     def Init(self):
         self.beliefState.Init()
@@ -183,11 +183,11 @@ class DirectedDialogManager(DialogManager):
         return sysAction
 
     def _ChooseAction(self):
-        (callee,belief) = self.beliefState.GetTopUniqueUserGoal()
-        if (belief > self.transferThreshold):
-            destination = '%s' % (callee)
-            surface = self.prompts.Transfer(callee)
-            sysAction = SystemAction('transfer',content=callee,surface=surface,destination=destination)
+        (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()
+        if (belief > self.acceptThreshold):
+            destination = '%s' % (travelSpec)
+            surface = self.prompts.BusSchedule(travelSpec)
+            sysAction = SystemAction('transfer',content=travelSpec,surface=surface,destination=destination)
         else:
             marginals = self.beliefState.GetMarginals()
             askField = None
@@ -221,7 +221,7 @@ class OpenDialogManager(DialogManager):
     def __init__(self):
         DialogManager.__init__(self)
         self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
-        self.transferThreshold = self.config.getfloat(MY_ID,'transferThreshold')
+        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
         self.openQuestionThreshold = self.config.getfloat(MY_ID,'openQuestionThreshold')
 
     def Init(self):
@@ -239,11 +239,11 @@ class OpenDialogManager(DialogManager):
         return sysAction
 
     def _ChooseAction(self):
-        (callee,belief) = self.beliefState.GetTopUniqueUserGoal()
-        if (belief > self.transferThreshold):
-            destination = '%s' % (callee)
-            surface = self.prompts.Transfer(callee)
-            sysAction = SystemAction('transfer',content=callee,surface=surface,destination=destination)
+        (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()
+        if (belief > self.acceptThreshold):
+            destination = '%s' % (travelSpec)
+            surface = self.prompts.BusSchedule(travelSpec)
+            sysAction = SystemAction('transfer',content=travelSpec,surface=surface,destination=destination)
         else:
             marginals = self.beliefState.GetMarginals()
             askField = None
@@ -280,7 +280,7 @@ class OpenDialogManager(DialogManager):
             sysAction = SystemAction('ask','request',askField,surface=surface,grammarName=grammarName)
         return sysAction
 
-class NameDialerPrompts(object):
+class LetsGoPrompts(object):
     '''
     Renders sysActions as TTS-playable prompts.  This is the only
     place (outside of the database) with references to the values of
@@ -313,8 +313,8 @@ class NameDialerPrompts(object):
         result = '%s%s' % (body[0].upper(),body[1:])
         return result
 
-    def Transfer(self,callee):
+    def BusSchedule(self,travelSpec):
         '''
-        Prompt to transfer the call to callee (which is a dict)
+        Prompt to transfer the call to travelSpec (which is a dict)
         '''
-        return 'Transferring to %s %s in %s, %s' % (callee['first'],callee['last'],callee['city'],callee['state'])
+        return 'Transferring to %s %s in %s, %s' % (travelSpec['first'],travelSpec['last'],travelSpec['city'],travelSpec['state'])
