@@ -16,7 +16,7 @@ www.research.att.com/people/Williams_Jason_D
 
 import copy
 from math import log
-import resource
+#import resource
 import logging
 from GlobalConfig import GetConfig
 
@@ -565,8 +565,8 @@ class _Stats(object):
 
     @staticmethod
     def _CPU():
-        return (resource.getrusage(resource.RUSAGE_SELF).ru_utime+
-                resource.getrusage(resource.RUSAGE_SELF).ru_stime)
+        return 0#(resource.getrusage(resource.RUSAGE_SELF).ru_utime+
+                #resource.getrusage(resource.RUSAGE_SELF).ru_stime)
 
 class _DefaultHistory(object):
     @staticmethod
