@@ -71,7 +71,7 @@ import os, sys
 from Utils import CPU, Combinations
 
 MY_ID = 'DB'
-_TABLE = 'listings'
+_TABLE = 'bus_specs'
 _TABLE_COUNTS = 'counts'
 _THE_DB = None
 
