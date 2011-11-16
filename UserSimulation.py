@@ -19,40 +19,40 @@ class UserSimulation(object):
 #                  }
         try:
             header = {'Cookie':'session_id="cc"'}
-            data = urllib.urlencode(self.id)          
+            data = urllib.urlencode(self.id)
             req = urllib2.Request(self.url, data)
             cj = cookielib.CookieJar()
             self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
             response = self.opener.open(req)
-            the_page = response.read() 
-#            print the_page 
-        except Exception, detail: 
-            print "Err ", detail 
+            the_page = response.read()
+#            print the_page
+        except Exception, detail:
+            print "Err ", detail
 
     def send_json(self,json_data):
         data = json.dumps(json_data)
         clen = len(data)
-        
+
         header = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.202 Safari/535.1',\
                   'Connection':'keep-alive',\
                   'Content-Type': 'application/json',\
                   'Content-Length': clen,\
                   'X-Requested-With':'XMLHttpRequest',\
                   'Accept':'application/json'}
-        
+
         req = urllib2.Request('http://128.2.210.190:9090/services/rest/usr_sim', data, header)
         response = self.opener.open(req)
         return response.read()
-    
+
     def Init(self):
         self.send_json({'Command':'Start over'})
-        
+
     def TakeTurn(self,systemAction):
         # map systemAction to an LGus action
         # self.send_json('System action':'Request(Open)')
         pass
-        
-        
+
+
 #temp_data = [{'System action':'Request(Open)'},\
 #             {'System action':'Request(Bus number)'},\
 #             {'System action':'Confirm(Bus number:28X)'},\
@@ -63,4 +63,3 @@ class UserSimulation(object):
 #             {'System action':'Request(Travel time)'},\
 #             {'System action':'Confirm(Travel time:now)'}\
 #             ]
-

@@ -1,10 +1,10 @@
 '''
 Utilities for dialog systems.
 
-This module contains a collection of utilities useful for 
+This module contains a collection of utilities useful for
 dialog systems.
 
-Part of the AT&T Statistical Dialog Toolkit (ASDT).  
+Part of the AT&T Statistical Dialog Toolkit (ASDT).
 
 Jason D. Williams
 jdw@research.att.com
@@ -19,15 +19,15 @@ from re import search
 
 def SampleFromDict(dict):
     '''
-    Given a dict, representing a multinomial distribution, 
+    Given a dict, representing a multinomial distribution,
     of the form:
-    
-      { 
+
+      {
         'key1' : prob1,
         'key2' : prob2,
         ...
       }
-      
+
     sample a key according to the distribution of probs.
     '''
     r = random()
@@ -36,7 +36,7 @@ def SampleFromDict(dict):
         s += dict[f]
         if (r < s):
             return f
-    raise RuntimeError,'Didnt sample anything from this hash: %s (r=%f)' % (str(dict),r)   
+    raise RuntimeError,'Didnt sample anything from this hash: %s (r=%f)' % (str(dict),r)
 
 def CPU():
     '''
@@ -46,27 +46,27 @@ def CPU():
             #resource.getrusage(resource.RUSAGE_SELF).ru_stime)
 
 def Combinations(iterable, r):
-  '''
-  Given an iterable, return an iterable over all combinations of values 
-  of length r or shorter. 
-  '''
-  pool = tuple(iterable)
-  n = len(pool)
-  if r > n:
-      return
-  indices = range(r)
-  yield tuple(pool[i] for i in indices)
-  while True:
-      for i in reversed(range(r)):
-          if indices[i] != i + n - r:
-              break
-      else:
-          return
-      indices[i] += 1
-      for j in range(i+1, r):
-          indices[j] = indices[j-1] + 1
-      yield tuple(pool[i] for i in indices)
-            
+    '''
+    Given an iterable, return an iterable over all combinations of values
+    of length r or shorter.
+    '''
+    pool = tuple(iterable)
+    n = len(pool)
+    if r > n:
+        return
+    indices = range(r)
+    yield tuple(pool[i] for i in indices)
+    while True:
+        for i in reversed(range(r)):
+            if indices[i] != i + n - r:
+                break
+        else:
+            return
+        indices[i] += 1
+        for j in range(i+1, r):
+            indices[j] = indices[j-1] + 1
+        yield tuple(pool[i] for i in indices)
+
 def Combination(n,r):
     '''
     Return the number of ways of choosing r elements from a set of
@@ -109,18 +109,18 @@ def ConfigSectionToDict(config,section):
             try:
                 valToStore = int(val)
             except ValueError:
-                valToStore = val            
+                valToStore = val
         d[lastKey] = valToStore
     return dict
-    
+
 def IsSubsetOf(dict1,dict2):
-  '''
-  Return True if dict1 is a subset of dict2 -- i.e., if, for all keys in 
-  dict1, the key is present in dict2 and dict1[key] == dict2[key]
-  '''
-  for field in dict1:
-    if (field not in dict2):
-      return False
-    elif (not dict1[field] == dict2[field]):
-      return False
-  return True
+    '''
+    Return True if dict1 is a subset of dict2 -- i.e., if, for all keys in
+    dict1, the key is present in dict2 and dict1[key] == dict2[key]
+    '''
+    for field in dict1:
+        if (field not in dict2):
+            return False
+        elif (not dict1[field] == dict2[field]):
+            return False
+    return True
