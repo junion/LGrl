@@ -74,21 +74,26 @@ class Partition(object):
         self.appLogger = logging.getLogger(MY_ID)
         self.config = GetConfig()
         db = GetDB()
+        self.num_route = 55
+        self.num_place = 1700
+        self.num_time = 1200
         if (existingPartition == None):
-            self.fieldList = db.GetFields()
+            #self.fieldList = db.GetFields()
+            self.fieldList = ['route','departure_place','arrival_place','travel_time']
             self.fieldCount = len(self.fieldList)
-            self.totalCount = db.GetListingCount({})
+            #self.totalCount = db.GetListingCount({})
+            self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
             self.fields = {}
             for field in self.fieldList:
                 self.fields[field] = _FieldEntry()
             self.count = self.totalCount
             self.prior = 1.0
-            umFields = ['request_silenceProb',
+            umFields = ['request_nonUnderstandingProb',
                         'request_directAnswerProb',
                         'request_allOverCompleteProb',
                         'request_oogProb',
                         'confirm_directAnswerProb',
-                        'confirm_silenceProb',
+                        'confirm_nonUnderstandingProb',
                         'confirm_oogProb']
             assert (not self.config == None), 'Config file required (UserModel parameters)'
             self.umParams = {}
@@ -102,7 +107,7 @@ class Partition(object):
             self.umParams['request_overCompleteProb'] = \
               1.0 * self.umParams['request_allOverCompleteProb'] / overCompleteActionCount
             self.umParams['open_answerProb'] = \
-              (1.0 - self.umParams['request_silenceProb'] - self.umParams['request_oogProb']) / \
+              (1.0 - self.umParams['request_nonUnderstandingProb'] - self.umParams['request_oogProb']) / \
               overCompleteActionCount
         else:
             assert not fieldToSplit == None,'arg not defined'
@@ -112,12 +117,25 @@ class Partition(object):
             self.umParams = existingPartition.umParams
             self.totalCount = existingPartition.totalCount
             self.fields = {}
+            self.count = 0
             for field in self.fieldList:
                 if (field == fieldToSplit):
                     self.fields[field] = _FieldEntry(type='equals', equals=value)
                 else:
                     self.fields[field] = existingPartition.fields[field].Copy()
-            self.count = db.GetListingCount(self.fields)
+                    
+                if self.fields[field].type == 'equals':
+                    self.count += 1
+                elif field == 'route':
+                    self.count += self.num_route - len(self.fields[field].excludes.keys())
+                elif field in ['departure_place','arrival_place']:
+                    self.count += self.num_place - len(self.fields[field].excludes.keys())
+                elif field == 'travel_time':
+                    self.count += self.num_time - len(self.fields[field].excludes.keys())
+                else:
+                    raise RuntimeError,'Invalid field %s'%field
+
+            #self.count = db.GetListingCount(self.fields)
             self.prior = 1.0 * self.count / self.totalCount
 
     def Split(self,userAction):
@@ -126,7 +144,7 @@ class Partition(object):
         or more child partitions, modifying this partition as appropriate.
         '''
         newPartitions = []
-        if (userAction.type == 'silent'):
+        if (userAction.type == 'non-understanding'):
                 # silent doesn't split
             pass
         else:
@@ -223,14 +241,17 @@ class Partition(object):
         '''
         if (sysAction.type == 'ask'):
             if (sysAction.force == 'request'):
-                if (userAction.type == 'silent'):
-                    result = self.umParams['request_silenceProb']
+                if (userAction.type == 'non-understanding'):
+                    result = self.umParams['request_nonUnderstandingProb']
                 else:
                     targetFieldIncludedFlag = False
                     overCompleteFlag = False
                     allFieldsMatchGoalFlag = True
                     askedField = sysAction.content
                     for field in userAction.content:
+                        if field == 'confirm':
+                            allFieldsMatchGoalFlag = False
+                            continue
                         val = userAction.content[field]
                         if (self.fields[field].type == 'equals' and self.fields[field].equals == val):
                             if (field == askedField):
@@ -257,8 +278,8 @@ class Partition(object):
                         # This action just answers the question that was asked
                         result = self.umParams['request_directAnswerProb']
             elif (sysAction.force == 'confirm'):
-                if (userAction.type == 'silent'):
-                    result = self.umParams['confirm_silenceProb']
+                if (userAction.type == 'non-understanding'):
+                    result = self.umParams['confirm_nonUnderstandingProb']
                 else:
                     allFieldsMatchGoalFlag = True
                     for field in sysAction.content:
@@ -292,7 +313,8 @@ class History(object):
         '''
         self.prior = 1.0
         self.db = GetDB()
-        self.fields = self.db.GetFields()
+        #self.fields = self.db.GetFields()
+        self.fields = ['route','departure_place','arrival_place','travel_time']
         self.counts = {}
         for field in self.fields:
             self.counts[field] = 0
@@ -397,7 +419,8 @@ class BeliefState(object):
         self.config = GetConfig()
         self.appLogger = logging.getLogger(MY_ID)
         self.db = GetDB()
-        self.fields = self.db.GetFields()
+        #self.fields = self.db.GetFields()
+        self.fields = ['route','departure_place','arrival_place','travel_time']
         def PartitionSeed():
             return [ Partition() ]
         def HistorySeed(partition):
@@ -433,7 +456,7 @@ class BeliefState(object):
         for partitionEntry in reversed(self.partitionDistribution.partitionEntryList):
             if (partitionEntry.partition.count == 1):
                 dbReturn = self.db.GetListingsByQuery(partitionEntry.partition.fields)
-                callee = dbReturn[0]
+                callee = 'temp' #dbReturn[0]
                 belief = partitionEntry.belief
                 break
         return (callee,belief)

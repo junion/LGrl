@@ -53,20 +53,29 @@ def SimulateOneDialog(userSimulation,dialogManager):
     while(systemAction.type == 'ask'):
         appLogger.info('\n------ Turn %d ------' % (i+1))
         appLogger.info('System Action: %s' % (systemAction))
+        
         userAction = userSimulation.TakeTurn(systemAction)
+        
         appLogger.info('User Action: %s' % (userAction))
 #        asrResult = asrSimulation.SimASR(systemAction.grammar,userAction)
 #        appLogger.info('** ASR Result: **\n%s' % (asrResult))
+        
         nextSystemAction = dialogManager.TakeTurn(userAction)
+        
         appLogger.info('** PartitionDistribution: **\n%s' % (dialogManager.beliefState))
+        
         updateTime = dialogManager.beliefState.partitionDistribution.stats.clocks['mainUpdate']
+        
         appLogger.info('Update time: %f' % (updateTime))
+        
         turns.append({
             'systemAction': systemAction,
             'userAction':userAction,
             'updateTime':updateTime,
         })
+        
         systemAction = nextSystemAction
+        
         i += 1
     appLogger.info('\n------ Turn %d ------' % (i+1))
     appLogger.info('System Action: %s' % (systemAction))

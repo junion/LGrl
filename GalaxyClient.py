@@ -149,8 +149,11 @@ def _SendMessage(env,msg_type,f_text,s_text=None,round_trip=1,lock=0):
         else:
             env.WriteFrame(new_f)
 
-def main(host,port,retry):
 
+    
+    
+def main(host,port,retry):
+    
     try:
         welcome_frame = None 
     except Galaxy.FrameParsingError:
@@ -173,8 +176,21 @@ def main(host,port,retry):
         while True:
             try:
                  #:session_id "Default" :tidx 82 
-                f_text = '''{c gal_be.launch_query :inframe "{query {type 100 place {name DOWNTOWN type neighborhood}}}"}'''
+                f_text = '''{c reinitialize}'''
                 print SendNewMessage(env,f_text)
+                f_text = '''{c gal_be.launch_query 
+                                :inframe "{
+    query    {
+        place    {
+            name    MURRAY AND HAZELWOOD
+            type    stop
+        }
+        type    100
+    }
+}\n"
+                            }'''
+                print SendNewMessage(env,f_text)
+                break
             except RuntimeError:
                 print 'SendNewMessage Error'
         env.conn.Disconnect()
@@ -184,3 +200,31 @@ def main(host,port,retry):
         sys.stdout.flush()
 
 main('localhost',18000,1)
+
+#def conn_BE(in_frame):
+#    import socket
+#    
+#    remote_host = 'localhost'
+#    remote_port = 23456
+#    
+#    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+#    s.connect((remote_host,remote_port)) 
+#    
+#    sent = s.send(in_frame)
+#    if not sent:
+#        raise RuntimeError("socket connection broken")
+#    
+##    while True:
+#    chunk = s.recv(1024)
+#    print chunk
+#    s.close
+    
+#conn_BE('''{
+#    query    {
+#        place    {
+#            name    MURRAY AND HAZELWOOD
+#            type    stop
+#        }
+#        type    100
+#    }
+#}\n''')

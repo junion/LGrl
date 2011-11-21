@@ -60,7 +60,9 @@ class Grammar():
         '''
         self.config = GetConfig()
         db = GetDB()
-        assert (name in db.GetFields() or name in ['all','confirm']),'Unknown Grammar name: %s' % (name)
+#        assert (name in db.GetFields() or name in ['all','confirm']),'Unknown Grammar name: %s' % (name)
+        assert (name in ['route','departure_place','arrival_place','travel_time'] or name in ['all','confirm']),'Unknown Grammar name: %s' % (name)
+        
         self.name = name
         if (self.name == 'confirm'):
             self.fullName = 'confirm'
@@ -75,7 +77,7 @@ class Grammar():
         if (name == 'confirm'):
             self.cardinality = 2
         elif (name == 'all'):
-            fields = db.GetFields()
+            fields = ['route','departure_place','arrival_place','travel_time']#db.GetFields()
             fieldCount = len(fields)
             fieldCombos = 0
             for r in range(fieldCount):
@@ -119,11 +121,11 @@ class UserAction():
 
         '''
         self.config = GetConfig()
-        assert (type in ['ig','oog','silent']),'Unknown UserAction type: %s' % (type)
+        assert (type in ['ig','oog','non-understanding']),'Unknown UserAction type: %s' % (type)
         if (type == 'ig'):
             assert (not content == None),'Type == ig but content == None'
             db = GetDB()
-            fields = db.GetFields()
+            fields = ['route','departure_place','arrival_place','travel_time']#db.GetFields()
             for field in content:
                 assert (field in fields or field in ['confirm']),'Unknown UserAction field: %s' % (field)
         else:
@@ -187,7 +189,7 @@ class SystemAction:
         systemAction.grammar.
         '''
         self.config = GetConfig()
-        assert (type in ['ask','transfer','hangup']),'Unknown SystemAction type: %s' % (type)
+        assert (type in ['ask','inform','hangup']),'Unknown SystemAction type: %s' % (type)
         assert (force in [None,'request','confirm']),'Unknown SystemAction force: %s' % (force)
         self.type = type
         self.force = force
@@ -203,7 +205,7 @@ class SystemAction:
                     self.grammarName = 'all'
             else:
                 self.grammarName = grammarName
-            self.grammar = Grammar(self.grammarName)
+            self.grammar = None #Grammar(self.grammarName)
         else:
             self.grammar = None
 
@@ -214,9 +216,9 @@ class SystemAction:
             else:
                 content = ','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
             force = '%s(%s) {%s}' % (self.force,content,self.grammar)
-        elif (self.type == 'transfer'):
+        elif (self.type == 'inform'):
             content = ','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
-            force = 'destination(%s)' % (content)
+            force = 'travel spec(%s)' % (content)
         elif (self.type == 'hangup'):
             force = None
         else:
@@ -314,7 +316,7 @@ class ASRResult:
         self.probs = []
         self.watsonResult = watsonResult
         db = GetDB()
-        self.fields = db.GetFields()
+        self.fields = ['route','departure_place','arrival_place','travel_time']#db.GetFields()
         self.fields.append('confirm')
         if ('nlu-sisr' in watsonResult):
             for result in watsonResult['nlu-sisr']:
@@ -473,6 +475,7 @@ class ASRResult:
             prob = self.probs[i]
             self.releasedProb += prob
             self.releasedActions += 1
-            offListProb = 1.0 * (1.0 - self.releasedProb) / (self.grammar.cardinality + 2 - self.releasedActions)
+#            offListProb = 1.0 * (1.0 - self.releasedProb) / (self.grammar.cardinality + 2 - self.releasedActions)
+            offListProb = 1.0 * (1.0 - self.releasedProb) / (3000000 + 2 - self.releasedActions)
             yield (userAction,prob,offListProb)
             i += 1

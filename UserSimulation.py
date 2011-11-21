@@ -2,23 +2,19 @@ import urllib, urllib2, time
 import cookielib
 import json
 from GlobalConfig import GetConfig
+from DialogModules import UserAction,ASRResult
 
 class UserSimulation(object):
     def __init__(self):
         self.config = GetConfig()
-        assert (not self.config == None), 'Config file required'
+        assert (not self.config==None), 'Config file required'
         assert (self.config.has_option('LGus','URL')),'LGus section missing field URL'
         self.url = self.config.get('LGus','URL')
         assert (self.config.has_option('LGus','ID')),'LGus section missing field ID'
-        self.id = {'username' :self.config.get('LGus','ID')}
+        self.id = {'username':self.config.get('LGus','ID')}
         assert (self.config.has_option('LGus','PASSWD')),'LGus section missing field PASSWD'
         self.id['password'] = self.config.get('LGus','PASSWD')
-#        self.url = 'http://128.2.210.190:9090/do_login' # write ur URL here
-#        self.id = {'username' : 'dd', #write ur specific key/value pair
-#                  'password' : 'ddddd'
-#                  }
         try:
-            header = {'Cookie':'session_id="cc"'}
             data = urllib.urlencode(self.id)
             req = urllib2.Request(self.url, data)
             cj = cookielib.CookieJar()
@@ -49,8 +45,50 @@ class UserSimulation(object):
 
     def TakeTurn(self,systemAction):
         # map systemAction to an LGus action
-        # self.send_json('System action':'Request(Open)')
-        pass
+        if systemAction.force == 'request':
+            if systemAction.content == 'all':
+                act_str = 'Request(Open)'
+            else:
+                if systemAction.content == 'route':
+                    act_str = 'Request(Bus number)'
+                if systemAction.content == 'departure_place':
+                    act_str = 'Request(Departure place)'
+                if systemAction.content == 'arrival_place':
+                    act_str = 'Request(Arrival place)'
+                if systemAction.content == 'travel_time':
+                    act_str = 'Request(Travel time)'
+        elif systemAction.force == 'confirm': 
+            act_str = 'Confirm(%s:%s)'%(systemAction.content.keys()[0],systemAction.content[systemAction.content.keys()[0]])
+        else:
+            raise RuntimeError,'Invalid system action force'
+        print act_str
+        json_usr = self.send_json({'System action':act_str})
+        print json_usr
+        usr_act = json.loads(json_usr)
+        if usr_act['User action'][0] == 'Non-understanding':
+            userActionHyps = [UserAction('non-understanding')]
+            probs = [1.0]
+            correctPosition = -1
+        else:
+            ua_dict = {}
+            for uact in usr_act['User action']:
+                if uact.startswith('Inform'):
+                    if uact.find('Bus number') > -1:
+                        ua_dict.update({'route':uact.split(':')[1][:-1]})
+                    if uact.find('Departure place') > -1:
+                        ua_dict.update({'departure_place':uact.split(':')[1][:-1]})
+                    if uact.find('Arrival place') > -1:
+                        ua_dict.update({'arrival_place':uact.split(':')[1][:-1]})
+                    if uact.find('Travel time') > -1:
+                        ua_dict.update({'travel_time':uact.split(':')[1][:-1]})
+                elif uact.startswith('Affirm'):
+                    ua_dict.update({'confirm':'yes'})
+                elif uact.startswith('Deny'):
+                    ua_dict.update({'confirm':'no'})
+            userActionHyps = [UserAction('ig',ua_dict)]
+            probs = [usr_act['Confidence score']]
+            correctPosition = 0
+        return ASRResult.Simulated(None,userActionHyps,probs,correctPosition=correctPosition)
 
 
 #temp_data = [{'System action':'Request(Open)'},\

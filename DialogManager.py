@@ -74,7 +74,7 @@ class DialogManager(object):
         self.config = GetConfig()
         self.beliefState = BeliefState()
         self.db = GetDB()
-        self.fields = self.db.GetFields()
+#        self.fields = self.db.GetFields()
         self.prompts = LetsGoPrompts()
 
     def Init(self):
@@ -220,6 +220,7 @@ class OpenDialogManager(DialogManager):
     '''
     def __init__(self):
         DialogManager.__init__(self)
+        self.fields = ['route','departure_place','arrival_place','travel_time']
         self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
         self.openQuestionThreshold = self.config.getfloat(MY_ID,'openQuestionThreshold')
@@ -243,7 +244,7 @@ class OpenDialogManager(DialogManager):
         if (belief > self.acceptThreshold):
             destination = '%s' % (travelSpec)
             surface = self.prompts.BusSchedule(travelSpec)
-            sysAction = SystemAction('transfer',content=travelSpec,surface=surface,destination=destination)
+            sysAction = SystemAction('inform',content=travelSpec,surface=surface,destination=destination)
         else:
             marginals = self.beliefState.GetMarginals()
             askField = None
@@ -304,12 +305,14 @@ class LetsGoPrompts(object):
             prefix = 'sorry, '
         else:
             prefix = ''
-        if (field == 'all'):
-            body = '%swhich listing?' % (prefix)
-        elif (field == 'first' or field == 'last'):
-            body = '%swhat is the %s name?' % (prefix,field)
+        if field == 'all':
+            body = '%show may I help you?'%prefix
+        elif field == 'departure_place':
+            body = '%swhat is the departure place?'%prefix
+        elif field == 'arrival_place':
+            body = '%swhat is the arrival place?'%prefix
         else:
-            body = '%swhat is the %s?' % (prefix,field)
+            body = '%swhen are you going to travel?'%prefix
         result = '%s%s' % (body[0].upper(),body[1:])
         return result
 
@@ -317,4 +320,4 @@ class LetsGoPrompts(object):
         '''
         Prompt to transfer the call to travelSpec (which is a dict)
         '''
-        return 'Transferring to %s %s in %s, %s' % (travelSpec['first'],travelSpec['last'],travelSpec['city'],travelSpec['state'])
+        return 'Your bus information is %s, %s, %s, %s' % (travelSpec['route'],travelSpec['departure_place'],travelSpec['arrival_place'],travelSpec['travel_time'])
