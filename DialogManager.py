@@ -311,6 +311,8 @@ class LetsGoPrompts(object):
             body = '%swhat is the departure place?'%prefix
         elif field == 'arrival_place':
             body = '%swhat is the arrival place?'%prefix
+        elif field == 'route':
+            body = '%swhich bus do you want?'%prefix
         else:
             body = '%swhen are you going to travel?'%prefix
         result = '%s%s' % (body[0].upper(),body[1:])
