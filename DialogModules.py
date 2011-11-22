@@ -217,7 +217,7 @@ class SystemAction:
                 content = ','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
             force = '%s(%s) {%s}' % (self.force,content,self.grammar)
         elif (self.type == 'inform'):
-            content = ','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
+            content = '' #','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
             force = 'travel spec(%s)' % (content)
         elif (self.type == 'hangup'):
             force = None

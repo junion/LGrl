@@ -52,6 +52,7 @@ def SimulateOneDialog(userSimulation,dialogManager):
     turns = []
     while(systemAction.type == 'ask'):
         appLogger.info('\n------ Turn %d ------' % (i+1))
+        appLogger.info('User Goal: %s'%userSimulation.goal)
         appLogger.info('System Action: %s' % (systemAction))
         
         userAction = userSimulation.TakeTurn(systemAction)
@@ -77,8 +78,10 @@ def SimulateOneDialog(userSimulation,dialogManager):
         systemAction = nextSystemAction
         
         i += 1
+        
     appLogger.info('\n------ Turn %d ------' % (i+1))
     appLogger.info('System Action: %s' % (systemAction))
+    appLogger.info('User Goal: %s'%userSimulation.goal)
     turns.append({
         'systemAction': systemAction,
         'userAction':None,

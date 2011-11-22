@@ -76,7 +76,7 @@ class Partition(object):
         db = GetDB()
         self.num_route = 55
         self.num_place = 1700
-        self.num_time = 1200
+        self.num_time = 180#1200
         if (existingPartition == None):
             #self.fieldList = db.GetFields()
             self.fieldList = ['route','departure_place','arrival_place','travel_time']
@@ -92,6 +92,7 @@ class Partition(object):
                         'request_directAnswerProb',
                         'request_allOverCompleteProb',
                         'request_oogProb',
+                        'request_irrelevantAnswerProb',
                         'confirm_directAnswerProb',
                         'confirm_nonUnderstandingProb',
                         'confirm_oogProb']
@@ -117,7 +118,7 @@ class Partition(object):
             self.umParams = existingPartition.umParams
             self.totalCount = existingPartition.totalCount
             self.fields = {}
-            self.count = 0
+            self.count = 1
             for field in self.fieldList:
                 if (field == fieldToSplit):
                     self.fields[field] = _FieldEntry(type='equals', equals=value)
@@ -125,13 +126,13 @@ class Partition(object):
                     self.fields[field] = existingPartition.fields[field].Copy()
                     
                 if self.fields[field].type == 'equals':
-                    self.count += 1
+                    self.count *= 1
                 elif field == 'route':
-                    self.count += self.num_route - len(self.fields[field].excludes.keys())
+                    self.count *= (self.num_route - len(self.fields[field].excludes.keys()))
                 elif field in ['departure_place','arrival_place']:
-                    self.count += self.num_place - len(self.fields[field].excludes.keys())
+                    self.count *= (self.num_place - len(self.fields[field].excludes.keys()))
                 elif field == 'travel_time':
-                    self.count += self.num_time - len(self.fields[field].excludes.keys())
+                    self.count *= (self.num_time - len(self.fields[field].excludes.keys()))
                 else:
                     raise RuntimeError,'Invalid field %s'%field
 
@@ -239,19 +240,97 @@ class Partition(object):
         Returns the probability of the user taking userAction given dialog
         history, sysAction, and that their goal is within this partition.
         '''
+#        if (sysAction.type == 'ask'):
+#            if (sysAction.force == 'request'):
+#                if (userAction.type == 'non-understanding'):
+#                    result = self.umParams['request_nonUnderstandingProb']
+#                else:
+#                    targetFieldIncludedFlag = False
+#                    overCompleteFlag = False
+#                    allFieldsMatchGoalFlag = True
+#                    askedField = sysAction.content
+#                    for field in userAction.content:
+#                        if field == 'confirm':
+#                            allFieldsMatchGoalFlag = False
+#                            continue
+#                        val = userAction.content[field]
+#                        if (self.fields[field].type == 'equals' and self.fields[field].equals == val):
+#                            if (field == askedField):
+#                                targetFieldIncludedFlag = True
+#                            else:
+#                                overCompleteFlag = True
+#                        else:
+#                            allFieldsMatchGoalFlag = False
+#                    if (not allFieldsMatchGoalFlag):
+#                        # This action doesn't agree with this partition
+#                        result = 0.0
+#                    elif (askedField == 'all'):
+#                        # A response to the open question
+#                        result = self.umParams['open_answerProb']
+#                    elif (not targetFieldIncludedFlag):
+#                        # This action doesn't include the information that was asked for
+#                        # This user model doesn't ever do this
+#                        result = 0.0
+#                    elif (overCompleteFlag):
+#                        # This action include extra information - this happens
+#                        # request_overCompleteProb amount of the time
+#                        result = self.umParams['request_overCompleteProb']
+#                    else:
+#                        # This action just answers the question that was asked
+#                        result = self.umParams['request_directAnswerProb']
+#            elif (sysAction.force == 'confirm'):
+#                if (userAction.type == 'non-understanding'):
+#                    result = self.umParams['confirm_nonUnderstandingProb']
+#                else:
+#                    allFieldsMatchGoalFlag = True
+#                    for field in sysAction.content:
+#                        val = sysAction.content[field]
+#                        if (self.fields[field].type == 'excludes' or not self.fields[field].equals == val):
+#                            allFieldsMatchGoalFlag = False
+#                    if (allFieldsMatchGoalFlag):
+#                        if (userAction.content['confirm'] == 'YES'):
+#                            result = self.umParams['confirm_directAnswerProb']
+#                        else:
+#                            result = 0.0
+#                    else:
+#                        if (userAction.content['confirm'] == 'NO'):
+#                            result = self.umParams['confirm_directAnswerProb']
+#                        else:
+#                            result = 0.0
+#            else:
+#                raise RuntimeError, 'Dont know sysAction.force = %s' % (sysAction.force)
+        result = 0.0
         if (sysAction.type == 'ask'):
-            if (sysAction.force == 'request'):
-                if (userAction.type == 'non-understanding'):
+            if (userAction.type == 'non-understanding'):
+                if (sysAction.force == 'confirm'):
+                    result = self.umParams['confirm_nonUnderstandingProb']
+                else: 
                     result = self.umParams['request_nonUnderstandingProb']
-                else:
-                    targetFieldIncludedFlag = False
-                    overCompleteFlag = False
-                    allFieldsMatchGoalFlag = True
-                    askedField = sysAction.content
-                    for field in userAction.content:
-                        if field == 'confirm':
+            else:
+                targetFieldIncludedFlag = False
+                overCompleteFlag = False
+                allFieldsMatchGoalFlag = True
+                askedField = sysAction.content
+                for field in userAction.content:
+                    if field == 'confirm':
+                        if sysAction.force == 'request':
                             allFieldsMatchGoalFlag = False
                             continue
+                        for field in sysAction.content:
+                            val = sysAction.content[field]
+                            if (self.fields[field].type == 'excludes' or not self.fields[field].equals == val):
+                                allFieldsMatchGoalFlag = False
+                        if (allFieldsMatchGoalFlag):
+                            if (userAction.content['confirm'] == 'YES'):
+                                result = self.umParams['confirm_directAnswerProb']
+                            else:
+                                result = self.umParams['request_irrelevantAnswerProb']
+                        else:
+                            if (userAction.content['confirm'] == 'NO'):
+                                result = self.umParams['confirm_directAnswerProb']
+                            else:
+                                result = self.umParams['request_irrelevantAnswerProb']
+                    else:
                         val = userAction.content[field]
                         if (self.fields[field].type == 'equals' and self.fields[field].equals == val):
                             if (field == askedField):
@@ -260,44 +339,24 @@ class Partition(object):
                                 overCompleteFlag = True
                         else:
                             allFieldsMatchGoalFlag = False
-                    if (not allFieldsMatchGoalFlag):
-                        # This action doesn't agree with this partition
-                        result = 0.0
-                    elif (askedField == 'all'):
-                        # A response to the open question
-                        result = self.umParams['open_answerProb']
-                    elif (not targetFieldIncludedFlag):
-                        # This action doesn't include the information that was asked for
-                        # This user model doesn't ever do this
-                        result = 0.0
-                    elif (overCompleteFlag):
-                        # This action include extra information - this happens
-                        # request_overCompleteProb amount of the time
-                        result = self.umParams['request_overCompleteProb']
-                    else:
-                        # This action just answers the question that was asked
-                        result = self.umParams['request_directAnswerProb']
-            elif (sysAction.force == 'confirm'):
-                if (userAction.type == 'non-understanding'):
-                    result = self.umParams['confirm_nonUnderstandingProb']
+                if (not allFieldsMatchGoalFlag):
+                    # This action doesn't agree with this partition
+                    result = self.umParams['request_irrelevantAnswerProb']
+                elif (askedField == 'all'):
+                    # A response to the open question
+                    result = self.umParams['open_answerProb']
+                elif (not targetFieldIncludedFlag):
+                    # This action doesn't include the information that was asked for
+                    # This user model doesn't ever do this
+                    result = self.umParams['request_irrelevantAnswerProb']
+                elif (overCompleteFlag):
+                    # This action include extra information - this happens
+                    # request_overCompleteProb amount of the time
+                    result = self.umParams['request_overCompleteProb']
                 else:
-                    allFieldsMatchGoalFlag = True
-                    for field in sysAction.content:
-                        val = sysAction.content[field]
-                        if (self.fields[field].type == 'excludes' or not self.fields[field].equals == val):
-                            allFieldsMatchGoalFlag = False
-                    if (allFieldsMatchGoalFlag):
-                        if (userAction.content['confirm'] == 'YES'):
-                            result = self.umParams['confirm_directAnswerProb']
-                        else:
-                            result = 0.0
-                    else:
-                        if (userAction.content['confirm'] == 'NO'):
-                            result = self.umParams['confirm_directAnswerProb']
-                        else:
-                            result = 0.0
-            else:
-                raise RuntimeError, 'Dont know sysAction.force = %s' % (sysAction.force)
+                    # This action just answers the question that was asked
+                    result = result if result > 0 else self.umParams['request_directAnswerProb']
+
         else:
             raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
         return result
@@ -435,7 +494,7 @@ class BeliefState(object):
         Calls partitionDistribution.Init() method.  Call this at the beginning of
         each dialog.
         '''
-        self.partitionDistribution.Init()
+#        self.partitionDistribution.Init()
         self.marginals = None
 
     def Update(self,asrResult,sysAction):
@@ -454,8 +513,11 @@ class BeliefState(object):
         callee = None
         belief = None
         for partitionEntry in reversed(self.partitionDistribution.partitionEntryList):
-            if (partitionEntry.partition.count == 1):
-                dbReturn = self.db.GetListingsByQuery(partitionEntry.partition.fields)
+#            if (partitionEntry.partition.count == 1):
+                #dbReturn = self.db.GetListingsByQuery(partitionEntry.partition.fields)
+            if (partitionEntry.partition.fields['departure_place'].type == 'equals' and \
+                partitionEntry.partition.fields['arrival_place'].type == 'equals' and \
+                partitionEntry.partition.fields['travel_time'].type == 'equals'):
                 callee = 'temp' #dbReturn[0]
                 belief = partitionEntry.belief
                 break

@@ -42,6 +42,7 @@ class UserSimulation(object):
 
     def Init(self):
         self.send_json({'Command':'Start over'})
+        self.goal = self.send_json({'Command':'Get user goal'})
 
     def TakeTurn(self,systemAction):
         # map systemAction to an LGus action
@@ -58,7 +59,15 @@ class UserSimulation(object):
                 if systemAction.content == 'travel_time':
                     act_str = 'Request(Travel time)'
         elif systemAction.force == 'confirm': 
-            act_str = 'Confirm(%s:%s)'%(systemAction.content.keys()[0],systemAction.content[systemAction.content.keys()[0]])
+                if systemAction.content.keys()[0] == 'route':
+                    act_str = 'Confirm(Bus number:%s)'%systemAction.content['route']
+                if systemAction.content.keys()[0] == 'departure_place':
+                    act_str = 'Confirm(Departure place:%s)'%systemAction.content['departure_place']
+                if systemAction.content.keys()[0] == 'arrival_place':
+                    act_str = 'Confirm(Arrival place:%s)'%systemAction.content['arrival_place']
+                if systemAction.content.keys()[0] == 'travel_time':
+                    act_str = 'Confirm(Travel time:%s)'%systemAction.content['travel_time']
+            
         else:
             raise RuntimeError,'Invalid system action force'
         print act_str
@@ -82,9 +91,9 @@ class UserSimulation(object):
                     if uact.find('Travel time') > -1:
                         ua_dict.update({'travel_time':uact.split(':')[1][:-1]})
                 elif uact.startswith('Affirm'):
-                    ua_dict.update({'confirm':'yes'})
+                    ua_dict.update({'confirm':'YES'})
                 elif uact.startswith('Deny'):
-                    ua_dict.update({'confirm':'no'})
+                    ua_dict.update({'confirm':'NO'})
             userActionHyps = [UserAction('ig',ua_dict)]
             probs = [usr_act['Confidence score']]
             correctPosition = 0

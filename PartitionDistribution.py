@@ -290,7 +290,9 @@ class PartitionDistribution(object):
                     offListUserActionLikelihood = 1.0 - existingHistoryEntry.userActionLikelihoodTotal
                     # Re-compute the amount of mass for all offlist actions
                     oldOffListHistoryEntryBelief = existingHistoryEntry.belief
-                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
+#                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
+#                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * (asrUnseenActionLikelihood/190740000000)
+                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * (asrUnseenActionLikelihood*existingPartitionEntry.partition.prior)
                     existingPartitionEntry.newBelief = existingPartitionEntry.newBelief - oldOffListHistoryEntryBelief + existingHistoryEntry.belief
                     rawOfflistBeliefTotal += existingHistoryEntry.belief
                 self.appLogger.info('  Raw (unnormalized) log-belief in this partition is now %s' % (_LogToStringSafely(existingPartitionEntry.newBelief)))
@@ -521,7 +523,9 @@ def _LogToStringSafely(n):
     if (n == 0.0):
         return '-'
     elif (n < 0.0):
-        raise RuntimeError,'Cannot take log of value less than 0: %f' % (n)
+        print 'Cannot take log of value less than 0: %f' % (n)
+        return '-'
+        #raise RuntimeError,'Cannot take log of value less than 0: %f' % (n)
     else:
         return '%s' % (log(n))
 
