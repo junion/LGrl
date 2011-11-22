@@ -67,7 +67,7 @@ def SimulateOneDialog(userSimulation,dialogManager):
         
         updateTime = dialogManager.beliefState.partitionDistribution.stats.clocks['mainUpdate']
         
-        appLogger.info('Update time: %f' % (updateTime))
+#        appLogger.info('Update time: %f' % (updateTime))
         
         turns.append({
             'systemAction': systemAction,

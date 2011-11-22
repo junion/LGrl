@@ -323,11 +323,13 @@ class Partition(object):
                         if (allFieldsMatchGoalFlag):
                             if (userAction.content['confirm'] == 'YES'):
                                 result = self.umParams['confirm_directAnswerProb']
+                                targetFieldIncludedFlag = True
                             else:
                                 result = self.umParams['request_irrelevantAnswerProb']
                         else:
                             if (userAction.content['confirm'] == 'NO'):
                                 result = self.umParams['confirm_directAnswerProb']
+                                targetFieldIncludedFlag = True
                             else:
                                 result = self.umParams['request_irrelevantAnswerProb']
                     else:
