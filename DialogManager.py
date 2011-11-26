@@ -228,7 +228,7 @@ class OpenDialogManager(DialogManager):
         self.confirmRouteHighThreshold = self.config.getfloat(MY_ID,'confirmRouteHighThreshold')
         self.confirmDeparturePlaceHighThreshold = self.config.getfloat(MY_ID,'confirmDeparturePlaceHighThreshold')
         self.confirmArrivalPlaceHighThreshold = self.config.getfloat(MY_ID,'confirmArrivalPlaceHighThreshold')
-        self.confirmTravelTimePlaceHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimePlaceHighThreshold')
+        self.confirmTravelTimeHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimeHighThreshold')
 
     def Init(self):
         self.beliefState.Init()
@@ -282,7 +282,7 @@ class OpenDialogManager(DialogManager):
                 'arrival_place' in asrResult.userActions[0].content and marginals['arrival_place'][-1]['belief'] < self.confirmArrivalPlaceHighThreshold:
                     confirmField = 'arrival_place' 
                 elif len(marginals['travel_time']) > 0 and\
-                'travel_time' in asrResult.userActions[0].content and marginals['travel_time'][-1]['belief'] < self.confirmTravelTimePlaceHighThreshold:
+                'travel_time' in asrResult.userActions[0].content and marginals['travel_time'][-1]['belief'] < self.confirmTravelTimeHighThreshold:
                     confirmField = 'travel_time' 
             if (confirmField != None):
                 surface = 'Is this right?' #self.prompts.YNQuestion(confirmField,self.fieldCounts[confirmField])
@@ -312,6 +312,188 @@ class OpenDialogManager(DialogManager):
                 grammarName = askField
             sysAction = SystemAction('ask','request',askField,surface=surface,grammarName=grammarName)
             return sysAction
+
+import numpy as np
+from SparseBayes import SparseBayes
+class SBSarsaDialogManager(DialogManager):
+    '''
+    See module header for a description.
+    '''
+    def __init__(self):
+        DialogManager.__init__(self)
+        self.fields = ['route','departure_place','arrival_place','travel_time']
+        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
+        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
+        self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
+        self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
+        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+        self.sb = SparseBayes()
+
+    def Init(self,userGoal=None):
+        self.userGoal = userGoal
+        self.beliefState.Init()
+        self.fieldCounts = dict([(field,0) for field in self.fields])
+        self.fieldCounts['all'] = 0
+        self.routeConfirmCount = 0
+        sysAction,Qval = self._ChooseAction()
+        self.prevSysAction = sysAction
+        self.prevAsrResult = None
+        return sysAction
+
+    def TakeTurn(self,asrResult):
+        from copy import deepcopy
+#       prevBeliefState = deepcopy(self.beliefState)
+        prevTopBelief = self.beliefState.GetTopUserGoalBelief()
+        prevMarginals = deepcopy(self.beliefState.GetMarginals())
+        reward = self._GetReward(self.beliefState,self.prevSysAction)
+        self.beliefState.Update(asrResult,self.prevSysAction)
+        sysAction,Qval = self._ChooseAction(asrResult)
+        self._SBSarsa(prevTopBelief,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
+        self.prevSysAction = sysAction
+        self.prevAsrResult = asrResult
+        # terminal case
+        if sysAction.type == 'inform':
+            reward = self._GetReward(self.beliefState,sysAction)
+            self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
+        return sysAction
+
+    def _GetReward(self,beliefState,sysAction):
+        if sysAction.type == 'inform':
+            field = beliefState.GetTopUserGoal()
+            if self.userGoal['Bus number'] == '' and field['route'].type == 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Bus number'] != '' and field['route'].type != 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Bus number'] != '' and self.userGoal['Bus number'] != field['route'].equals:
+                return self.taskFailureReward
+            if self.userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Departure place'] != '' and self.userGoal['Departure place'] != field['departure_place'].equals:
+                return self.taskFailureReward
+            if self.userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Arrival place'] != '' and self.userGoal['Arrival place'] != field['arrival_place'].equals:
+                return self.taskFailureReward
+            if self.userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
+                return self.taskFailureReward
+            if self.userGoal['Travel time'] != '' and self.userGoal['Travel time'] != field['travel_time'].equals:
+                return self.taskFailureReward
+            return self.taskSuccessReward
+        else:
+            return self.taskProceedReward
+
+    def _basis_vector(self,XN,x):
+        BASIS = np.zeros((len(XN),1))
+        for i, xi in enumerate(XN):
+            if xi[1] == x[1] and xi[2] == x[2]:
+#            if xi[2] == x[2]:
+                BASIS[i] = (np.dot(xi[0],x[0]) + 0.1)**2
+        return BASIS
+    
+    def _basis_matrix(self,X,BASIS=None):
+#        print X
+        BASIS = np.zeros((len(X),len(X)))
+#        print BASIS
+        for i, x1 in enumerate(X):
+#            print 'x1: %s'%str(x1)
+            for j, x2 in enumerate(X):
+#                print 'x2: %s'%str(x2)
+                if x1[1] == x2[1] and x1[2] == x2[2]:
+#                if x1[2] == x2[2]:
+                    BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
+#        print BASIS
+        return BASIS
+    
+    def _SBSarsa(self,topBelief,marginals,sysAction,reward,nextQval,asrResult):
+        self.appLogger.info('reward %d'%reward)
+        self.appLogger.info('nextQval %f'%nextQval)
+        y = reward + nextQval * self.rewardDiscountFactor
+        contX = [0.0] if topBelief == None else [topBelief]
+        for field in self.fields:
+            if (len(marginals[field]) > 0):
+                contX.append(marginals[field][-1]['belief'])
+            else:
+                contX.append(0.0)
+        userAct = 'None' if asrResult == None else str(asrResult.userActions[0]).split('=')[0]
+        X = [np.array(contX),userAct,str(sysAction).split('=')[0]]
+        self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+        self.sb.incremental_learn([X],np.atleast_2d(y),self._basis_matrix)
+    
+    def _ChooseAction(self,asrResult=None):
+        import random
+        
+        # action list
+        acts = ['[ask] request all','[ask] request route','[ask] request departure_place',\
+                '[ask] request arrival_place','[ask] request travel_time',\
+                '[ask] confirm route','[ask] confirm departure_place',\
+                '[ask] confirm arrival_place','[ask] confirm travel_time',\
+                '[inform]']
+        
+        if self.beliefState.GetTopUniqueMandatoryUserGoal() == 0.0:
+            acts = acts[:-1]
+            self.appLogger.info(str(acts))
+
+        act = ''        
+        if asrResult == None or self.sb.get_basis_size() == 0:
+            act = random.choice(acts[:5])
+        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
+            act = acts[-1]
+        elif random.random() < 0.1:
+            act = random.choice(acts)
+        
+        contX = [self.beliefState.GetTopUserGoalBelief()]
+        marginals = self.beliefState.GetMarginals()
+        for field in self.fields:
+            if (len(marginals[field]) > 0):
+                contX.append(marginals[field][-1]['belief'])
+            else:
+                contX.append(0.0)
+        try:
+            w_infer = np.zeros((self.sb.get_basis_size(),1))
+            w_infer[self.Relevant] = self.Mu 
+            if act == '':
+                ys = np.array([])
+                for act in acts:
+                    X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
+#                    print 'choose X:%s'%str(X)
+    #                print ys
+    #                print np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer).flatten()
+                    ys = np.concatenate((ys,np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer).ravel()))
+                    
+                self.appLogger.info('Qvals: %s'%str(ys))
+                act = acts[ys.argmax(0)]
+                Qval = ys.max(0)
+            else:
+                X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
+                Qval = np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]
+        except:
+            Qval = 0.0
+            
+        self.appLogger.info('Qval: %f'%Qval)
+        
+        if act == '[inform]':
+            belief = self.beliefState.GetTopUserGoalBelief()
+            destination = ''
+            surface = self.prompts.BusSchedule(None)
+            sysAction = SystemAction('inform',content=None,surface=surface,destination=destination)
+        else:
+            print 'ask act: %s'%act
+            type,force,field = act.split(' ')
+            if force == 'request':
+                surface = self.prompts.WHQuestion(field,self.fieldCounts[field])
+                sysAction = SystemAction('ask','request',field,surface=surface,grammarName=field)
+                self.fieldCounts[field] += 1
+            elif force == 'confirm':
+                surface = 'Is this right?'
+                value = '' if len(marginals[field]) == 0 else marginals[field][-1]['equals']
+                sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+        return sysAction,Qval
 
 class LetsGoPrompts(object):
     '''

@@ -496,7 +496,7 @@ class BeliefState(object):
         Calls partitionDistribution.Init() method.  Call this at the beginning of
         each dialog.
         '''
-#        self.partitionDistribution.Init()
+        self.partitionDistribution.Init()
         self.marginals = None
 
     def Update(self,asrResult,sysAction):
@@ -506,6 +506,22 @@ class BeliefState(object):
         '''
         self.partitionDistribution.Update(asrResult,sysAction)
         self.marginals = None
+
+    def GetTopUserGoalBelief(self):
+        return self.partitionDistribution.partitionEntryList[-1].belief
+
+    def GetTopUserGoal(self):
+        return self.partitionDistribution.partitionEntryList[-1].partition.fields
+
+    def GetTopUniqueMandatoryUserGoal(self):
+        partitionEntry = self.partitionDistribution.partitionEntryList[-1]
+        if (partitionEntry.partition.fields['departure_place'].type == 'equals' and \
+            partitionEntry.partition.fields['arrival_place'].type == 'equals' and \
+            partitionEntry.partition.fields['travel_time'].type == 'equals'):
+            return partitionEntry.belief
+        else:
+            return 0.0
+
 
     def GetTopUniqueUserGoal(self):
         '''

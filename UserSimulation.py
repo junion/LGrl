@@ -42,7 +42,7 @@ class UserSimulation(object):
 
     def Init(self):
         self.send_json({'Command':'Start over'})
-        self.goal = self.send_json({'Command':'Get user goal'})
+        self.goal = json.loads(self.send_json({'Command':'Get user goal'}))
 
     def TakeTurn(self,systemAction):
         # map systemAction to an LGus action
@@ -70,9 +70,9 @@ class UserSimulation(object):
             
         else:
             raise RuntimeError,'Invalid system action force'
-        print act_str
+#        print act_str
         json_usr = self.send_json({'System action':act_str})
-        print json_usr
+#        print json_usr
         usr_act = json.loads(json_usr)
         if usr_act['User action'][0] == 'Non-understanding':
             userActionHyps = [UserAction('non-understanding')]

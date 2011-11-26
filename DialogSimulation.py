@@ -29,7 +29,8 @@ from GlobalConfig import *
 from BeliefState import BeliefState
 from UserSimulation import UserSimulation
 from DB import InitDB
-from DialogManager import OpenDialogManager as DialogManager
+#from DialogManager import OpenDialogManager as DialogManager
+from DialogManager import SBSarsaDialogManager as DialogManager
 
 def SimulateOneDialog(userSimulation,dialogManager):
     '''
@@ -43,11 +44,13 @@ def SimulateOneDialog(userSimulation,dialogManager):
 
     Displays result on the "Transcript" logger
     '''
+    
+    userSimulation.Init()
+    systemAction = dialogManager.Init(userSimulation.goal)
+
     appLogger = logging.getLogger('Transcript')
     appLogger.info('------ Prior to start of dialog ------')
     appLogger.info('PartitionDistribution:\n%s' % (dialogManager.beliefState))
-    systemAction = dialogManager.Init()
-    userSimulation.Init()
     i = 0
     turns = []
     while(systemAction.type == 'ask'):
@@ -77,6 +80,8 @@ def SimulateOneDialog(userSimulation,dialogManager):
         
         systemAction = nextSystemAction
         
+        if i > 30:
+            break
         i += 1
         
     appLogger.info('\n------ Turn %d ------' % (i+1))
@@ -102,7 +107,10 @@ def main():
     dialogManager = DialogManager()
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
-    SimulateOneDialog(userSimulation,dialogManager)
+    for i in range(100):
+        appLogger = logging.getLogger('Transcript')
+        appLogger.info('Dialog %d'%i)
+        SimulateOneDialog(userSimulation,dialogManager)
 
 if (__name__ == '__main__'):
     main()

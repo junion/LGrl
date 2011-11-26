@@ -215,10 +215,11 @@ class SystemAction:
                 content = self.content
             else:
                 content = ','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
-            force = '%s(%s) {%s}' % (self.force,content,self.grammar)
+#            force = '%s(%s) {%s}' % (self.force,content,self.grammar)
+            force = '%s %s' % (self.force,content)
         elif (self.type == 'inform'):
             content = '' #','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
-            force = 'travel spec(%s)' % (content)
+            force = None#travel spec(%s)' % (content)
         elif (self.type == 'hangup'):
             force = None
         else:
@@ -226,8 +227,8 @@ class SystemAction:
         result = '[%s]' % (self.type)
         if (not force == None):
             result = '%s %s' % (result,force)
-        if (not self.surface == None):
-            result = '%s "%s"' % (result,self.surface)
+#        if (not self.surface == None):
+#            result = '%s "%s"' % (result,self.surface)
         return result
 
     def GetJSON(self):
