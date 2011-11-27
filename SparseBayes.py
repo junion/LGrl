@@ -1,12 +1,14 @@
 import logging
+import logging.config
 import numpy as np
 import scipy.linalg as la
 
 class SparseBayes(object):
     def __init__(self):
-        self.appLogger = logging.getLogger('SparseBayes')
+        logging.config.fileConfig('logging.conf')
+        self.appLogger = logging.getLogger('Results')
         if id(np.dot) == id(np.core.multiarray.dot):
-            print "Not using blas/lapack!"
+            self.appLogger.info("Not using blas/lapack!")
         self.GAUSSIAN_SNR_INIT = 0.1
         self.INIT_ALPHA_MAX = 1e3
         self.INIT_ALPHA_MIN = 1e-3
@@ -22,7 +24,8 @@ class SparseBayes(object):
         self.CONTROL_PosteriorModeFrequency = 1
         self.CONTROL_BasisAlignmentTest = True
         self.CONTROL_AlignmentMax = 1 - self.ALIGNMENT_ZERO
-        self.OPTION_iteration = 100#00
+        self.OPTIONS_iteration = 100#00
+        self.OPTIONS_monitor = 10
         self.SETTING_noiseStdDev = 0.1
         self.ACTION_REESTIMATE = 0
         self.ACTION_ADD = 1
@@ -32,7 +35,12 @@ class SparseBayes(object):
         self.ACTION_ALIGNMENT_SKIP = 12
 
     def preprocess(self,BASIS):
-        N,M = BASIS.shape
+        try:
+            N,M = BASIS.shape
+        except:
+            self.appLogger.info('Error BASIS:\n %s'%str(BASIS))
+#            print 'Error BASIS:\n %s'%str(BASIS)
+            raise RuntimeError      
         Scales = np.atleast_2d(np.sqrt((BASIS**2).sum(axis=0))).T
         Scales[Scales==0] = 1
         
@@ -70,7 +78,7 @@ class SparseBayes(object):
         Alpha = s**2/(q**2-s)
         Alpha[Alpha<0] = self.INIT_ALPHA_MAX
         if M == 1:
-            print 'Initial alpha = %g'%Alpha
+            self.appLogger.info('Initial alpha = %g'%Alpha)
             
         return BASIS,Scales,Alpha,beta,Mu,PHI,Used
     
@@ -135,13 +143,17 @@ class SparseBayes(object):
         
         return SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,betaBASIS_PHI,beta
         
-    def sequential_update(self,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+    def sequential_update(self,X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
                                Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
                                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI):
         # diagnosis
         update_count = 0
         add_count = 0
         delete_count = 0
+        beta_count = 0
+        
+        count = 0
+        log_marginal_log = np.array([])
         
         try:
             N,M_full = BASIS.shape
@@ -253,7 +265,8 @@ class SparseBayes(object):
             (selected_Action == self.ACTION_REESTIMATE and \
              np.abs(np.log(new_Alpha) - np.log(Alpha[j])) < self.CONTROL_MinDeltaLogAlpha and \
              not any_to_delete):
-                print 'No worthwhile action'
+#                print 'No worthwhile action'
+                act_ = 'potential termination'
                 selected_Action = self.ACTION_TERMINATE
                 
             # alignment checks
@@ -272,27 +285,30 @@ class SparseBayes(object):
                     if num_Aligned > 0:
                         # the added basis function is effectively indistinguishable from one present already
                         selected_Action = self.ACTION_ALIGNMENT_SKIP
+                        act_ = 'alignment-deferred addition'
                         align_defer_count += 1
-                        print 'Aligned_out %s'%str(Aligned_out)
-                        print 'nu %s'%str(nu)
-                        print 'num_Aligned %d'%num_Aligned
-                        print 'dot %s'%str(nu.repeat(num_Aligned))
+#                        print 'Aligned_out %s'%str(Aligned_out)
+#                        print 'nu %s'%str(nu)
+#                        print 'num_Aligned %d'%num_Aligned
+#                        print 'dot %s'%str(nu.repeat(num_Aligned))
 #                        Aligned_out = np.concatenate((Aligned_out,np.dot(nu,np.ones((num_Aligned,1)))))
                         Aligned_out = np.concatenate((Aligned_out,nu.repeat(num_Aligned))).astype('int')
-                        print 'Aligned_out %s'%str(Aligned_out)
+#                        print 'Aligned_out %s'%str(Aligned_out)
 #                        print 'Used[find_Aligned] %s'%str(Used[find_Aligned])
                         Aligned_in = np.concatenate((Aligned_in,Used[find_Aligned])).astype('int')
 #                        print 'Aligned_in %s'%str(Aligned_in)
+                        self.appLogger.info('Alignment out of %s'%str(Aligned_out))
                 if selected_Action == self.ACTION_DELETE:
                     # reinstate any previously deferred basis functions resulting from this basis function
                     find_Aligned = (Aligned_in == nu).nonzero()
                     num_Aligned = find_Aligned[0].size
                     if num_Aligned > 0:
-                        print 'del Aligned_out %s'%str(Aligned_out)
-                        print 'del find_Aligned %s'%str(find_Aligned)
+#                        print 'del Aligned_out %s'%str(Aligned_out)
+#                        print 'del find_Aligned %s'%str(find_Aligned)
                         reinstated = Aligned_out[find_Aligned]
                         Aligned_in = np.delete(Aligned_in,find_Aligned)
                         Aligned_out = np.delete(Aligned_out,find_Aligned)
+                        self.appLogger.info('Alignment reinstatement of %s'%str(reinstated))
 #                        print 'del Aligned_out %s'%str(Aligned_out)
 #                        print 'del Aligned_in %s'%str(Aligned_in)
             
@@ -318,6 +334,7 @@ class SparseBayes(object):
                 Q_in = Q_in - np.dot(BASIS_B_PHI,deltaMu)
                 
                 update_count += 1
+                act_ = 're-estimation'
                 UPDATE_REQUIRED = True
             elif selected_Action == self.ACTION_ADD:
                 # basis function nu is not in the model, and we're adding it in
@@ -346,6 +363,7 @@ class SparseBayes(object):
                 Used = np.concatenate((Used,nu))
                 
                 add_count += 1
+                act_ = 'addition'
                 UPDATE_REQUIRED = True
             elif selected_Action == self.ACTION_DELETE:
                 # basis function nu is in the model, but we're removing it
@@ -380,12 +398,21 @@ class SparseBayes(object):
 #               Used[j] = np.array([])
 
                 delete_count += 1
+                act_ = 'deletion'
                 UPDATE_REQUIRED = True
                 
             M = len(Used)
             if M == 0:
-                raise RuntimeError
+                self.appLogger.info('Null PHI: \nX:\n %s \nY:\n %s \nBASIS:\n %s'%(str(X),str(Targets),str(BASIS)))
+#                print 'Null PHI: \nX:\n %s \nY: %s\n \nBASIS:\n %s'%(str(self.X),str(Targets),str(BASIS))
+                import pickle
+                pickle.dump(X,open('X','w'))
+                pickle.dump(Targets,open('Y','w'))
+                pickle.dump(BASIS,open('B','w'))
+                raise RuntimeError,(X,Targets,BASIS)
             
+            self.appLogger.info('ACTION: %s of %d (%g)'%(act_,nu,delta_log_marginal))
+                 
             # update statistics
             if UPDATE_REQUIRED:
                 # S_in and S_out values were calculated earlier
@@ -402,8 +429,13 @@ class SparseBayes(object):
                 SIGMA = SIGMANEW
                 Gamma = 1 - np.ravel(Alpha) * np.diag(SIGMA)
                 BASIS_B_PHI = beta * BASIS_PHI
-            
-            logML = logML + delta_log_marginal
+                
+                if delta_log_marginal < 0:
+                    self.appLogger.info('** Alert **  DECREASE IN LIKELIHOOD !! (%g)'%delta_log_marginal)
+
+                logML += delta_log_marginal
+                count = count + 1
+                log_marginal_log = np.concatenate((log_marginal_log,logML.ravel()))
             
             # Gaussian noise estimate
             betaZ1 = beta
@@ -411,11 +443,14 @@ class SparseBayes(object):
             e = Targets - y
             if not np.dot(e.T,e) == 0:
                 beta = (N - np.sum(Gamma))/np.dot(e.T,e)
+#                if np.var(Targets) > 0:
+#                    beta = np.min(np.vstack((beta,self.CONTROL_BetaMaxFactor/np.var(Targets))))
+            else:
                 # work-around zero-noise issue
                 if np.var(Targets) > 0:
-                    beta = np.min(np.vstack((beta,self.CONTROL_BetaMaxFactor/np.var(Targets))))
-            else:
-                beta = self.CONTROL_BetaMaxFactor
+                    beta = self.CONTROL_BetaMaxFactor/np.var(Targets)
+                else:
+                    beta = self.CONTROL_BetaMaxFactor
 
             delta_log_beta = np.log(beta) - np.log(betaZ1)
             
@@ -425,28 +460,48 @@ class SparseBayes(object):
                 SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
                 self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
                 full_count += 1
+                count = count + 1;
+                log_marginal_log = np.concatenate((log_marginal_log,logML.ravel()))
 #                print SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta
 #                print beta
 #                print Factor
-#                if selected_Action == self.ACTION_TERMINATE:
-#                    selected_Action = self.ACTION_NOISE_ONLY
+                if selected_Action == self.ACTION_TERMINATE:
+                    self.appLogger.info('Noise update (termination deferred)')
+                    selected_Action = self.ACTION_NOISE_ONLY
             
             if selected_Action == self.ACTION_TERMINATE:
+                self.appLogger.info('** Stopping at iteration %d (Max_delta_ml=%g) **'%(i,delta_log_marginal))
+                self.appLogger.info('%4d> L = %.6f\t Gamma = %.2f (M = %d)'%(i,logML/N,np.sum(Gamma),M))
                 break
             
             # check for "natural" termination
-            if i == self.OPTION_iteration:
+            if i == self.OPTIONS_iteration:
                 LAST_ITERATION = True
             
-#            print '%5d> L = %.6f\t Gamma = %.2f (M = %d)\t s=%.3f'%(i,logML/N,np.sum(Gamma),M,np.sqrt(1/beta))
-            pass
+            if ((self.OPTIONS_monitor > 0) and (i % self.OPTIONS_monitor == 0)) or LAST_ITERATION:
+                self.appLogger.info('%5d> L = %.6f\t Gamma = %.2f (M = %d)'%(i,logML/N,np.sum(Gamma),M))
+
         # post-process
-        self.appLogger.info('%5d> L = %.6f\t Gamma = %.2f (M = %d)\t s=%.3f'%(i,logML/N,np.sum(Gamma),M,np.sqrt(1/beta)))
+#        self.appLogger.info('%5d> L = %.6f\t Gamma = %.2f (M = %d)\t s=%.3f'%(i,logML/N,np.sum(Gamma),M,np.sqrt(1/beta)))
         if selected_Action != self.ACTION_TERMINATE:
             self.appLogger.info('Iteration limit: algorithm did not converge')
-        else:
-            self.appLogger.info('** Stopping at iteration %d (Max_delta_ml=%g) **'%(i,delta_log_marginal))
-                
+        
+        total = add_count + delete_count + update_count
+        if self.CONTROL_BasisAlignmentTest:
+            total += align_defer_count
+        if total == 0: total = 1
+        self.appLogger.info('Action Summary')
+        self.appLogger.info('==============')
+        self.appLogger.info('Added\t\t%6d (%.0f%%)'%(add_count,100*add_count/total))
+        self.appLogger.info('Deleted\t\t%6d (%.0f%%)'%(delete_count,100*delete_count/total))
+        self.appLogger.info('Reestimated\t%6d (%.0f%%)'%(update_count,100*update_count/total))
+        if self.CONTROL_BasisAlignmentTest and align_defer_count:
+            self.appLogger.info('--------------');
+            self.appLogger.info('Deferred\t%6d (%.0f%%)'%(align_defer_count,100*align_defer_count/total))
+        self.appLogger.info('==============')
+        self.appLogger.info('Total of %d likelihood updates'%count)
+#        self.appLogger.info('Time to run: %s', SB2_FormatTime(t1));
+        
         Relevant,index = np.sort(Used),np.argsort(Used)
         Mu = Mu[index] / Scales[Used[index]]
         Alpha = Alpha[index] / Scales[Used[index]]**2
@@ -454,11 +509,12 @@ class SparseBayes(object):
         return Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
             Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
 
-    def learn(self,X,Targets,basis_func,extendable=True):
-        BASIS = basis_func(X)
+    def learn(self,X,Targets,basis_func,BASIS=None,extendable=True):
+        if BASIS == None:
+            BASIS = basis_func(X)
         
         # initialization
-        print 'Initialization'
+        self.appLogger.info('Initialization')
         BASIS,Scales,Alpha,beta,Mu,PHI,Used = self.initialize(BASIS,Targets)
 #        print BASIS,Scales,Alpha,beta,Mu,PHI,Used
         
@@ -466,7 +522,7 @@ class SparseBayes(object):
         BASIS_Targets = np.dot(BASIS.T,Targets)
         
         # full computation
-        print 'Full computation'
+        self.appLogger.info('Full computation')
         SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
         self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
         
@@ -477,7 +533,7 @@ class SparseBayes(object):
         Used,Alpha,beta,\
         Aligned_out,Aligned_in,align_defer_count,\
         Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-        self.sequential_update(Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
                                Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
                                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
         
@@ -491,7 +547,7 @@ class SparseBayes(object):
         
         return Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count
                 
-    def incremental_learn(self,new_X,new_T,inc_basis_func,extendable=True):
+    def incremental_learn(self,new_X,new_T,inc_basis_func,BASIS=None,extendable=True):
 
         try:
             X,Targets,BASIS,Used,\
@@ -502,7 +558,7 @@ class SparseBayes(object):
             self.Aligned_out,self.Aligned_in,self.align_defer_count
 #        except NameError:
         except:
-            return self.learn(new_X,new_T,inc_basis_func)
+            return self.learn(new_X,new_T,inc_basis_func,BASIS=BASIS)
 #            print "First, use 'learn' method with extendable=True"
 
 #        X = np.vstack((X,new_X))
@@ -511,7 +567,7 @@ class SparseBayes(object):
         BASIS = inc_basis_func(X,BASIS)
             
         # pre-process
-        print 'Pre-process'
+        self.appLogger.info('Pre-process')
         BASIS,Scales = self.preprocess(BASIS)
         
         PHI = BASIS[:,Used]
@@ -521,14 +577,14 @@ class SparseBayes(object):
         BASIS_Targets = np.dot(BASIS.T,Targets)
         
         # full computation
-        print 'Full computation'
+        self.appLogger.info('Full computation') 
         SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
         self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
         
         Used,Alpha,beta,\
         Aligned_out,Aligned_in,align_defer_count,\
         Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-        self.sequential_update(Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
                                Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
                                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
 

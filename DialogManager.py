@@ -70,7 +70,7 @@ class DialogManager(object):
     Base class.  Not meant to be instantiated on its own.
     '''
     def __init__(self):
-        self.appLogger = logging.getLogger(MY_ID)
+        self.appLogger = logging.getLogger('Results')
         self.config = GetConfig()
         self.beliefState = BeliefState()
         self.db = GetDB()
@@ -344,17 +344,19 @@ class SBSarsaDialogManager(DialogManager):
         from copy import deepcopy
 #       prevBeliefState = deepcopy(self.beliefState)
         prevTopBelief = self.beliefState.GetTopUserGoalBelief()
+        prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
         prevMarginals = deepcopy(self.beliefState.GetMarginals())
         reward = self._GetReward(self.beliefState,self.prevSysAction)
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
-        self._SBSarsa(prevTopBelief,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
+        self._SBSarsa(prevTopBelief,prevTopFields,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
         self.prevSysAction = sysAction
         self.prevAsrResult = asrResult
         # terminal case
         if sysAction.type == 'inform':
             reward = self._GetReward(self.beliefState,sysAction)
-            self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
+            self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetTopUserGoal(),\
+                          self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
         return sysAction
 
     def _GetReward(self,beliefState,sysAction):
@@ -391,26 +393,41 @@ class SBSarsaDialogManager(DialogManager):
     def _basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-            if xi[1] == x[1] and xi[2] == x[2]:
-#            if xi[2] == x[2]:
+#            if xi[1] == x[1] and xi[2] == x[2]:
+            if xi[2] == x[2]:
                 BASIS[i] = (np.dot(xi[0],x[0]) + 0.1)**2
         return BASIS
     
     def _basis_matrix(self,X,BASIS=None):
 #        print X
-        BASIS = np.zeros((len(X),len(X)))
-#        print BASIS
-        for i, x1 in enumerate(X):
-#            print 'x1: %s'%str(x1)
-            for j, x2 in enumerate(X):
-#                print 'x2: %s'%str(x2)
-                if x1[1] == x2[1] and x1[2] == x2[2]:
-#                if x1[2] == x2[2]:
-                    BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
-#        print BASIS
+#        BASIS = np.zeros((len(X),len(X)))
+##        print BASIS
+#        for i, x1 in enumerate(X):
+##            print 'x1: %s'%str(x1)
+#            for j, x2 in enumerate(X):
+##                print 'x2: %s'%str(x2)
+#                if x1[1] == x2[1] and x1[2] == x2[2]:
+##                if x1[2] == x2[2]:
+#                    BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
+#        print 'BASIS %s'%str(BASIS)
+        basis = np.zeros((len(X),1))
+        for i, xi in enumerate(X):
+#            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+            if xi[2] == X[-1][2]:
+                basis[i,0] = (np.dot(xi[0],X[-1][0]) + 0.1)**2
+#        print basis
+        if BASIS != None:
+#            print basis[:-1,0].T
+            BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
+#            print 'BASIS %s'%str(BASIS)
+            BASIS = np.hstack((BASIS,basis))
+#            print 'BASIS %s'%str(BASIS)
+        else:
+            BASIS = basis
+#        print 'BASIS %s'%str(BASIS)
         return BASIS
     
-    def _SBSarsa(self,topBelief,marginals,sysAction,reward,nextQval,asrResult):
+    def _SBSarsa(self,topBelief,topFields,marginals,sysAction,reward,nextQval,asrResult):
         self.appLogger.info('reward %d'%reward)
         self.appLogger.info('nextQval %f'%nextQval)
         y = reward + nextQval * self.rewardDiscountFactor
@@ -420,11 +437,56 @@ class SBSarsaDialogManager(DialogManager):
                 contX.append(marginals[field][-1]['belief'])
             else:
                 contX.append(0.0)
+#        for field in self.fields: 
+#            if topFields[field].type == 'equals':
+#                contX.append(0.0)
+#            else:
+#                contX.append(1.0)
         userAct = 'None' if asrResult == None else str(asrResult.userActions[0]).split('=')[0]
         X = [np.array(contX),userAct,str(sysAction).split('=')[0]]
-        self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-        self.sb.incremental_learn([X],np.atleast_2d(y),self._basis_matrix)
-    
+        try:
+            self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+            self.sb.incremental_learn([X],np.atleast_2d(y),self._basis_matrix)
+        except RuntimeError,(XN,Y,BASIS):
+            self.appLogger.info('BASIS:\n %s'%str(BASIS))
+#            print 'BASIS:\n %s'%str(BASIS)
+            self.sb = SparseBayes()
+            self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+            self.sb.incremental_learn(XN,Y,self._basis_matrix,BASIS)
+        
+        self._TraceQval()
+        
+    def _TraceQval(self):
+        import operator
+        
+        acts = ['[ask] request all','[ask] request route','[ask] request departure_place',\
+                '[ask] request arrival_place','[ask] request travel_time',\
+                '[ask] confirm route','[ask] confirm departure_place',\
+                '[ask] confirm arrival_place','[ask] confirm travel_time',\
+                '[inform]']
+        
+        w_infer = np.zeros((self.sb.get_basis_size(),1))
+        w_infer[self.Relevant] = self.Mu 
+
+        Bs = [np.array([0.25,0.25,0.25,0.25,0.25]),\
+              np.array([0.5,0.5,0.5,0.5,0.5]),\
+              np.array([0.75,0.75,0.75,0.75,0.75]),\
+              np.array([0.99,0.99,0.99,0.99,0.99]),\
+              np.array([0.5,0.25,0.5,0.5,0.5]),\
+              np.array([0.75,0.25,0.75,0.75,0.75]),\
+              np.array([0.99,0.25,0.99,0.99,0.99]),\
+              ]
+        self.appLogger.info('TraceQval:')
+        for B in Bs:
+            self.appLogger.info('%s'%str(B))
+            Qvals = []
+            for act in acts:
+                X = [B,'',act]
+                Qvals.append((act,np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]))
+            Qvals = sorted(Qvals,key=lambda q:q[1],reverse=True)
+            for Qval in Qvals:
+                self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
+                
     def _ChooseAction(self,asrResult=None):
         import random
         
@@ -437,15 +499,17 @@ class SBSarsaDialogManager(DialogManager):
         
         if self.beliefState.GetTopUniqueMandatoryUserGoal() == 0.0:
             acts = acts[:-1]
-            self.appLogger.info(str(acts))
+            self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
 
         act = ''        
         if asrResult == None or self.sb.get_basis_size() == 0:
             act = random.choice(acts[:5])
         elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
             act = acts[-1]
+            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
         elif random.random() < 0.1:
             act = random.choice(acts)
+            self.appLogger.info('Exploration act: %s'%act)
         
         contX = [self.beliefState.GetTopUserGoalBelief()]
         marginals = self.beliefState.GetMarginals()
@@ -454,6 +518,12 @@ class SBSarsaDialogManager(DialogManager):
                 contX.append(marginals[field][-1]['belief'])
             else:
                 contX.append(0.0)
+#        fields = self.beliefState.GetTopUserGoal()
+#        for field in self.fields: 
+#            if fields[field].type == 'equals':
+#                contX.append(0.0)
+#            else:
+#                contX.append(1.0)
         try:
             w_infer = np.zeros((self.sb.get_basis_size(),1))
             w_infer[self.Relevant] = self.Mu 
@@ -475,15 +545,14 @@ class SBSarsaDialogManager(DialogManager):
         except:
             Qval = 0.0
             
-        self.appLogger.info('Qval: %f'%Qval)
+        self.appLogger.info('Act %s, Qval: %f'%(act,Qval))
         
         if act == '[inform]':
-            belief = self.beliefState.GetTopUserGoalBelief()
+#            belief = self.beliefState.GetTopUserGoalBelief()
             destination = ''
             surface = self.prompts.BusSchedule(None)
             sysAction = SystemAction('inform',content=None,surface=surface,destination=destination)
         else:
-            print 'ask act: %s'%act
             type,force,field = act.split(' ')
             if force == 'request':
                 surface = self.prompts.WHQuestion(field,self.fieldCounts[field])

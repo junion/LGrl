@@ -217,10 +217,14 @@ def inc_sb_rl_test(iter=1):
     total_ED = 0
     
     for i in range(iter):
-        X =[[np.array([ 1.,  0.,  0.,  0.,  0.]), 'None', '[ask] request departure_place'],\
-            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all'],\
-            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all']]
-        Outputs = np.array([[-1.],[-1.],[-1.]])
+#        X =[[np.array([ 1.,  0.,  0.,  0.,  0.]), 'None', '[ask] request departure_place'],\
+#            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all'],\
+#            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all']]
+#        Outputs = np.array([[-1.],[-1.],[-1.]])
+        X =[[np.array([ 1.,  0.0000001,  0.00000002,  0.,  0.0000005]), 'None', '[ask] request departure_place'],\
+            [np.array([ 1.,  0.00000002,  0.0000001,  0.0000005,  0.]), '[non-understanding]', '[ask] request all'],\
+            [np.array([ 1.,  0.00000002,  0.0000005,  0.,  0.0000001]), '[non-understanding]', '[ask] request all']]
+        Outputs = np.array([[-1.0000001],[-1.00000002],[-1.0000005]])
          
         BASIS = rl_basis_func(X)
         print 'BASIS: %s'%str(BASIS)

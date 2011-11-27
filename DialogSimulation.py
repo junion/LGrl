@@ -80,7 +80,7 @@ def SimulateOneDialog(userSimulation,dialogManager):
         
         systemAction = nextSystemAction
         
-        if i > 30:
+        if i > 40:
             break
         i += 1
         
