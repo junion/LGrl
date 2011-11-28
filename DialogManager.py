@@ -327,6 +327,7 @@ class SBSarsaDialogManager(DialogManager):
         self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
         self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+        self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
         self.sb = SparseBayes()
 
     def Init(self,userGoal=None):
@@ -390,7 +391,7 @@ class SBSarsaDialogManager(DialogManager):
         else:
             return self.taskProceedReward
 
-    def _basis_vector(self,XN,x):
+    def _polynomial_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
 #            if xi[1] == x[1] and xi[2] == x[2]:
@@ -398,7 +399,7 @@ class SBSarsaDialogManager(DialogManager):
                 BASIS[i] = (np.dot(xi[0],x[0]) + 0.1)**2
         return BASIS
     
-    def _basis_matrix(self,X,BASIS=None):
+    def _polynomial_basis_matrix(self,X,BASIS=None):
 #        print X
 #        BASIS = np.zeros((len(X),len(X)))
 ##        print BASIS
@@ -406,15 +407,16 @@ class SBSarsaDialogManager(DialogManager):
 ##            print 'x1: %s'%str(x1)
 #            for j, x2 in enumerate(X):
 ##                print 'x2: %s'%str(x2)
-#                if x1[1] == x2[1] and x1[2] == x2[2]:
-##                if x1[2] == x2[2]:
+##                if x1[1] == x2[1] and x1[2] == x2[2]:
+#                if x1[2] == x2[2]:
 #                    BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
 #        print 'BASIS %s'%str(BASIS)
-        basis = np.zeros((len(X),1))
+
+        basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
 #            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
             if xi[2] == X[-1][2]:
-                basis[i,0] = (np.dot(xi[0],X[-1][0]) + 0.1)**2
+                basis[i,0] += (np.dot(xi[0],X[-1][0]) + 0.1)**2
 #        print basis
         if BASIS != None:
 #            print basis[:-1,0].T
@@ -426,11 +428,37 @@ class SBSarsaDialogManager(DialogManager):
             BASIS = basis
 #        print 'BASIS %s'%str(BASIS)
         return BASIS
-    
+
+    def _gaussian_basis_vector(self,XN,x):
+        BASIS = np.zeros((len(XN),1))
+        for i, xi in enumerate(XN):
+#            if xi[1] == x[1] and xi[2] == x[2]:
+            if xi[2] == x[2]:
+                BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2))
+        return BASIS
+        
+    def _gaussian_basis_matrix(self,X,BASIS=None):
+        basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
+        for i, xi in enumerate(X):
+#            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+            if xi[2] == X[-1][2]:
+                basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2))
+#        print basis
+        if BASIS != None:
+#            print basis[:-1,0].T
+            BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
+#            print 'BASIS %s'%str(BASIS)
+            BASIS = np.hstack((BASIS,basis))
+#            print 'BASIS %s'%str(BASIS)
+        else:
+            BASIS = basis
+#        print 'BASIS %s'%str(BASIS)
+        return BASIS
+        
     def _SBSarsa(self,topBelief,topFields,marginals,sysAction,reward,nextQval,asrResult):
         self.appLogger.info('reward %d'%reward)
         self.appLogger.info('nextQval %f'%nextQval)
-        y = reward + nextQval * self.rewardDiscountFactor
+        y = reward + nextQval * self.rewardDiscountFactor + np.random.standard_normal(1)[0]/1e10
         contX = [0.0] if topBelief == None else [topBelief]
         for field in self.fields:
             if (len(marginals[field]) > 0):
@@ -446,13 +474,13 @@ class SBSarsaDialogManager(DialogManager):
         X = [np.array(contX),userAct,str(sysAction).split('=')[0]]
         try:
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-            self.sb.incremental_learn([X],np.atleast_2d(y),self._basis_matrix)
-        except RuntimeError,(XN,Y,BASIS):
-            self.appLogger.info('BASIS:\n %s'%str(BASIS))
+            self.sb.incremental_learn([X],np.atleast_2d(y),self._gaussian_basis_matrix)
+        except RuntimeError,(XN,Y,raw_BASIS):
+            self.appLogger.info('BASIS:\n %s'%str(raw_BASIS))
 #            print 'BASIS:\n %s'%str(BASIS)
             self.sb = SparseBayes()
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-            self.sb.incremental_learn(XN,Y,self._basis_matrix,BASIS)
+            self.sb.incremental_learn(XN,Y,self._gaussian_basis_matrix,raw_BASIS)
         
         self._TraceQval()
         
@@ -482,7 +510,7 @@ class SBSarsaDialogManager(DialogManager):
             Qvals = []
             for act in acts:
                 X = [B,'',act]
-                Qvals.append((act,np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]))
+                Qvals.append((act,np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]))
             Qvals = sorted(Qvals,key=lambda q:q[1],reverse=True)
             for Qval in Qvals:
                 self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
@@ -496,20 +524,20 @@ class SBSarsaDialogManager(DialogManager):
                 '[ask] confirm route','[ask] confirm departure_place',\
                 '[ask] confirm arrival_place','[ask] confirm travel_time',\
                 '[inform]']
-        
+
         if self.beliefState.GetTopUniqueMandatoryUserGoal() == 0.0:
             acts = acts[:-1]
             self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
-
+        
         act = ''        
         if asrResult == None or self.sb.get_basis_size() == 0:
             act = random.choice(acts[:5])
-        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
-            act = acts[-1]
-            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
         elif random.random() < 0.1:
             act = random.choice(acts)
             self.appLogger.info('Exploration act: %s'%act)
+#        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
+#            act = acts[-1]
+#            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
         
         contX = [self.beliefState.GetTopUserGoalBelief()]
         marginals = self.beliefState.GetMarginals()
@@ -534,14 +562,14 @@ class SBSarsaDialogManager(DialogManager):
 #                    print 'choose X:%s'%str(X)
     #                print ys
     #                print np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer).flatten()
-                    ys = np.concatenate((ys,np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer).ravel()))
+                    ys = np.concatenate((ys,np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer).ravel()))
                     
                 self.appLogger.info('Qvals: %s'%str(ys))
                 act = acts[ys.argmax(0)]
                 Qval = ys.max(0)
             else:
                 X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
-                Qval = np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]
+                Qval = np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]
         except:
             Qval = 0.0
             

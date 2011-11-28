@@ -403,13 +403,13 @@ class SparseBayes(object):
                 
             M = len(Used)
             if M == 0:
-                self.appLogger.info('Null PHI: \nX:\n %s \nY:\n %s \nBASIS:\n %s'%(str(X),str(Targets),str(BASIS)))
+                self.appLogger.info('Null PHI: \nX:\n %s \nY:\n %s \nBASIS:\n %s'%(str(X),str(Targets),str(self.raw_BASIS)))
 #                print 'Null PHI: \nX:\n %s \nY: %s\n \nBASIS:\n %s'%(str(self.X),str(Targets),str(BASIS))
                 import pickle
                 pickle.dump(X,open('X','w'))
                 pickle.dump(Targets,open('Y','w'))
-                pickle.dump(BASIS,open('B','w'))
-                raise RuntimeError,(X,Targets,BASIS)
+                pickle.dump(self.raw_BASIS,open('B','w'))
+                raise RuntimeError,(X,Targets,self.raw_BASIS)
             
             self.appLogger.info('ACTION: %s of %d (%g)'%(act_,nu,delta_log_marginal))
                  
@@ -509,13 +509,17 @@ class SparseBayes(object):
         return Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
             Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
 
-    def learn(self,X,Targets,basis_func,BASIS=None,extendable=True):
-        if BASIS == None:
-            BASIS = basis_func(X)
+    def learn(self,X,Targets,basis_func,raw_BASIS=None,extendable=True):
+#    def learn(self,X,Targets,basis_func,BASIS=None,extendable=True):
+        if raw_BASIS == None:
+            raw_BASIS = basis_func(X)
+#        if BASIS == None:
+#            BASIS = basis_func(X)
         
         # initialization
         self.appLogger.info('Initialization')
-        BASIS,Scales,Alpha,beta,Mu,PHI,Used = self.initialize(BASIS,Targets)
+        BASIS,Scales,Alpha,beta,Mu,PHI,Used = self.initialize(raw_BASIS.copy(),Targets)
+#        BASIS,Scales,Alpha,beta,Mu,PHI,Used = self.initialize(BASIS,Targets)
 #        print BASIS,Scales,Alpha,beta,Mu,PHI,Used
         
         BASIS_PHI = np.dot(BASIS.T,PHI)
@@ -538,37 +542,53 @@ class SparseBayes(object):
                                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
         
         if extendable:
-            self.X,self.Targets,self.BASIS,self.Used,\
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
             self.Alpha,self.beta,\
             self.Aligned_out,self.Aligned_in,self.align_defer_count =\
-            X,Targets,BASIS,Used,\
+            X,Targets,raw_BASIS,BASIS,Used,\
             Alpha,beta,\
             Aligned_out,Aligned_in,align_defer_count
+#            self.X,self.Targets,self.BASIS,self.Used,\
+#            self.Alpha,self.beta,\
+#            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+#            X,Targets,BASIS,Used,\
+#            Alpha,beta,\
+#            Aligned_out,Aligned_in,align_defer_count
         
+#        return Relevant,Mu,Alpha,beta,BASIS,update_count,add_count,delete_count,full_count
         return Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count
                 
-    def incremental_learn(self,new_X,new_T,inc_basis_func,BASIS=None,extendable=True):
-
+    def incremental_learn(self,new_X,new_T,inc_basis_func,raw_BASIS=None,extendable=True):
+#    def incremental_learn(self,new_X,new_T,inc_basis_func,BASIS=None,extendable=True):
         try:
-            X,Targets,BASIS,Used,\
+            X,Targets,raw_BASIS,BASIS,Used,\
             Alpha,beta,\
             Aligned_out,Aligned_in,align_defer_count = \
-            self.X,self.Targets,self.BASIS,self.Used,\
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
             self.Alpha,self.beta,\
             self.Aligned_out,self.Aligned_in,self.align_defer_count
+#            X,Targets,BASIS,Used,\
+#            Alpha,beta,\
+#            Aligned_out,Aligned_in,align_defer_count = \
+#            self.X,self.Targets,self.BASIS,self.Used,\
+#            self.Alpha,self.beta,\
+#            self.Aligned_out,self.Aligned_in,self.align_defer_count
 #        except NameError:
         except:
-            return self.learn(new_X,new_T,inc_basis_func,BASIS=BASIS)
+            return self.learn(new_X,new_T,inc_basis_func,raw_BASIS=raw_BASIS)
+#            return self.learn(new_X,new_T,inc_basis_func,BASIS=BASIS)
 #            print "First, use 'learn' method with extendable=True"
 
 #        X = np.vstack((X,new_X))
         X += new_X
         Targets = np.vstack((Targets,new_T))
-        BASIS = inc_basis_func(X,BASIS)
+        raw_BASIS = inc_basis_func(X,raw_BASIS)
+#        BASIS = inc_basis_func(X,BASIS)
             
         # pre-process
         self.appLogger.info('Pre-process')
-        BASIS,Scales = self.preprocess(BASIS)
+        BASIS,Scales = self.preprocess(raw_BASIS.copy())
+#        BASIS,Scales = self.preprocess(BASIS)
         
         PHI = BASIS[:,Used]
 #        print BASIS,Scales,Alpha,beta,Mu,PHI,Used
@@ -589,13 +609,20 @@ class SparseBayes(object):
                                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
 
         if extendable:
-            self.X,self.Targets,self.BASIS,self.Used,\
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
             self.Alpha,self.beta,\
             self.Aligned_out,self.Aligned_in,self.align_defer_count =\
-            X,Targets,BASIS,Used,\
+            X,Targets,raw_BASIS,BASIS,Used,\
             Alpha,beta,\
             Aligned_out,Aligned_in,align_defer_count
+#            self.X,self.Targets,self.BASIS,self.Used,\
+#            self.Alpha,self.beta,\
+#            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+#            X,Targets,BASIS,Used,\
+#            Alpha,beta,\
+#            Aligned_out,Aligned_in,align_defer_count
         
+#        return Relevant,Mu,Alpha,beta,BASIS,update_count,add_count,delete_count,full_count
         return Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count
                 
     def get_basis_size(self):

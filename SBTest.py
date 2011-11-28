@@ -186,7 +186,8 @@ def sb_rl_test(iter=1):
         
         try:      
             Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-            m.learn(deepcopy(X),Outputs.copy(),rl_basis_func)
+            m.incremental_learn(X,Outputs,rl_basis_func)
+#            m.incremental_learn(deepcopy(X),Outputs.copy(),rl_basis_func)
         except RuntimeError:
             print 'RuntimeError'
             continue
@@ -210,6 +211,26 @@ def sb_rl_test(iter=1):
 #        print full_count
     print total_ED/iter
 
+def rl_inc_basis_func(X,BASIS=None):
+    print 'BASIS %s'%str(BASIS)
+    basis = np.zeros((len(X),1))
+    for i, xi in enumerate(X):
+#            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+        if xi[2] == X[-1][2]:
+            basis[i,0] = (np.dot(xi[0],X[-1][0]) + 0.1)**2
+#        print basis
+    if BASIS != None:
+#            print basis[:-1,0].T
+        BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
+#            print 'BASIS %s'%str(BASIS)
+        BASIS = np.hstack((BASIS,basis))
+#            print 'BASIS %s'%str(BASIS)
+    else:
+        BASIS = basis
+
+    print 'BASIS %s'%str(BASIS)
+    return BASIS
+
 def inc_sb_rl_test(iter=1):
     from copy import deepcopy 
     m = sb.SparseBayes()
@@ -226,21 +247,27 @@ def inc_sb_rl_test(iter=1):
             [np.array([ 1.,  0.00000002,  0.0000005,  0.,  0.0000001]), '[non-understanding]', '[ask] request all']]
         Outputs = np.array([[-1.0000001],[-1.00000002],[-1.0000005]])
          
-        BASIS = rl_basis_func(X)
-        print 'BASIS: %s'%str(BASIS)
+        raw_BASIS = rl_basis_func(X)
+        print 'raw_BASIS: %s'%str(raw_BASIS)
+#        BASIS = rl_basis_func(X)
+#        print 'BASIS: %s'%str(BASIS)
         
         for xi in X:
             try:      
                 Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-                m.incremental_learn([deepcopy(xi)],np.atleast_2d(Outputs[i,:]).copy(),rl_basis_func)
+                m.incremental_learn([xi],np.atleast_2d(Outputs[i,:]),rl_inc_basis_func)
             except RuntimeError:
                 print 'RuntimeError'
                 continue
         
-        w_infer = np.zeros((BASIS.shape[1],1))
+#        print 'BASIS: %s'%str(BASIS)
+        print 'raw_BASIS: %s'%str(raw_BASIS)
+        w_infer = np.zeros((raw_BASIS.shape[1],1))
+#        w_infer = np.zeros((BASIS.shape[1],1))
         w_infer[Relevant] = Mu 
         
-        y = np.dot(BASIS.T,w_infer)
+#        y = np.dot(BASIS.T,w_infer)
+        y = np.dot(raw_BASIS.T,w_infer)
         e = y - Outputs
         ED = np.dot(e.T,e)
         total_ED += ED
