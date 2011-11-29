@@ -109,13 +109,18 @@ def main():
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
     totalDialogSuccessCount = 0
-    for i in range(100):
+    iter = 300
+    successRate = []
+    for i in range(iter):
         appLogger = logging.getLogger('Transcript')
         appLogger.info('Dialog %d'%i)
         log = SimulateOneDialog(userSimulation,dialogManager)
         if log['result']: totalDialogSuccessCount += 1
-    
-    appLogger.info('Dialog success count: %d'%totalDialogSuccessCount)
+        if (i+1) % (iter/5) == 0:
+            successRate.append(totalDialogSuccessCount/(i+1))
+            appLogger.info('Dialog success rate: %f'%successRate[-1])
+    appLogger.info('Dialog success rates: %s'%str(successRate))
+    appLogger.info('Total dialog success count: %d'%totalDialogSuccessCount)
 
 if (__name__ == '__main__'):
     main()
