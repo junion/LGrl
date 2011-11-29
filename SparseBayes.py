@@ -149,12 +149,12 @@ class SparseBayes(object):
         
         return SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,betaBASIS_PHI,beta
         
-    def sequential_update(self,X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-                               Used,Alpha,beta,\
-                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI):
 #    def sequential_update(self,X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-#                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+#                               Used,Alpha,beta,\
 #                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI):
+    def sequential_update(self,X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI):
         # diagnosis
         update_count = 0
         add_count = 0
@@ -173,8 +173,8 @@ class SparseBayes(object):
         except ValueError:
             M = 1
 
-        Aligned_out = np.array([])
-        Aligned_in = np.array([])
+#        Aligned_out = np.array([])
+#        Aligned_in = np.array([])
         align_defer_count = 0
 
         i = 0;full_count = 0
@@ -528,9 +528,9 @@ class SparseBayes(object):
         Mu = Mu[index] / Scales[Used[index]]
         Alpha = Alpha[index] / Scales[Used[index]]**2
         
-        return Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
-#        return Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
-#            Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
+#        return Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
+        return Used,Aligned_out,Aligned_in,align_defer_count,\
+            Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count    
 
     def learn(self,X,Targets,basis_func,raw_BASIS=None,extendable=True):
 #    def learn(self,X,Targets,basis_func,BASIS=None,extendable=True):
@@ -553,32 +553,31 @@ class SparseBayes(object):
         SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
         self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
         
-#        Aligned_out = np.array([])
-#        Aligned_in = np.array([])
-#        align_defer_count = 0
+        Aligned_out = np.array([])
+        Aligned_in = np.array([])
+        align_defer_count = 0
 
-        Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-                               Used,Alpha,beta,\
-                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
-#        Used,Alpha,beta,\
-#        Aligned_out,Aligned_in,align_defer_count,\
-#        Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+#        Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
 #        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-#                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+#                               Used,Alpha,beta,\
 #                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
+        Used,Aligned_out,Aligned_in,align_defer_count,\
+        Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
         
         if extendable:
-            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-            self.Alpha,self.beta =\
-            X,Targets,raw_BASIS,BASIS,Used,\
-            Alpha,beta
 #            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-#            self.Alpha,self.beta,\
-#            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+#            self.Alpha,self.beta =\
 #            X,Targets,raw_BASIS,BASIS,Used,\
-#            Alpha,beta,\
-#            Aligned_out,Aligned_in,align_defer_count
+#            Alpha,beta
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
+            self.Alpha,self.beta,\
+            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+            X,Targets,raw_BASIS,BASIS,Used,\
+            Alpha,beta,\
+            Aligned_out,Aligned_in,align_defer_count
 #            
 #            self.X,self.Targets,self.BASIS,self.Used,\
 #            self.Alpha,self.beta,\
@@ -593,16 +592,16 @@ class SparseBayes(object):
     def incremental_learn(self,new_X,new_T,inc_basis_func,raw_BASIS=None,extendable=True):
 #    def incremental_learn(self,new_X,new_T,inc_basis_func,BASIS=None,extendable=True):
         try:
-            X,Targets,raw_BASIS,BASIS,Used,\
-            Alpha,beta = \
-            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-            self.Alpha,self.beta
 #            X,Targets,raw_BASIS,BASIS,Used,\
-#            Alpha,beta,\
-#            Aligned_out,Aligned_in,align_defer_count = \
+#            Alpha,beta = \
 #            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-#            self.Alpha,self.beta,\
-#            self.Aligned_out,self.Aligned_in,self.align_defer_count
+#            self.Alpha,self.beta
+            X,Targets,raw_BASIS,BASIS,Used,\
+            Alpha,beta,\
+            Aligned_out,Aligned_in,align_defer_count = \
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
+            self.Alpha,self.beta,\
+            self.Aligned_out,self.Aligned_in,self.align_defer_count
 
 #            X,Targets,BASIS,Used,\
 #            Alpha,beta,\
@@ -620,11 +619,36 @@ class SparseBayes(object):
         X += new_X
         Targets = np.vstack((Targets,new_T))
         
-        if len(X) > self.CONTROL_BasisFunctionMax:
+        if len(X) > self.CONTROL_BasisFunctionMax and len(Used) > 1:
             X.pop(0)
-            Targets = np.delete(Targets,0,0)
             raw_BASIS = np.delete(raw_BASIS,0,0)
             raw_BASIS = np.delete(raw_BASIS,0,1)
+
+            Targets = np.delete(Targets,0,0)
+
+#            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+            find_Aligned = (Aligned_in == np.array([0])).nonzero()
+            num_Aligned = find_Aligned[0].size
+            if num_Aligned > 0:
+                self.appLogger.info('By limit on max basis vectors, alignment reinstatement of %s'%str(Aligned_out[find_Aligned]))
+                Aligned_in = np.delete(Aligned_in,find_Aligned)
+                Aligned_out = np.delete(Aligned_out,find_Aligned)
+#                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+            find_Aligned = (Aligned_out == np.array([0])).nonzero()
+            num_Aligned = find_Aligned[0].size
+            if num_Aligned > 0:
+                self.appLogger.info('By limit on max basis vectors, delete alignment of [0]')
+                Aligned_in = np.delete(Aligned_in,find_Aligned)
+                Aligned_out = np.delete(Aligned_out,find_Aligned)
+#                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+            Aligned_in -= 1
+            Aligned_out -= 1
+#            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+
             self.appLogger.info('Shrink Used(%d) %s'%(len(Used),str(Used)))
             Used -= 1
             index = (Used == -1).nonzero()
@@ -651,28 +675,27 @@ class SparseBayes(object):
         SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
         self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
         
-        Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-                               Used,Alpha,beta,\
-                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
-#        Used,Alpha,beta,\
-#        Aligned_out,Aligned_in,align_defer_count,\
-#        Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+#        Used,Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
 #        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
-#                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+#                               Used,Alpha,beta,\
 #                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
+        Used,Aligned_out,Aligned_in,align_defer_count,\
+        Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+        self.sequential_update(X,Targets,Scales,BASIS,PHI,BASIS_PHI,BASIS_Targets,\
+                               Used,Alpha,beta,Aligned_out,Aligned_in,align_defer_count,\
+                               SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI)
 
         if extendable:
-            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-            self.Alpha,self.beta =\
-            X,Targets,raw_BASIS,BASIS,Used,\
-            Alpha,beta
 #            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
-#            self.Alpha,self.beta,\
-#            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+#            self.Alpha,self.beta =\
 #            X,Targets,raw_BASIS,BASIS,Used,\
-#            Alpha,beta,\
-#            Aligned_out,Aligned_in,align_defer_count
+#            Alpha,beta
+            self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
+            self.Alpha,self.beta,\
+            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+            X,Targets,raw_BASIS,BASIS,Used,\
+            Alpha,beta,\
+            Aligned_out,Aligned_in,align_defer_count
 #                        
 #            self.X,self.Targets,self.BASIS,self.Used,\
 #            self.Alpha,self.beta,\

@@ -108,18 +108,27 @@ def main():
     dialogManager = DialogManager()
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
-    totalDialogSuccessCount = 0
     iter = 300
-    successRate = []
+    totalDialogSuccessCount = 0
+    intervalDialogSuccessCount = 0
+    totalSuccessRate = []
+    intervalSuccessRate = []
     for i in range(iter):
         appLogger = logging.getLogger('Transcript')
         appLogger.info('Dialog %d'%i)
         log = SimulateOneDialog(userSimulation,dialogManager)
-        if log['result']: totalDialogSuccessCount += 1
-        if (i+1) % (iter/5) == 0:
-            successRate.append(totalDialogSuccessCount/(i+1))
-            appLogger.info('Dialog success rate: %f'%successRate[-1])
-    appLogger.info('Dialog success rates: %s'%str(successRate))
+        if log['result']: 
+            totalDialogSuccessCount += 1
+            intervalDialogSuccessCount += 1
+        if (i+1) % (iter/6) == 0:
+            totalSuccessRate.append(float(intervalDialogSuccessCount)/(i+1))
+            intervalDialogSuccessCount = 0
+            appLogger.info('Interval dialog success rate: %f'%intervalSuccessRate[-1])
+            totalSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
+            appLogger.info('Cumulative dialog success rate: %f'%totalSuccessRate[-1])
+    dialogManager.StoreModel()
+    appLogger.info('Interval dialog success rates: %s'%str(intervalSuccessRate))
+    appLogger.info('Cumulative dialog success rates: %s'%str(totalSuccessRate))
     appLogger.info('Total dialog success count: %d'%totalDialogSuccessCount)
 
 if (__name__ == '__main__'):
