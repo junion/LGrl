@@ -118,7 +118,8 @@ class SparseBayes(object):
         dataLikely = (N*np.log(beta) - beta*ED)/2
         
         # log marginal likelihood
-        logdetHOver2 = np.atleast_2d(np.sum(np.log(np.diag(U)))).T
+#        logdetHOver2 = np.atleast_2d(np.sum(np.log(np.diag(U)))).T
+        logdetHOver2 = np.sum(np.log(np.diag(U)))
         logML = dataLikely - np.dot((Mu**2).T,Alpha)/2 + np.sum(np.log(Alpha))/2 - logdetHOver2
         
         # well-determinedness factors
@@ -179,7 +180,8 @@ class SparseBayes(object):
 #            print UsedFactor
             
             # re-estimation: must be a positive 'factor' and already in the model
-            iu = np.ravel(UsedFactor > self.CONTROL_ZeroFactor)
+#            iu = np.ravel(UsedFactor > self.CONTROL_ZeroFactor)
+            iu = (UsedFactor.ravel() > self.CONTROL_ZeroFactor)
 #            print self.CONTROL_ZeroFactor
 #            print iu
             index = Used[iu]
@@ -197,7 +199,8 @@ class SparseBayes(object):
             any_to_delete = True if len(index) > 0 else False
             if any_to_delete:
                 # quick computation of change in log-likelihood given all deletions
-                DeltaML[index] = -(Q_out[index]**2/(S_out[index] - Alpha[iu]) - np.log(1 + S_out[index] / Alpha[iu]))/2
+#                DeltaML[index] = -(Q_out[index]**2/(S_out[index] - Alpha[iu]) - np.log(1 + S_out[index] / Alpha[iu]))/2
+                DeltaML[index] = -(Q_out[index]**2/(S_out[index] + Alpha[iu]) - np.log(1 + S_out[index]/Alpha[iu]))/2
                 Action[index] = self.ACTION_DELETE
             
             # addition: must be a positive factor and out of the model
@@ -216,7 +219,8 @@ class SparseBayes(object):
 #                    print 'Index Error'
                     pass
             index = GoodFactor.nonzero()
-            any_to_add = True if len(index) > 0 else False
+#            any_to_add = True if len(index) > 0 else False
+            any_to_add = True if len(index[0]) > 0 else False
             if any_to_add:
                 # quick computation of change in log-likelihood given all additions
                 quot = Q_in[index]**2/S_in[index]
@@ -249,8 +253,9 @@ class SparseBayes(object):
             # need to note if basis nu is already in the model, and if so,
             # find its interior index, denoted by "j"
             if selected_Action == self.ACTION_REESTIMATE or selected_Action == self.ACTION_DELETE:
-                j = (Used==nu).nonzero()
-                j = j[0] if len(j) < 2 else j
+                j = (Used==nu).nonzero()[0]
+#                j = (Used==nu).nonzero()
+#                j = j[0] if len(j) < 2 else j
 #                print j
                 
             
@@ -438,37 +443,40 @@ class SparseBayes(object):
                 log_marginal_log = np.concatenate((log_marginal_log,logML.ravel()))
             
             # Gaussian noise estimate
-            betaZ1 = beta
-            y = np.dot(PHI,Mu)
-            e = Targets - y
-            if not np.dot(e.T,e) == 0:
-                beta = (N - np.sum(Gamma))/np.dot(e.T,e)
-#                if np.var(Targets) > 0:
-#                    beta = np.min(np.vstack((beta,self.CONTROL_BetaMaxFactor/np.var(Targets))))
-            else:
-                # work-around zero-noise issue
-                if np.var(Targets) > 0:
-                    beta = self.CONTROL_BetaMaxFactor/np.var(Targets)
+            if selected_Action == self.ACTION_TERMINATE or \
+                i <= self.CONTROL_BetaUpdateStart or \
+                i % self.CONTROL_BetaUpdateFrequency == 0:
+                betaZ1 = beta
+                y = np.dot(PHI,Mu)
+                e = Targets - y
+                if not np.dot(e.T,e) == 0:
+                    beta = (N - np.sum(Gamma))/np.dot(e.T,e)
+                    # work-around zero-noise issue
+                    if np.var(Targets) > 0:
+                        beta = np.min(np.vstack((beta,self.CONTROL_BetaMaxFactor/np.var(Targets))))
                 else:
-                    beta = self.CONTROL_BetaMaxFactor
-
-            delta_log_beta = np.log(beta) - np.log(betaZ1)
-            
-            if np.abs(delta_log_beta) > self.CONTROL_MinDeltaLogBeta:
-#                print 'Update beta'
-#                print BASIS,PHI,Targets,Used,Alpha,beta,Mu,BASIS_PHI,BASIS_Targets
-                SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
-                self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
-                full_count += 1
-                count = count + 1;
-                log_marginal_log = np.concatenate((log_marginal_log,logML.ravel()))
-#                print SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta
-#                print beta
-#                print Factor
-                if selected_Action == self.ACTION_TERMINATE:
-                    self.appLogger.info('Noise update (termination deferred)')
-                    selected_Action = self.ACTION_NOISE_ONLY
-            
+                    # work-around zero-noise issue
+                    if np.var(Targets) > 1:
+                        beta = self.CONTROL_BetaMaxFactor/np.var(Targets)
+                    else:
+                        beta = self.CONTROL_BetaMaxFactor
+    
+                delta_log_beta = np.log(beta) - np.log(betaZ1)
+                
+                if np.abs(delta_log_beta) > self.CONTROL_MinDeltaLogBeta:
+    #                print 'Update beta'
+    #                print BASIS,PHI,Targets,Used,Alpha,beta,Mu,BASIS_PHI,BASIS_Targets
+                    SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta = \
+                    self.full_statistics(BASIS,PHI,Targets,Used,Alpha,beta,BASIS_PHI,BASIS_Targets)
+                    full_count += 1
+                    count = count + 1;
+                    log_marginal_log = np.concatenate((log_marginal_log,logML.copy().ravel()))
+    #                print SIGMA,Mu,S_in,Q_in,S_out,Q_out,Factor,logML,Gamma,BASIS_B_PHI,beta
+    #                print beta
+    #                print Factor
+                    if selected_Action == self.ACTION_TERMINATE:
+                        selected_Action = self.ACTION_NOISE_ONLY
+                        self.appLogger.info('Noise update (termination deferred)')
             if selected_Action == self.ACTION_TERMINATE:
                 self.appLogger.info('** Stopping at iteration %d (Max_delta_ml=%g) **'%(i,delta_log_marginal))
                 self.appLogger.info('%4d> L = %.6f\t Gamma = %.2f (M = %d)'%(i,logML/N,np.sum(Gamma),M))
