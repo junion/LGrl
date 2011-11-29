@@ -83,10 +83,10 @@ def SimulateOneDialog(userSimulation,dialogManager):
         if i > 30:
             break
         i += 1
-        
     appLogger.info('\n------ Turn %d ------' % (i+1))
     appLogger.info('System Action: %s' % (systemAction))
     appLogger.info('User Goal: %s'%userSimulation.goal)
+    appLogger.info('Dialog %s'%('Success' if dialogManager.DialogResult() else 'Fail'))
     turns.append({
         'systemAction': systemAction,
         'userAction':None,
@@ -95,6 +95,7 @@ def SimulateOneDialog(userSimulation,dialogManager):
     log = {
            'userGoal': userSimulation.goal,
            'turns' : turns,
+           'result': dialogManager.DialogResult()
            }
     return log
 
@@ -107,10 +108,14 @@ def main():
     dialogManager = DialogManager()
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
+    totalDialogSuccessCount = 0
     for i in range(100):
         appLogger = logging.getLogger('Transcript')
         appLogger.info('Dialog %d'%i)
-        SimulateOneDialog(userSimulation,dialogManager)
+        log = SimulateOneDialog(userSimulation,dialogManager)
+        if log['result']: totalDialogSuccessCount += 1
+    
+    appLogger.info('Dialog success count: %d'%totalDialogSuccessCount)
 
 if (__name__ == '__main__'):
     main()

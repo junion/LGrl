@@ -339,7 +339,11 @@ class SBSarsaDialogManager(DialogManager):
         sysAction,Qval = self._ChooseAction()
         self.prevSysAction = sysAction
         self.prevAsrResult = None
+        self.dialogResult = False
         return sysAction
+    
+    def DialogResult(self):
+        return self.dialogResult
 
     def TakeTurn(self,asrResult):
         from copy import deepcopy
@@ -358,6 +362,8 @@ class SBSarsaDialogManager(DialogManager):
             reward = self._GetReward(self.beliefState,sysAction)
             self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetTopUserGoal(),\
                           self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
+            if reward == self.taskSuccessReward:
+                self.dialogResult = True
         return sysAction
 
     def _GetReward(self,beliefState,sysAction):
@@ -432,17 +438,18 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-#            if xi[1] == x[1] and xi[2] == x[2]:
+            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
             if xi[2] == x[2]:
-                BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2))
+                BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2)) * ua_kernel
         return BASIS
         
     def _gaussian_basis_matrix(self,X,BASIS=None):
         basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
 #            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
             if xi[2] == X[-1][2]:
-                basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2))
+                basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
 #        print basis
         if BASIS != None:
 #            print basis[:-1,0].T
