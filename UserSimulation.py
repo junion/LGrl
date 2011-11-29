@@ -41,7 +41,7 @@ class UserSimulation(object):
         return response.read()
 
     def Init(self):
-        self.send_json({'Command':'Start over'})
+        self.send_json({'Command':'Start over','Error rate':0})
         self.goal = json.loads(self.send_json({'Command':'Get user goal'}))
 
     def TakeTurn(self,systemAction):
@@ -71,7 +71,7 @@ class UserSimulation(object):
         else:
             raise RuntimeError,'Invalid system action force'
 #        print act_str
-        json_usr = self.send_json({'System action':act_str})
+        json_usr = self.send_json({'System action':act_str,'Approx':True})
 #        print json_usr
         usr_act = json.loads(json_usr)
         if usr_act['User action'][0] == 'Non-understanding':
