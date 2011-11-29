@@ -121,7 +121,7 @@ def main():
             totalDialogSuccessCount += 1
             intervalDialogSuccessCount += 1
         if (i+1) % (iter/6) == 0:
-            totalSuccessRate.append(float(intervalDialogSuccessCount)/(i+1))
+            intervalSuccessRate.append(float(intervalDialogSuccessCount)/(i+1))
             intervalDialogSuccessCount = 0
             appLogger.info('Interval dialog success rate: %f'%intervalSuccessRate[-1])
             totalSuccessRate.append(float(totalDialogSuccessCount)/(i+1))

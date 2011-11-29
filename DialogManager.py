@@ -438,8 +438,8 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-#            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == x[2]:
                 BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2)) * ua_kernel
         return BASIS
@@ -447,8 +447,8 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_matrix(self,X,BASIS=None):
         basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
-#            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == X[-1][2]:
                 basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
 #        print basis
@@ -484,7 +484,7 @@ class SBSarsaDialogManager(DialogManager):
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
             self.sb.incremental_learn([X],np.atleast_2d(y),self._gaussian_basis_matrix)
             self.appLogger.info('Number of data points: %d'%self.sb.get_basis_size())
-            self._TraceQval()
+#            self._TraceQval()
         except RuntimeError,(XN,Y,raw_BASIS):
             self.appLogger.info('BASIS:\n %s'%str(raw_BASIS))
 #            print 'BASIS:\n %s'%str(BASIS)
