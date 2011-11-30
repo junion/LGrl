@@ -2,6 +2,13 @@
 import numpy as np
 from math import exp
 import SparseBayes as sb
+from GlobalConfig import *
+
+InitConfig()
+config = GetConfig()
+config.read(['LGrl.conf'])
+
+noiseFactor = 1e12
 
 dimension = 1
 noiseToSignal = 0.2
@@ -160,8 +167,12 @@ def rl_basis_func(X,BASIS=None):
         for j, x2 in enumerate(X):
 #                print 'x2: %s'%str(x2)
 #                if x1[1] == x2[1] and x1[2] == x2[2]:
+#            if x1[2] == x2[2]:
+#                BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
+#            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
+            ua_kernel = 1.0
             if x1[2] == x2[2]:
-                BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
+                BASIS[j,i] += np.exp(-(np.sum(x1[0]**2) + np.sum(x2[0]**2) - 2*np.dot(x1[0],x2[0]))/(0.25**2)) * ua_kernel
 #        print BASIS
     return BASIS
 
@@ -212,13 +223,23 @@ def sb_rl_test(iter=1):
     print total_ED/iter
 
 def rl_inc_basis_func(X,BASIS=None):
-    print 'BASIS %s'%str(BASIS)
-    basis = np.zeros((len(X),1))
+#    noise = np.atleast_2d(np.random.standard_normal(len(X))/noiseFactor).T
+    if (len(X) == 1):
+        noise = np.array([[-9.46011e-13]])
+    else:
+        noise = np.array([[1.63086e-13],[-8.74124e-13]])
+    for i in range(len(X)):
+        print '%d) %g'%(i,noise[i])
+
+    basis = np.zeros((len(X),1)) #+ noise
     for i, xi in enumerate(X):
-#            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+#            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
+        ua_kernel = 1.0
         if xi[2] == X[-1][2]:
-            basis[i,0] = (np.dot(xi[0],X[-1][0]) + 0.1)**2
-#        print basis
+            basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(0.25**2)) * ua_kernel
+    
+#        self.appLogger.info('basis %s'%str(basis))
+
     if BASIS != None:
 #            print basis[:-1,0].T
         BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
@@ -227,8 +248,7 @@ def rl_inc_basis_func(X,BASIS=None):
 #            print 'BASIS %s'%str(BASIS)
     else:
         BASIS = basis
-
-    print 'BASIS %s'%str(BASIS)
+#        print 'BASIS %s'%str(BASIS)
     return BASIS
 
 def inc_sb_rl_test(iter=1):
@@ -238,14 +258,19 @@ def inc_sb_rl_test(iter=1):
     total_ED = 0
     
     for i in range(iter):
+        print i
 #        X =[[np.array([ 1.,  0.,  0.,  0.,  0.]), 'None', '[ask] request departure_place'],\
 #            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all'],\
 #            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all']]
 #        Outputs = np.array([[-1.],[-1.],[-1.]])
-        X =[[np.array([ 1.,  0.0000001,  0.00000002,  0.,  0.0000005]), 'None', '[ask] request departure_place'],\
-            [np.array([ 1.,  0.00000002,  0.0000001,  0.0000005,  0.]), '[non-understanding]', '[ask] request all'],\
-            [np.array([ 1.,  0.00000002,  0.0000005,  0.,  0.0000001]), '[non-understanding]', '[ask] request all']]
-        Outputs = np.array([[-1.0000001],[-1.00000002],[-1.0000005]])
+#        X =[[np.array([ 1.,  0.0000001,  0.00000002,  0.,  0.0000005]), 'None', '[ask] request departure_place'],\
+#            [np.array([ 1.,  0.00000002,  0.0000001,  0.0000005,  0.]), '[non-understanding]', '[ask] request all'],\
+#            [np.array([ 1.,  0.00000002,  0.0000005,  0.,  0.0000001]), '[non-understanding]', '[ask] request all']]
+#        Outputs = np.array([[-1.0000001],[-1.00000002],[-1.0000005]])
+
+        X =[[np.array([ 1.,  0.,  0.,  0.,  0.]), 'None', '[ask] request all'],\
+            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[ig] confirm', '[ask] request all']]
+        Outputs = np.array([[-1.],[-1.]]) #+ np.atleast_2d(np.random.standard_normal(len(X))/noiseFactor).T
          
         raw_BASIS = rl_basis_func(X)
         print 'raw_BASIS: %s'%str(raw_BASIS)
@@ -253,12 +278,8 @@ def inc_sb_rl_test(iter=1):
 #        print 'BASIS: %s'%str(BASIS)
         
         for xi in X:
-            try:      
-                Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-                m.incremental_learn([xi],np.atleast_2d(Outputs[i,:]),rl_inc_basis_func)
-            except RuntimeError:
-                print 'RuntimeError'
-                continue
+            Relevant,Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
+            m.incremental_learn([xi],np.atleast_2d(Outputs[i,:]),rl_inc_basis_func)
         
 #        print 'BASIS: %s'%str(BASIS)
         print 'raw_BASIS: %s'%str(raw_BASIS)
@@ -287,4 +308,4 @@ import timeit
 #t = timeit.Timer(stmt="sb_eval(iter=1)", setup="from __main__ import sb_eval")  
 #print t.timeit(number=1)
 t = timeit.Timer(stmt="inc_sb_rl_test(iter=1)", setup="from __main__ import inc_sb_rl_test")  
-print t.timeit(number=1)
+print t.timeit(number=10000)
