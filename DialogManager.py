@@ -438,8 +438,8 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-#            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == x[2]:
                 BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2)) * ua_kernel
         return BASIS
@@ -447,8 +447,8 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_matrix(self,X,BASIS=None):
         basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
-#            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == X[-1][2]:
                 basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
         

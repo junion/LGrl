@@ -224,12 +224,12 @@ def sb_rl_test(iter=1):
 
 def rl_inc_basis_func(X,BASIS=None):
 #    noise = np.atleast_2d(np.random.standard_normal(len(X))/noiseFactor).T
-    if (len(X) == 1):
-        noise = np.array([[-9.46011e-13]])
-    else:
-        noise = np.array([[1.63086e-13],[-8.74124e-13]])
-    for i in range(len(X)):
-        print '%d) %g'%(i,noise[i])
+#    if (len(X) == 1):
+#        noise = np.array([[-9.46011e-13]])
+#    else:
+#        noise = np.array([[1.63086e-13],[-8.74124e-13]])
+#    for i in range(len(X)):
+#        print '%d) %g'%(i,noise[i])
 
     basis = np.zeros((len(X),1)) #+ noise
     for i, xi in enumerate(X):
@@ -258,7 +258,6 @@ def inc_sb_rl_test(iter=1):
     total_ED = 0
     
     for i in range(iter):
-        print i
 #        X =[[np.array([ 1.,  0.,  0.,  0.,  0.]), 'None', '[ask] request departure_place'],\
 #            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all'],\
 #            [np.array([ 1.,  0.,  0.,  0.,  0.]), '[non-understanding]', '[ask] request all']]
@@ -308,4 +307,4 @@ import timeit
 #t = timeit.Timer(stmt="sb_eval(iter=1)", setup="from __main__ import sb_eval")  
 #print t.timeit(number=1)
 t = timeit.Timer(stmt="inc_sb_rl_test(iter=1)", setup="from __main__ import inc_sb_rl_test")  
-print t.timeit(number=10000)
+print t.timeit(number=1000)
