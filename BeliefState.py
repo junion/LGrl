@@ -45,6 +45,7 @@ www.research.att.com/people/Williams_Jason_D
 
 from copy import deepcopy
 import logging
+import pickle
 from GlobalConfig import GetConfig
 from PartitionDistribution import PartitionDistribution
 from DB import GetDB
@@ -71,12 +72,14 @@ class Partition(object):
         This constructor is not meant to be called directly by application code.
         Application code should use the BeliefState wrapper.
         '''
-        self.appLogger = logging.getLogger(MY_ID)
+        self.appLogger = logging.getLogger('Transcript')
         self.config = GetConfig()
+        self.useLearnedUserModel = self.config.getboolean(MY_ID,'useLearnedUserModel')
+        self.num_route = self.config.getint(MY_ID,'numberOfRoute')
+        self.num_place = self.config.getint(MY_ID,'numberOfPlace')
+        self.num_time = self.config.getint(MY_ID,'numberOfTime')
+        
         db = GetDB()
-        self.num_route = 55
-        self.num_place = 1700
-        self.num_time = 180#1200
         if (existingPartition == None):
             #self.fieldList = db.GetFields()
             self.fieldList = ['route','departure_place','arrival_place','travel_time']
@@ -88,34 +91,46 @@ class Partition(object):
                 self.fields[field] = _FieldEntry()
             self.count = self.totalCount
             self.prior = 1.0
-            umFields = ['request_nonUnderstandingProb',
-                        'request_directAnswerProb',
-                        'request_allOverCompleteProb',
-                        'request_oogProb',
-                        'request_irrelevantAnswerProb',
-                        'confirm_directAnswerProb',
-                        'confirm_nonUnderstandingProb',
-                        'confirm_oogProb']
-            assert (not self.config == None), 'Config file required (UserModel parameters)'
-            self.umParams = {}
-            for key in umFields:
-                assert (self.config.has_option('UserModel', key)),'UserModel section missing field %s' % (key)
-                self.umParams[key] = self.config.getfloat('UserModel',key)
-            overCompleteActionCount = 0
-            for i in range(1,self.fieldCount):
-                overCompleteActionCount += Combination(self.fieldCount-1,i)
-            self.appLogger.info('fieldCount = %d; overCompleteActionCount = %d' % (self.fieldCount,overCompleteActionCount))
-            self.umParams['request_overCompleteProb'] = \
-              1.0 * self.umParams['request_allOverCompleteProb'] / overCompleteActionCount
-            self.umParams['open_answerProb'] = \
-              (1.0 - self.umParams['request_nonUnderstandingProb'] - self.umParams['request_oogProb']) / \
-              overCompleteActionCount
+            if not self.useLearnedUserModel:
+                umFields = ['request_nonUnderstandingProb',
+                            'request_directAnswerProb',
+                            'request_allOverCompleteProb',
+                            'request_oogProb',
+                            'request_irrelevantAnswerProb',
+                            'confirm_directAnswerProb',
+                            'confirm_nonUnderstandingProb',
+                            'confirm_oogProb']
+                assert (not self.config == None), 'Config file required (UserModel parameters)'
+                self.umParams = {}
+                for key in umFields:
+                    assert (self.config.has_option('UserModel', key)),'UserModel section missing field %s' % (key)
+                    self.umParams[key] = self.config.getfloat('UserModel',key)
+                overCompleteActionCount = 0
+                for i in range(1,self.fieldCount):
+                    overCompleteActionCount += Combination(self.fieldCount-1,i)
+                self.appLogger.info('fieldCount = %d; overCompleteActionCount = %d' % (self.fieldCount,overCompleteActionCount))
+                self.umParams['request_overCompleteProb'] = \
+                  1.0 * self.umParams['request_allOverCompleteProb'] / overCompleteActionCount
+                self.umParams['open_answerProb'] = \
+                  (1.0 - self.umParams['request_nonUnderstandingProb'] - self.umParams['request_oogProb']) / \
+                  overCompleteActionCount
+            else:
+                self.userModelPath = self.config.get(MY_ID,'userModelPath')
+                if self.useLearnedUserModel:
+                    self.userModel = pickle.load(open(self.userModelPath,'rb'))
+                self.irrelevantUserActProb = self.config.getfloat(MY_ID,'irrelevantUserActProb')
+                self.minRelevantUserActProb = self.config.getfloat(MY_ID,'minRelevantUserActProb')
         else:
             assert not fieldToSplit == None,'arg not defined'
             assert not value == None,'arg not defined'
             self.fieldList = existingPartition.fieldList
             self.fieldCount = existingPartition.fieldCount
-            self.umParams = existingPartition.umParams
+            if not self.useLearnedUserModel:
+                self.umParams = existingPartition.umParams
+            else:
+                self.userModel = existingPartition.userModel
+                self.irrelevantUserActProb = existingPartition.irrelevantUserActProb
+                self.minRelevantUserActProb = existingPartition.minRelevantUserActProb
             self.totalCount = existingPartition.totalCount
             self.fields = {}
             self.count = 1
@@ -235,6 +250,40 @@ class Partition(object):
             s = "(all)"
         return s
 
+    def _getClosestUserAct(self,userAction):
+        if userAction.type == 'non-understanding':
+            return 'non-understanding'
+      
+        acts = [['I:ap','I:bn','I:dp','I:tt'],\
+                      ['I:ap','I:bn','I:dp'],\
+                      ['I:ap','I:dp','I:tt'],\
+                      ['I:bn','I:dp','I:tt'],\
+                      ['I:ap','I:dp'],\
+                      ['I:bn','I:tt'],\
+                      ['I:bn'],\
+                      ['I:dp'],\
+                      ['I:ap'],\
+                      ['I:tt'],\
+                      ['yes'],\
+                      ['no']]
+        ua = []
+        for field in userAction.content:
+            if field == 'confirm':
+                ua.append('yes' if userAction.content[field] == 'YES' else 'no')
+            elif field == 'route':
+                ua.append('I:bn')
+            elif field == 'departure_place':
+                ua.append('I:dp')
+            elif field == 'arrival_place':
+                ua.append('I:ap')
+            elif field == 'travel_time':
+                ua.append('I:tt')
+        
+        score = [float(len(set(act).intersection(set(ua))))/len(set(act).union(set(ua))) for act in acts] 
+        closestUserAct = ','.join(acts[score.index(max(score))])
+#        self.appLogger.info('Closest user action %s'%closestUserAct) 
+        return closestUserAct
+
     def UserActionLikelihood(self, userAction, history, sysAction):
         '''
         Returns the probability of the user taking userAction given dialog
@@ -299,68 +348,127 @@ class Partition(object):
 #                            result = 0.0
 #            else:
 #                raise RuntimeError, 'Dont know sysAction.force = %s' % (sysAction.force)
-        result = 0.0
-        if (sysAction.type == 'ask'):
-            if (userAction.type == 'non-understanding'):
-                if (sysAction.force == 'confirm'):
-                    result = self.umParams['confirm_nonUnderstandingProb']
-                else: 
-                    result = self.umParams['request_nonUnderstandingProb']
-            else:
-                targetFieldIncludedFlag = False
-                overCompleteFlag = False
-                allFieldsMatchGoalFlag = True
-                askedField = sysAction.content
-                for field in userAction.content:
-                    if field == 'confirm':
-                        if sysAction.force == 'request':
-                            allFieldsMatchGoalFlag = False
-                            continue
-                        for field in sysAction.content:
-                            val = sysAction.content[field]
-                            if (self.fields[field].type == 'excludes' or not self.fields[field].equals == val):
-                                allFieldsMatchGoalFlag = False
-                        if (allFieldsMatchGoalFlag):
-                            if (userAction.content['confirm'] == 'YES'):
-                                result = self.umParams['confirm_directAnswerProb']
-                                targetFieldIncludedFlag = True
-                            else:
-                                result = self.umParams['request_irrelevantAnswerProb']
-                        else:
-                            if (userAction.content['confirm'] == 'NO'):
-                                result = self.umParams['confirm_directAnswerProb']
-                                targetFieldIncludedFlag = True
-                            else:
-                                result = self.umParams['request_irrelevantAnswerProb']
-                    else:
-                        val = userAction.content[field]
-                        if (self.fields[field].type == 'equals' and self.fields[field].equals == val):
-                            if (field == askedField):
-                                targetFieldIncludedFlag = True
-                            else:
-                                overCompleteFlag = True
-                        else:
-                            allFieldsMatchGoalFlag = False
-                if (not allFieldsMatchGoalFlag):
-                    # This action doesn't agree with this partition
-                    result = self.umParams['request_irrelevantAnswerProb']
-                elif (askedField == 'all'):
-                    # A response to the open question
-                    result = self.umParams['open_answerProb']
-                elif (not targetFieldIncludedFlag):
-                    # This action doesn't include the information that was asked for
-                    # This user model doesn't ever do this
-                    result = self.umParams['request_irrelevantAnswerProb']
-                elif (overCompleteFlag):
-                    # This action include extra information - this happens
-                    # request_overCompleteProb amount of the time
-                    result = self.umParams['request_overCompleteProb']
+        if not self.useLearnedUserModel:
+            result = 0.0
+            if (sysAction.type == 'ask'):
+                if (userAction.type == 'non-understanding'):
+                    if (sysAction.force == 'confirm'):
+                        result = self.umParams['confirm_nonUnderstandingProb']
+                    else: 
+                        result = self.umParams['request_nonUnderstandingProb']
                 else:
-                    # This action just answers the question that was asked
-                    result = result if result > 0 else self.umParams['request_directAnswerProb']
-
+                    targetFieldIncludedFlag = False
+                    overCompleteFlag = False
+                    allFieldsMatchGoalFlag = True
+                    askedField = sysAction.content
+                    for field in userAction.content:
+                        if field == 'confirm':
+                            if sysAction.force == 'request':
+                                allFieldsMatchGoalFlag = False
+                                continue
+                            for field in sysAction.content:
+                                val = sysAction.content[field]
+                                if (self.fields[field].type == 'excludes' or not self.fields[field].equals == val):
+                                    allFieldsMatchGoalFlag = False
+                            if (allFieldsMatchGoalFlag):
+                                if (userAction.content['confirm'] == 'YES'):
+                                    result = self.umParams['confirm_directAnswerProb']
+                                    targetFieldIncludedFlag = True
+                                else:
+                                    result = self.umParams['request_irrelevantAnswerProb']
+                            else:
+                                if (userAction.content['confirm'] == 'NO'):
+                                    result = self.umParams['confirm_directAnswerProb']
+                                    targetFieldIncludedFlag = True
+                                else:
+                                    result = self.umParams['request_irrelevantAnswerProb']
+                        else:
+                            val = userAction.content[field]
+                            if (self.fields[field].type == 'equals' and self.fields[field].equals == val):
+                                if (field == askedField):
+                                    targetFieldIncludedFlag = True
+                                else:
+                                    overCompleteFlag = True
+                            else:
+                                allFieldsMatchGoalFlag = False
+                    if (not allFieldsMatchGoalFlag):
+                        # This action doesn't agree with this partition
+                        result = self.umParams['request_irrelevantAnswerProb']
+                    elif (askedField == 'all'):
+                        # A response to the open question
+                        result = self.umParams['open_answerProb']
+                    elif (not targetFieldIncludedFlag):
+                        # This action doesn't include the information that was asked for
+                        # This user model doesn't ever do this
+                        result = self.umParams['request_irrelevantAnswerProb']
+                    elif (overCompleteFlag):
+                        # This action include extra information - this happens
+                        # request_overCompleteProb amount of the time
+                        result = self.umParams['request_overCompleteProb']
+                    else:
+                        # This action just answers the question that was asked
+                        result = result if result > 0 else self.umParams['request_directAnswerProb']
+            else:
+                raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
         else:
-            raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
+            
+            if sysAction.type != 'ask':
+                self.appLogger.warning('Cannot assign user action probability due to system action %s'%sysAction.type)
+                return 0.0
+            
+            result = self.irrelevantUserActProb
+            allFieldsMatchGoalFlag = True
+            if sysAction.force == 'confirm':
+                askedField = sysAction.content.keys()[0]
+                if userAction.type != 'non-understanding':
+                    for ua_field in userAction.content:
+                        if ua_field == 'confirm' and userAction.content[ua_field] == 'YES':
+                            val = sysAction.content[askedField]
+                            if self.fields[askedField].type == 'excludes' or not self.fields[askedField].equals == val:
+                                allFieldsMatchGoalFlag = False
+                        elif ua_field == 'confirm' and userAction.content[ua_field] == 'NO':
+                            val = sysAction.content[askedField]
+                            if self.fields[askedField].type == 'equals' or not val in self.fields[askedField].excludes:
+                                allFieldsMatchGoalFlag = False
+                        elif askedField == ua_field:
+                            val = sysAction.content[askedField]
+                            if self.fields[askedField].type == 'excludes' or not self.fields[askedField].equals == val\
+                            or not userAction.content[askedField] == val:
+                                allFieldsMatchGoalFlag = False
+                        else:
+                            val = userAction.content[ua_field]
+                            if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
+                                allFieldsMatchGoalFlag = False
+                if allFieldsMatchGoalFlag:
+                    if userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES':
+                        result = self.userModel['C-o'][self._getClosestUserAct(userAction)]
+                    else:
+                        result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
+            elif sysAction.force == 'request':
+                askedField = sysAction.content
+                if userAction.type != 'non-understanding':
+                    for ua_field in userAction.content:
+                        if ua_field != 'confirm':
+                            val = userAction.content[ua_field]
+                            if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
+                                allFieldsMatchGoalFlag = False
+                if allFieldsMatchGoalFlag:
+                    if askedField == 'route':
+#                        print self.userModel['R-bn']
+                        result = self.userModel['R-bn'][self._getClosestUserAct(userAction)]
+                    elif askedField == 'departure_place':
+#                        print self.userModel['R-dp']
+                        result = self.userModel['R-dp'][self._getClosestUserAct(userAction)]
+                    elif askedField == 'arrival_place':
+#                        print self.userModel['R-ap']
+                        result = self.userModel['R-ap'][self._getClosestUserAct(userAction)]
+                    elif askedField == 'travel_time':
+#                        print self.userModel['R-tt']
+                        result = self.userModel['R-tt'][self._getClosestUserAct(userAction)]
+                    elif askedField == 'all':
+#                        print self.userModel['R-open']
+                        result = self.userModel['R-open'][self._getClosestUserAct(userAction)]
+            result = self.minRelevantUserActProb if result < self.minRelevantUserActProb else result
         return result
 
 class History(object):

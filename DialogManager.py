@@ -329,16 +329,19 @@ class SBSarsaDialogManager(DialogManager):
         self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
         self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
+        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
         self.sb = SparseBayes()
-        self.sbr_model = {'route':pickle.load(open('_calibrated_confidence_score_sbr_bn.model','rb')),\
-                          'departure_place':pickle.load(open('_calibrated_confidence_score_sbr_dp.model','rb')),\
-                          'arrival_place':pickle.load(open('_calibrated_confidence_score_sbr_ap.model','rb')),\
-                          'travel_time':pickle.load(open('_calibrated_confidence_score_sbr_tt.model','rb')),\
-                          'affirm':pickle.load(open('_calibrated_confidence_score_sbr_yes.model','rb')),\
-                          'deny':pickle.load(open('_calibrated_confidence_score_sbr_no.model','rb')),\
-                          'multi2':pickle.load(open('_calibrated_confidence_score_sbr_multi2.model','rb')),\
-                          'multi3':pickle.load(open('_calibrated_confidence_score_sbr_multi3.model','rb'))
-                          }
+        if self.confidenceScoreCalibration:
+            self.sbr_model = {'route':pickle.load(open('_calibrated_confidence_score_sbr_bn.model','rb')),\
+                              'departure_place':pickle.load(open('_calibrated_confidence_score_sbr_dp.model','rb')),\
+                              'arrival_place':pickle.load(open('_calibrated_confidence_score_sbr_ap.model','rb')),\
+                              'travel_time':pickle.load(open('_calibrated_confidence_score_sbr_tt.model','rb')),\
+                              'affirm':pickle.load(open('_calibrated_confidence_score_sbr_yes.model','rb')),\
+                              'deny':pickle.load(open('_calibrated_confidence_score_sbr_no.model','rb')),\
+                              'multi2':pickle.load(open('_calibrated_confidence_score_sbr_multi2.model','rb')),\
+                              'multi3':pickle.load(open('_calibrated_confidence_score_sbr_multi3.model','rb')),\
+                              'multi4':pickle.load(open('_calibrated_confidence_score_sbr_multi4.model','rb'))
+                              }
 
     def Init(self,userGoal=None):
         self.userGoal = userGoal
@@ -350,10 +353,11 @@ class SBSarsaDialogManager(DialogManager):
         self.prevSysAction = sysAction
         self.prevAsrResult = None
         self.dialogResult = False
+        self.dialogReward = 0
         return sysAction
     
     def DialogResult(self):
-        return self.dialogResult
+        return (self.dialogResult,self.dialogReward)
 
     def Calibrate(self,asrResult):
         def dist_squared(X,Y):
@@ -380,8 +384,10 @@ class SBSarsaDialogManager(DialogManager):
                 pass
         elif len(asrResult.userActions) == 2:
             sbr_model = self.sbr_model['multi2']
-        else:
+        elif len(asrResult.userActions) == 3:
             sbr_model = self.sbr_model['multi3']
+        else:
+            sbr_model = self.sbr_model['multi4']
         
         if sbr_model:
             asrResult.probs[0] = np.dot(basis_vector(sbr_model['data_points'],\
@@ -392,14 +398,16 @@ class SBSarsaDialogManager(DialogManager):
          
     def TakeTurn(self,asrResult):
         from copy import deepcopy
-#       prevBeliefState = deepcopy(self.beliefState)
+        if self.confidenceScoreCalibration:
+            self.appLogger.info('asrResult %s'%asrResult)
+#            asrResult = deepcopy(asrResult)
+            self.Calibrate(asrResult)
+            self.appLogger.info('Calibrated asrResult %s'%asrResult)
         prevTopBelief = self.beliefState.GetTopUserGoalBelief()
         prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
         prevMarginals = deepcopy(self.beliefState.GetMarginals())
         reward = self._GetReward(self.beliefState,self.prevSysAction)
-        self.appLogger.info('asrResult %s'%asrResult)
-        self.Calibrate(asrResult)
-        self.appLogger.info('Calibrated asrResult %s'%asrResult)
+        self.dialogReward += reward
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
         self._SBSarsa(prevTopBelief,prevTopFields,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
@@ -408,6 +416,7 @@ class SBSarsaDialogManager(DialogManager):
         # terminal case
         if sysAction.type == 'inform':
             reward = self._GetReward(self.beliefState,sysAction)
+            self.dialogReward += reward
             self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetTopUserGoal(),\
                           self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
             if reward == self.taskSuccessReward:

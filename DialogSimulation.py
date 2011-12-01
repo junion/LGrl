@@ -87,7 +87,7 @@ def SimulateOneDialog(userSimulation,dialogManager):
     appLogger.info('\n------ Turn %d ------' % (i+1))
     appLogger.info('System Action: %s' % (systemAction))
     appLogger.info('User Goal: %s'%userSimulation.goal)
-    appLogger.info('Dialog %s'%('Success' if dialogManager.DialogResult() else 'Fail'))
+    appLogger.info('Dialog %s'%('Success' if dialogManager.DialogResult()[0] else 'Fail'))
     turns.append({
         'systemAction': systemAction,
         'userAction':None,
@@ -110,11 +110,15 @@ def main():
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
     iter = 500
-    interval = 10
+    interval = 100
     totalDialogSuccessCount = 0
     intervalDialogSuccessCount = 0
     totalDialogSuccessRate = []
     intervalDialogSuccessRate = []
+    totalDialogReward = []
+    intervalDialogReward = []
+    totalAvgDialogReward = []
+    intervalAvgDialogReward = []
     totalDialogLength = []
     intervalDialogLength = []
     totalAvgDialogLength = []
@@ -126,36 +130,57 @@ def main():
     for i in range(iter):
         appLogger = logging.getLogger('Transcript')
         appLogger.info('Dialog %d'%i)
+        
         log = SimulateOneDialog(userSimulation,dialogManager)
+        
+        totalDialogReward.append(log['result'][1])
+        intervalDialogReward.append(log['result'][1])
         totalDialogLength.append(len(log['turns']))
         intervalDialogLength.append(len(log['turns']))
-        if log['result']: 
+        
+        if log['result'][0]: 
             totalDialogSuccessCount += 1
             intervalDialogSuccessCount += 1
         if (i+1) % (iter/interval) == 0:
-            intervalElapsedTime.append(dt.datetime.now() - intervalStartTime)
+            intervalElapsedTime.append(str(dt.datetime.now() - intervalStartTime))
             appLogger.info('Interval elapsed time: %s'%intervalElapsedTime[-1])
+
             intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(i+1))
+            intervalDialogLength = []
             appLogger.info('Interval average dialog length: %f'%intervalAvgDialogLength[-1])
+            
             totalAvgDialogLength.append(float(sum(totalDialogLength))/(i+1))
             appLogger.info('Cumulative average dialog length: %f'%totalAvgDialogLength[-1])
+            
+            intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(i+1))
+            intervalDialogReward = []
+            appLogger.info('Interval average dialog reward: %f'%intervalAvgDialogReward[-1])
+            
+            totalAvgDialogReward.append(float(sum(totalDialogReward))/(i+1))
+            appLogger.info('Cumulative average dialog reward: %f'%totalAvgDialogReward[-1])
+            
             intervalDialogSuccessRate.append(float(intervalDialogSuccessCount)/(float(iter)/interval))
             intervalDialogSuccessCount = 0
             appLogger.info('Interval dialog success rate: %f'%intervalDialogSuccessRate[-1])
+            
             totalDialogSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
             appLogger.info('Cumulative dialog success rate: %f'%totalDialogSuccessRate[-1])
             intervalStartTime = dt.datetime.now()
+
     endTime = dt.datetime.now()
     dialogManager.StoreModel()
+    
     appLogger.info('Interval average dialog length: %s'%str(intervalAvgDialogLength))
     appLogger.info('Cumulative average dialog length: %s'%str(totalAvgDialogLength))
+    appLogger.info('Interval average dialog reward: %s'%str(intervalAvgDialogReward))
+    appLogger.info('Cumulative average dialog reward: %s'%str(totalAvgDialogReward))
     appLogger.info('Interval dialog success rates: %s'%str(intervalDialogSuccessRate))
     appLogger.info('Cumulative dialog success rates: %s'%str(totalDialogSuccessRate))
     appLogger.info('Total dialog success count: %d'%totalDialogSuccessCount)
     appLogger.info('Interval elapsed times: %s'%str(intervalElapsedTime))
     appLogger.info('Start time: %s'%startTime.isoformat(' '))
     appLogger.info('End time: %s'%endTime.isoformat(' '))
-    appLogger.info('Total elapsed time: %s'%(startTime - endTime))
+    appLogger.info('Total elapsed time: %s'%(endTime - startTime))
         
 if (__name__ == '__main__'):
     main()
