@@ -20,7 +20,8 @@ www.research.att.com/people/Williams_Jason_D
 '''
 
 # Extend sys.path to include src directory
-import os, sys
+import os,sys
+import datetime as dt
 #sys.path.append(os.path.join(os.path.dirname(__file__),'../../src'))
 
 import logging.config
@@ -108,29 +109,53 @@ def main():
     dialogManager = DialogManager()
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
-    iter = 300
-    interval = 6
+    iter = 500
+    interval = 10
     totalDialogSuccessCount = 0
     intervalDialogSuccessCount = 0
-    totalSuccessRate = []
-    intervalSuccessRate = []
+    totalDialogSuccessRate = []
+    intervalDialogSuccessRate = []
+    totalDialogLength = []
+    intervalDialogLength = []
+    totalAvgDialogLength = []
+    intervalAvgDialogLength = []
+    intervalElapsedTime = []
+    
+    startTime = dt.datetime.now()
+    intervalStartTime = dt.datetime.now()
     for i in range(iter):
         appLogger = logging.getLogger('Transcript')
         appLogger.info('Dialog %d'%i)
         log = SimulateOneDialog(userSimulation,dialogManager)
+        totalDialogLength.append(len(log['turns']))
+        intervalDialogLength.append(len(log['turns']))
         if log['result']: 
             totalDialogSuccessCount += 1
             intervalDialogSuccessCount += 1
         if (i+1) % (iter/interval) == 0:
-            intervalSuccessRate.append(float(intervalDialogSuccessCount)/(float(iter)/interval))
+            intervalElapsedTime.append(dt.datetime.now() - intervalStartTime)
+            appLogger.info('Interval elapsed time: %s'%intervalElapsedTime[-1])
+            intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(i+1))
+            appLogger.info('Interval average dialog length: %f'%intervalAvgDialogLength[-1])
+            totalAvgDialogLength.append(float(sum(totalDialogLength))/(i+1))
+            appLogger.info('Cumulative average dialog length: %f'%totalAvgDialogLength[-1])
+            intervalDialogSuccessRate.append(float(intervalDialogSuccessCount)/(float(iter)/interval))
             intervalDialogSuccessCount = 0
-            appLogger.info('Interval dialog success rate: %f'%intervalSuccessRate[-1])
-            totalSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
-            appLogger.info('Cumulative dialog success rate: %f'%totalSuccessRate[-1])
+            appLogger.info('Interval dialog success rate: %f'%intervalDialogSuccessRate[-1])
+            totalDialogSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
+            appLogger.info('Cumulative dialog success rate: %f'%totalDialogSuccessRate[-1])
+            intervalStartTime = dt.datetime.now()
+    endTime = dt.datetime.now()
     dialogManager.StoreModel()
-    appLogger.info('Interval dialog success rates: %s'%str(intervalSuccessRate))
-    appLogger.info('Cumulative dialog success rates: %s'%str(totalSuccessRate))
+    appLogger.info('Interval average dialog length: %s'%str(intervalAvgDialogLength))
+    appLogger.info('Cumulative average dialog length: %s'%str(totalAvgDialogLength))
+    appLogger.info('Interval dialog success rates: %s'%str(intervalDialogSuccessRate))
+    appLogger.info('Cumulative dialog success rates: %s'%str(totalDialogSuccessRate))
     appLogger.info('Total dialog success count: %d'%totalDialogSuccessCount)
-
+    appLogger.info('Interval elapsed times: %s'%str(intervalElapsedTime))
+    appLogger.info('Start time: %s'%startTime.isoformat(' '))
+    appLogger.info('End time: %s'%endTime.isoformat(' '))
+    appLogger.info('Total elapsed time: %s'%(startTime - endTime))
+        
 if (__name__ == '__main__'):
     main()

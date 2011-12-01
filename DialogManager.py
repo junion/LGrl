@@ -314,6 +314,7 @@ class OpenDialogManager(DialogManager):
             return sysAction
 
 import numpy as np
+import pickle
 from SparseBayes import SparseBayes
 class SBSarsaDialogManager(DialogManager):
     '''
@@ -329,6 +330,15 @@ class SBSarsaDialogManager(DialogManager):
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
         self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
         self.sb = SparseBayes()
+        self.sbr_model = {'route':pickle.load(open('_calibrated_confidence_score_sbr_bn.model','rb')),\
+                          'departure_place':pickle.load(open('_calibrated_confidence_score_sbr_dp.model','rb')),\
+                          'arrival_place':pickle.load(open('_calibrated_confidence_score_sbr_ap.model','rb')),\
+                          'travel_time':pickle.load(open('_calibrated_confidence_score_sbr_tt.model','rb')),\
+                          'affirm':pickle.load(open('_calibrated_confidence_score_sbr_yes.model','rb')),\
+                          'deny':pickle.load(open('_calibrated_confidence_score_sbr_no.model','rb')),\
+                          'multi2':pickle.load(open('_calibrated_confidence_score_sbr_multi2.model','rb')),\
+                          'multi3':pickle.load(open('_calibrated_confidence_score_sbr_multi3.model','rb'))
+                          }
 
     def Init(self,userGoal=None):
         self.userGoal = userGoal
@@ -345,6 +355,41 @@ class SBSarsaDialogManager(DialogManager):
     def DialogResult(self):
         return self.dialogResult
 
+    def Calibrate(self,asrResult):
+        def dist_squared(X,Y):
+            nx = X.shape[0]
+            ny = Y.shape[0]
+            return np.dot(np.atleast_2d(np.sum((X**2),1)).T,np.ones((1,ny))) + \
+                np.dot(np.ones((nx,1)),np.atleast_2d(np.sum((Y**2),1))) - 2*np.dot(X,Y.T);
+    
+        def basis_vector(X,x,basisWidth):
+            BASIS = np.exp(-dist_squared(x,X)/(basisWidth**2))
+            return BASIS
+
+        sbr_model = None
+        if len(asrResult.userActions) == 1:
+            try:
+                if asrResult.userActions[0].content.keys()[0] == 'confirm':
+                    if asrResult.userActions[0].content['confirm'] == 'YES':
+                        sbr_model = self.sbr_model['affirm']
+                    else:
+                        sbr_model = self.sbr_model['deny']
+                else:
+                    sbr_model = self.sbr_model[asrResult.userActions[0].content.keys()[0]]
+            except:
+                pass
+        elif len(asrResult.userActions) == 2:
+            sbr_model = self.sbr_model['multi2']
+        else:
+            sbr_model = self.sbr_model['multi3']
+        
+        if sbr_model:
+            asrResult.probs[0] = np.dot(basis_vector(sbr_model['data_points'],\
+                                                     np.array([[asrResult.probs[0]]]),\
+                                                     sbr_model['basis_width']),\
+                                        sbr_model['weights'])[0,0]
+            if asrResult.probs[0] < 0: asrResult.probs[0] = 0
+         
     def TakeTurn(self,asrResult):
         from copy import deepcopy
 #       prevBeliefState = deepcopy(self.beliefState)
@@ -352,6 +397,9 @@ class SBSarsaDialogManager(DialogManager):
         prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
         prevMarginals = deepcopy(self.beliefState.GetMarginals())
         reward = self._GetReward(self.beliefState,self.prevSysAction)
+        self.appLogger.info('asrResult %s'%asrResult)
+        self.Calibrate(asrResult)
+        self.appLogger.info('Calibrated asrResult %s'%asrResult)
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
         self._SBSarsa(prevTopBelief,prevTopFields,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
@@ -438,8 +486,8 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-#            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != x[1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == x[2]:
                 BASIS[i] = np.exp(-(np.sum(xi[0]**2) + np.sum(x[0]**2) - 2*np.dot(xi[0],x[0]))/(self.basisWidth**2)) * ua_kernel
         return BASIS
@@ -447,10 +495,13 @@ class SBSarsaDialogManager(DialogManager):
     def _gaussian_basis_matrix(self,X,BASIS=None):
         basis = np.zeros((len(X),1)) #+ np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
-#            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
-            ua_kernel = 1.0
+            ua_kernel = 0.5 if xi[1] != X[-1][1] else 1.0
+#            ua_kernel = 1.0
             if xi[2] == X[-1][2]:
-                basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
+                try:
+                    basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
+                except:
+                    raise RuntimeError
         
 #        self.appLogger.info('basis %s'%str(basis))
 
