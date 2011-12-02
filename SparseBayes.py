@@ -30,6 +30,7 @@ class SparseBayes(object):
         self.CONTROL_BasisAlignmentTest = self.config.getboolean(MY_ID,'CONTROL_BasisAlignmentTest')
         self.CONTROL_AlignmentMax = 1 - self.ALIGNMENT_ZERO
         self.CONTROL_BasisFunctionMax = self.config.getint(MY_ID,'CONTROL_BasisFunctionMax')
+        self.CONTROL_DiscardRedundantBasis = self.config.getboolean(MY_ID,'CONTROL_DiscardRedundantBasis')
         self.OPTIONS_iteration = self.config.getint(MY_ID,'OPTIONS_iteration')
         self.OPTIONS_monitor = self.config.getint(MY_ID,'OPTIONS_monitor')
         self.SETTING_noiseStdDev = self.config.getfloat(MY_ID,'SETTING_noiseStdDev')
@@ -769,15 +770,31 @@ class SparseBayes(object):
         Targets = np.vstack((Targets,new_T))
         
         if len(X) > self.CONTROL_BasisFunctionMax and len(Used) > 1:
-            X.pop(0)
-            raw_BASIS = np.delete(raw_BASIS,0,0)
-            raw_BASIS = np.delete(raw_BASIS,0,1)
+            i = 0
+            if self.CONTROL_DiscardRedundantBasis:
+                while i < len(X) and (i in Used) and (i in Aligned_in):
+                    i += 1
+#            self.appLogger.info('Used %s'%str(Used))
+#            self.appLogger.info('Aligned_in %s'%str(Aligned_in))
+#            self.appLogger.info('try to remove %d'%i)
 
-            Targets = np.delete(Targets,0,0)
+            X.pop(i)
+            Targets = np.delete(Targets,i,0)
+            
+            if i == len(X): 
+                self.appLogger.info('Return due to the discard of the last data')
+                return self.Relevant,self.Mu,self.Alpha,self.beta,0,0,0,0
+
+#                X.pop(i)
+            raw_BASIS = np.delete(raw_BASIS,i,0)
+            raw_BASIS = np.delete(raw_BASIS,i,1)
+
+#                Targets = np.delete(Targets,i,0)
 
 #            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
 #            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
-            find_Aligned = (Aligned_in == np.array([0])).nonzero()
+#                find_Aligned = (Aligned_in == np.array([i])).nonzero()
+            find_Aligned = (Aligned_in == i).nonzero()
             num_Aligned = find_Aligned[0].size
             if num_Aligned > 0:
                 self.appLogger.info('By limit on max basis vectors, alignment reinstatement of %s'%str(Aligned_out[find_Aligned]))
@@ -785,7 +802,8 @@ class SparseBayes(object):
                 Aligned_out = np.delete(Aligned_out,find_Aligned)
 #                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
 #                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
-            find_Aligned = (Aligned_out == np.array([0])).nonzero()
+#                find_Aligned = (Aligned_out == np.array([i])).nonzero()
+            find_Aligned = (Aligned_out == i).nonzero()
             num_Aligned = find_Aligned[0].size
             if num_Aligned > 0:
                 self.appLogger.info('By limit on max basis vectors, delete alignment of [0]')
@@ -793,17 +811,53 @@ class SparseBayes(object):
                 Aligned_out = np.delete(Aligned_out,find_Aligned)
 #                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
 #                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
-            Aligned_in -= 1
-            Aligned_out -= 1
+            Aligned_in[Aligned_in >= i] -= 1
+            Aligned_out[Aligned_out >= i] -= 1
 #            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
 #            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
 
             self.appLogger.info('Shrink Used(%d) %s'%(len(Used),str(Used)))
-            Used -= 1
-            index = (Used == -1).nonzero()
+            index = (Used == i).nonzero()
             Used = np.delete(Used,index)
+            Used[Used >= i] -= 1
             Alpha = np.atleast_2d(np.delete(Alpha,index)).T
             self.appLogger.info('to(%d) %s'%(len(Used),str(Used)))
+#            else:
+#                X.pop(0)
+#                raw_BASIS = np.delete(raw_BASIS,0,0)
+#                raw_BASIS = np.delete(raw_BASIS,0,1)
+#    
+#                Targets = np.delete(Targets,0,0)
+#    
+#    #            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#    #            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+#                find_Aligned = (Aligned_in == np.array([0])).nonzero()
+#                num_Aligned = find_Aligned[0].size
+#                if num_Aligned > 0:
+#                    self.appLogger.info('By limit on max basis vectors, alignment reinstatement of %s'%str(Aligned_out[find_Aligned]))
+#                    Aligned_in = np.delete(Aligned_in,find_Aligned)
+#                    Aligned_out = np.delete(Aligned_out,find_Aligned)
+#    #                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#    #                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+#                find_Aligned = (Aligned_out == np.array([0])).nonzero()
+#                num_Aligned = find_Aligned[0].size
+#                if num_Aligned > 0:
+#                    self.appLogger.info('By limit on max basis vectors, delete alignment of [0]')
+#                    Aligned_in = np.delete(Aligned_in,find_Aligned)
+#                    Aligned_out = np.delete(Aligned_out,find_Aligned)
+#    #                self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#    #                self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+#                Aligned_in -= 1
+#                Aligned_out -= 1
+#    #            self.appLogger.info('Aligned_out: %s'%str(Aligned_out))
+#    #            self.appLogger.info('Aligned_in: %s'%str(Aligned_in))
+#    
+#                self.appLogger.info('Shrink Used(%d) %s'%(len(Used),str(Used)))
+#                Used -= 1
+#                index = (Used == -1).nonzero()
+#                Used = np.delete(Used,index)
+#                Alpha = np.atleast_2d(np.delete(Alpha,index)).T
+#                self.appLogger.info('to(%d) %s'%(len(Used),str(Used)))
             
         raw_BASIS = inc_basis_func(X,raw_BASIS)
 #        BASIS = inc_basis_func(X,BASIS)
@@ -841,10 +895,12 @@ class SparseBayes(object):
 #            Alpha,beta
             self.X,self.Targets,self.raw_BASIS,self.BASIS,self.Used,\
             self.Alpha,self.beta,\
-            self.Aligned_out,self.Aligned_in,self.align_defer_count =\
+            self.Aligned_out,self.Aligned_in,self.align_defer_count,\
+            self.Relevant,self.Mu =\
             X,Targets,raw_BASIS,BASIS,Used,\
             Alpha,beta,\
-            Aligned_out,Aligned_in,align_defer_count
+            Aligned_out,Aligned_in,align_defer_count,\
+            Relevant,Mu
 #                        
 #            self.X,self.Targets,self.BASIS,self.Used,\
 #            self.Alpha,self.beta,\
