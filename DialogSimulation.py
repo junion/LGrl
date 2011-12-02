@@ -110,7 +110,7 @@ def main():
     userSimulation = UserSimulation()
 #    asrSimulation = ASRSimulation()
     iter = 500
-    interval = 100
+    interval = 10
     totalDialogSuccessCount = 0
     intervalDialogSuccessCount = 0
     totalDialogSuccessRate = []
@@ -145,14 +145,14 @@ def main():
             intervalElapsedTime.append(str(dt.datetime.now() - intervalStartTime))
             appLogger.info('Interval elapsed time: %s'%intervalElapsedTime[-1])
 
-            intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(i+1))
+            intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(float(iter)/interval))
             intervalDialogLength = []
             appLogger.info('Interval average dialog length: %f'%intervalAvgDialogLength[-1])
             
             totalAvgDialogLength.append(float(sum(totalDialogLength))/(i+1))
             appLogger.info('Cumulative average dialog length: %f'%totalAvgDialogLength[-1])
             
-            intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(i+1))
+            intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(float(iter)/interval))
             intervalDialogReward = []
             appLogger.info('Interval average dialog reward: %f'%intervalAvgDialogReward[-1])
             
