@@ -71,12 +71,13 @@ class PartitionDistribution(object):
         After creation, partitionDistributionObject.Init() method
         is called.
         '''
-        self.appLogger = logging.getLogger(MY_ID)
+        self.appLogger = logging.getLogger('Transcript')
         self.maxNBest = 0
         self.maxPartitions = 0
         self.defaultResetFraction = 0.0
         self.maxHistories = 0
         self.useAggregateUserActionLikelihoods = False
+        self.offListBeliefUpdateMethod = 'unlikelihood'
         config = GetConfig()
         if (not config == None):
             if (config.has_option(MY_ID, 'defaultResetFraction')):
@@ -89,6 +90,8 @@ class PartitionDistribution(object):
                 self.maxHistories = config.getint(MY_ID,'maxHistories')
             if (config.has_option(MY_ID, 'useAggregateUserActionLikelihoods')):
                 self.useAggregateUserActionLikelihoods = config.getboolean(MY_ID,'useAggregateUserActionLikelihoods')
+            if (config.has_option(MY_ID, 'offListBeliefUpdateMethod')):
+                self.offListBeliefUpdateMethod = config.get(MY_ID,'offListBeliefUpdateMethod')
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
         self.appLogger.info('Config: maxPartitions = %d' % (self.maxPartitions))
@@ -290,11 +293,13 @@ class PartitionDistribution(object):
                     offListUserActionLikelihood = 1.0 - existingHistoryEntry.userActionLikelihoodTotal
                     # Re-compute the amount of mass for all offlist actions
                     oldOffListHistoryEntryBelief = existingHistoryEntry.belief
-#                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
-#                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * (asrUnseenActionLikelihood/190740000000)
-                    existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * (asrUnseenActionLikelihood*existingPartitionEntry.partition.prior)
+                    if self.offListBeliefUpdateMethod == 'plain':
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
+                    elif self.offListBeliefUpdateMethod == 'unlikelihood':
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * asrUnseenActionLikelihood * offListUserActionLikelihood * existingPartitionEntry.partition.UserActionUnlikelihood(userAction,existingHistoryEntry.history,sysAction)
                     existingPartitionEntry.newBelief = existingPartitionEntry.newBelief - oldOffListHistoryEntryBelief + existingHistoryEntry.belief
                     rawOfflistBeliefTotal += existingHistoryEntry.belief
+                    self.appLogger.info('  oldHistoryEntryBelief: %g -> newHistoryEntryBelief: %g'%(oldOffListHistoryEntryBelief,existingHistoryEntry.belief))
                 self.appLogger.info('  Raw (unnormalized) log-belief in this partition is now %s' % (_LogToStringSafely(existingPartitionEntry.newBelief)))
                 i += 1
 

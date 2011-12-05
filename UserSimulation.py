@@ -40,8 +40,8 @@ class UserSimulation(object):
         response = self.opener.open(req)
         return response.read()
 
-    def Init(self):
-        self.send_json({'Command':'Start over','Error rate':0})
+    def Init(self,errorRate=0):
+        self.send_json({'Command':'Start over','Error rate':errorRate})
         self.goal = json.loads(self.send_json({'Command':'Get user goal'}))
 
     def TakeTurn(self,systemAction):

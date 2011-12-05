@@ -69,10 +69,10 @@ class DialogManager(object):
     '''
     Base class.  Not meant to be instantiated on its own.
     '''
-    def __init__(self):
+    def __init__(self,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None):
         self.appLogger = logging.getLogger('Learning')
         self.config = GetConfig()
-        self.beliefState = BeliefState()
+        self.beliefState = BeliefState(useLearnedUserModel,confirmUnlikelyDiscountFactor)
         self.db = GetDB()
 #        self.fields = self.db.GetFields()
         self.prompts = LetsGoPrompts()
@@ -164,8 +164,8 @@ class DirectedDialogManager(DialogManager):
     '''
     See module header for a description.
     '''
-    def __init__(self):
-        DialogManager.__init__(self)
+    def __init__(self,useLearnedUserModel=None):
+        DialogManager.__init__(self,useLearnedUserModel)
         self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
 
@@ -320,8 +320,8 @@ class SBSarsaDialogManager(DialogManager):
     '''
     See module header for a description.
     '''
-    def __init__(self):
-        DialogManager.__init__(self)
+    def __init__(self,confidenceScoreCalibration=None,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None):
+        DialogManager.__init__(self,useLearnedUserModel,confirmUnlikelyDiscountFactor)
         self.fields = ['route','departure_place','arrival_place','travel_time']
         self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
         self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
@@ -329,9 +329,13 @@ class SBSarsaDialogManager(DialogManager):
         self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
         self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
-        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
+        if confidenceScoreCalibration == None:
+            self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
+        else:
+            self.confidenceScoreCalibration = confidenceScoreCalibration
         self.sb = SparseBayes()
         if self.confidenceScoreCalibration:
+            self.appLogger.info('Apply confidence score calibration')
             self.sbr_model = {'route':pickle.load(open('_calibrated_confidence_score_sbr_bn.model','rb')),\
                               'departure_place':pickle.load(open('_calibrated_confidence_score_sbr_dp.model','rb')),\
                               'arrival_place':pickle.load(open('_calibrated_confidence_score_sbr_ap.model','rb')),\
@@ -396,31 +400,42 @@ class SBSarsaDialogManager(DialogManager):
                                         sbr_model['weights'])[0,0]
             if asrResult.probs[0] < 0: asrResult.probs[0] = 0
          
-    def TakeTurn(self,asrResult):
+    def TakeTurn(self,asrResult,reward):
         from copy import deepcopy
+        # terminal case
+        if asrResult == None:
+#            reward = self._GetReward(self.beliefState,sysAction)
+            self.dialogReward += reward
+            self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
+                          self.prevSysAction,reward,0,self.prevAsrResult)
+            if reward == self.taskSuccessReward:
+                self.dialogResult = True
+            return None
+            
         if self.confidenceScoreCalibration:
             self.appLogger.info('asrResult %s'%asrResult)
 #            asrResult = deepcopy(asrResult)
             self.Calibrate(asrResult)
             self.appLogger.info('Calibrated asrResult %s'%asrResult)
-        prevTopBelief = self.beliefState.GetTopUserGoalBelief()
-        prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
-        prevMarginals = deepcopy(self.beliefState.GetMarginals())
-        reward = self._GetReward(self.beliefState,self.prevSysAction)
+        self.prevTopBelief = self.beliefState.GetTopUserGoalBelief()
+        self.prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
+        self.prevMarginals = deepcopy(self.beliefState.GetMarginals())
+#        reward = self._GetReward(self.beliefState,self.prevSysAction)
         self.dialogReward += reward
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
-        self._SBSarsa(prevTopBelief,prevTopFields,prevMarginals,self.prevSysAction,reward,Qval,self.prevAsrResult)
+        self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
+                      self.prevSysAction,reward,Qval,self.prevAsrResult)
         self.prevSysAction = sysAction
         self.prevAsrResult = asrResult
         # terminal case
-        if sysAction.type == 'inform':
-            reward = self._GetReward(self.beliefState,sysAction)
-            self.dialogReward += reward
-            self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetTopUserGoal(),\
-                          self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
-            if reward == self.taskSuccessReward:
-                self.dialogResult = True
+#        if sysAction.type == 'inform':
+#            reward = self._GetReward(self.beliefState,sysAction)
+#            self.dialogReward += reward
+#            self._SBSarsa(self.beliefState.GetTopUserGoalBelief(),self.beliefState.GetTopUserGoal(),\
+#                          self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
+#            if reward == self.taskSuccessReward:
+#                self.dialogResult = True
         return sysAction
 
     def _GetReward(self,beliefState,sysAction):
@@ -554,11 +569,11 @@ class SBSarsaDialogManager(DialogManager):
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
             self.sb.incremental_learn(XN,Y,self._gaussian_basis_matrix,raw_BASIS)
             
-    def StoreModel(self):
+    def StoreModel(self,tag=''):
         import pickle
-        pickle.dump(self.Relevant,open('Relevant.model','w'))
-        pickle.dump(self.Mu,open('Mu.model','w'))
-        pickle.dump(self.sb.get_basis_points(),open('DataPoints.model','w'))        
+        pickle.dump(self.Relevant,open('Relevant-%s.model'%tag,'w'))
+        pickle.dump(self.Mu,open('Mu-%s.model'%tag,'w'))
+        pickle.dump(self.sb.get_basis_points(),open('DataPoints-%s.model'%tag,'w'))        
         
     def _TraceQval(self):
         import operator
@@ -595,14 +610,23 @@ class SBSarsaDialogManager(DialogManager):
         import random
         
         # action list
-        acts = ['[ask] request all','[ask] request route','[ask] request departure_place',\
+#        acts = ['[ask] request all','[ask] request route','[ask] request departure_place',\
+#                '[ask] request arrival_place','[ask] request travel_time',\
+#                '[ask] confirm route','[ask] confirm departure_place',\
+#                '[ask] confirm arrival_place','[ask] confirm travel_time',\
+#                '[inform]']
+
+        acts = ['[ask] request all','[ask] request departure_place',\
                 '[ask] request arrival_place','[ask] request travel_time',\
                 '[ask] confirm route','[ask] confirm departure_place',\
                 '[ask] confirm arrival_place','[ask] confirm travel_time',\
                 '[inform]']
 
+        if self.beliefState.GetTopUserGoalBelief() != 1.0:
+            acts.remove('[ask] request all')
+            self.appLogger.info('Request all is allowed only as an initial act')
+
         if self.beliefState.GetTopUniqueMandatoryUserGoal() == 0.0:
-#            acts = acts[:-1]
             acts.remove('[inform]')
             self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
 
@@ -611,16 +635,22 @@ class SBSarsaDialogManager(DialogManager):
             if len(marginals[field]) == 0:
                 acts.remove('[ask] confirm %s'%field)
                 self.appLogger.info('Exclude confirm %s because of no value'%field)
+            else:
+                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
             
         act = ''        
         if asrResult == None or self.sb.get_basis_size() == 0:
-            act = random.choice(acts[:5])
+            act = random.choice(acts[:4])
         elif random.random() < 0.1:
             act = random.choice(acts)
             self.appLogger.info('Exploration act: %s'%act)
 #        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
 #            act = acts[-1]
 #            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
+
+#        if self.beliefState.GetTopUserGoalBelief() == 1.0:
+#            act = '[ask] request all'
+#            self.appLogger.info('Only request all is allowed as an initial act')
 
         contX = [self.beliefState.GetTopUserGoalBelief()]
         for field in self.fields:
