@@ -101,7 +101,6 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=0):
 
     Displays result on the "Transcript" logger
     '''
-    
     userSimulation.Init(errorRate)
     systemAction = dialogManager.Init(userSimulation.goal)
 
@@ -182,23 +181,23 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(3):
+    for testIndex in range(1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
             config.set('DialogManager','confidenceScoreCalibration','true')
             config.set('BeliefState','useLearnedUserModel','true')
-            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
-        elif testIndex == 1:
-            config.set('DialogManager','confidenceScoreCalibration','true')
-            config.set('BeliefState','useLearnedUserModel','true')
             config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
             config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
-        elif testIndex == 2:
-            config.set('DialogManager','confidenceScoreCalibration','false')
-            config.set('BeliefState','useLearnedUserModel','false')
-            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+#        elif testIndex == 1:
+#            config.set('DialogManager','confidenceScoreCalibration','true')
+#            config.set('BeliefState','useLearnedUserModel','true')
+#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
+#            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
+#        elif testIndex == 2:
+#            config.set('DialogManager','confidenceScoreCalibration','false')
+#            config.set('BeliefState','useLearnedUserModel','false')
+#            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
+#            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
 #        elif testIndex == 2:
 #            config.set('DialogManager','confidenceScoreCalibration','false')
 #            config.set('BeliefState','useLearnedUserModel','true')
@@ -212,8 +211,9 @@ def main():
     #    dialogManager = DialogManager(confidenceScoreCalibration=None,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None)
         userSimulation = UserSimulation()
     #    asrSimulation = ASRSimulation()
-        iter = 500
+        iter = [200,400,400,50]
         interval = 10
+        basisFunctionMax = [500,700,900,900]
         totalDialogSuccessCount = 0
         intervalDialogSuccessCount = 0
         totalDialogSuccessRate = []
@@ -234,62 +234,83 @@ def main():
         
         startTime = dt.datetime.now()
         intervalStartTime = dt.datetime.now()
-        for i in range(iter):
-            appLogger = logging.getLogger('Transcript')
-            appLogger.info('Dialog %d'%i)
+
+        appLogger = logging.getLogger('Transcript')
+
+        dialogNum = 0    
+        maxDialogNum = sum(iter)    
+        for ei,errorRate in enumerate([0,1,2,0]):
+#            config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[errorRate])
+            for i in range(iter[ei]):
+#                appLogger = logging.getLogger('Transcript')
+#                appLogger.info('Dialog %d'%i)
+                
+#                errorRate = i/(iter/1)
+#                appLogger.info('Error rate %d'%errorRate)
+                appLogger.info('Dialog %d'%dialogNum)
+                appLogger.info('Error rate %d'%errorRate)
+
+                rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
+                rewards['taskSuccessReward'] += errorRate*5 
+                log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
+                
+                totalDialogReward.append(log['result'][1])
+                intervalDialogReward.append(log['result'][1])
+                totalDialogLength.append(len(log['turns']))
+                intervalDialogLength.append(len(log['turns']))
+                
+                if log['result'][0]: 
+                    totalDialogSuccessCount += 1
+                    intervalDialogSuccessCount += 1
+                if log['subSuccess']: 
+                    totalDialogSubSuccessCount += 1
+                    intervalDialogSubSuccessCount += 1
+#                if (i+1) % (iter[errorRate]/interval) == 0:
+                if (dialogNum+1) % (maxDialogNum/interval) == 0:
+                    intervalElapsedTime.append(str(dt.datetime.now() - intervalStartTime))
+                    appLogger.info('Interval elapsed time: %s'%intervalElapsedTime[-1])
+        
+#                    intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(float(iter)/interval))
+                    intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(float(maxDialogNum)/interval))
+                    intervalDialogLength = []
+                    appLogger.info('Interval average dialog length: %f'%intervalAvgDialogLength[-1])
+                    
+#                    totalAvgDialogLength.append(float(sum(totalDialogLength))/(i+1))
+                    totalAvgDialogLength.append(float(sum(totalDialogLength))/(dialogNum+1))
+                    appLogger.info('Cumulative average dialog length: %f'%totalAvgDialogLength[-1])
+                    
+#                    intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(float(iter)/interval))
+                    intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(float(maxDialogNum)/interval))
+                    intervalDialogReward = []
+                    appLogger.info('Interval average dialog reward: %f'%intervalAvgDialogReward[-1])
+                    
+#                    totalAvgDialogReward.append(float(sum(totalDialogReward))/(i+1))
+                    totalAvgDialogReward.append(float(sum(totalDialogReward))/(dialogNum+1))
+                    appLogger.info('Cumulative average dialog reward: %f'%totalAvgDialogReward[-1])
+                    
+#                    intervalDialogSuccessRate.append(float(intervalDialogSuccessCount)/(float(iter)/interval))
+                    intervalDialogSuccessRate.append(float(intervalDialogSuccessCount)/(float(maxDialogNum)/interval))
+                    intervalDialogSuccessCount = 0
+                    appLogger.info('Interval dialog success rate: %f'%intervalDialogSuccessRate[-1])
+                    
+#                    totalDialogSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
+                    totalDialogSuccessRate.append(float(totalDialogSuccessCount)/(dialogNum+1))
+                    appLogger.info('Cumulative dialog success rate: %f'%totalDialogSuccessRate[-1])
+                    
+#                    intervalDialogSubSuccessRate.append(float(intervalDialogSubSuccessCount)/(float(iter)/interval))
+                    intervalDialogSubSuccessRate.append(float(intervalDialogSubSuccessCount)/(float(maxDialogNum)/interval))
+                    intervalDialogSubSuccessCount = 0
+                    appLogger.info('Interval dialog success rate in ignorance of route: %f'%intervalDialogSubSuccessRate[-1])
+                    
+#                    totalDialogSubSuccessRate.append(float(totalDialogSubSuccessCount)/(i+1))
+                    totalDialogSubSuccessRate.append(float(totalDialogSubSuccessCount)/(dialogNum+1))
+                    appLogger.info('Cumulative dialog success rate in ignorance of route: %f'%totalDialogSubSuccessRate[-1])
+                    intervalStartTime = dt.datetime.now()
+                    
+    #            if (i+1) % (iter/1) == 0:
+    #                dialogManager.StoreModel('%d'%errorRate)
+                dialogNum += 1
             
-            errorRate = i/(iter/1)
-            appLogger.info('Error rate %d'%errorRate)
-    
-            log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
-            
-            totalDialogReward.append(log['result'][1])
-            intervalDialogReward.append(log['result'][1])
-            totalDialogLength.append(len(log['turns']))
-            intervalDialogLength.append(len(log['turns']))
-            
-            if log['result'][0]: 
-                totalDialogSuccessCount += 1
-                intervalDialogSuccessCount += 1
-            if log['subSuccess']: 
-                totalDialogSubSuccessCount += 1
-                intervalDialogSubSuccessCount += 1
-            if (i+1) % (iter/interval) == 0:
-                intervalElapsedTime.append(str(dt.datetime.now() - intervalStartTime))
-                appLogger.info('Interval elapsed time: %s'%intervalElapsedTime[-1])
-    
-                intervalAvgDialogLength.append(float(sum(intervalDialogLength))/(float(iter)/interval))
-                intervalDialogLength = []
-                appLogger.info('Interval average dialog length: %f'%intervalAvgDialogLength[-1])
-                
-                totalAvgDialogLength.append(float(sum(totalDialogLength))/(i+1))
-                appLogger.info('Cumulative average dialog length: %f'%totalAvgDialogLength[-1])
-                
-                intervalAvgDialogReward.append(float(sum(intervalDialogReward))/(float(iter)/interval))
-                intervalDialogReward = []
-                appLogger.info('Interval average dialog reward: %f'%intervalAvgDialogReward[-1])
-                
-                totalAvgDialogReward.append(float(sum(totalDialogReward))/(i+1))
-                appLogger.info('Cumulative average dialog reward: %f'%totalAvgDialogReward[-1])
-                
-                intervalDialogSuccessRate.append(float(intervalDialogSuccessCount)/(float(iter)/interval))
-                intervalDialogSuccessCount = 0
-                appLogger.info('Interval dialog success rate: %f'%intervalDialogSuccessRate[-1])
-                
-                totalDialogSuccessRate.append(float(totalDialogSuccessCount)/(i+1))
-                appLogger.info('Cumulative dialog success rate: %f'%totalDialogSuccessRate[-1])
-                
-                intervalDialogSubSuccessRate.append(float(intervalDialogSubSuccessCount)/(float(iter)/interval))
-                intervalDialogSubSuccessCount = 0
-                appLogger.info('Interval dialog success rate in ignorance of route: %f'%intervalDialogSubSuccessRate[-1])
-                
-                totalDialogSubSuccessRate.append(float(totalDialogSubSuccessCount)/(i+1))
-                appLogger.info('Cumulative dialog success rate in ignorance of route: %f'%totalDialogSubSuccessRate[-1])
-                intervalStartTime = dt.datetime.now()
-                
-#            if (i+1) % (iter/1) == 0:
-#                dialogManager.StoreModel('%d'%errorRate)
-    
         endTime = dt.datetime.now()
         dialogManager.StoreModel('%d'%testIndex)
         
