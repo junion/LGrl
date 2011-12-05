@@ -5,47 +5,255 @@
 # directory of the Galaxy Communicator system.
 
 import sys,exceptions
+import logging.config
+import logging
+import threading
+import Queue
+from GlobalConfig import *
 import Galaxy,GalaxyIO
+from DialogThread import *
 
-def reinitialize(env,dict):
+sys.path.append("E:/Development/LGrl-G")
+
+InitConfig()
+config = GetConfig()
+config.read(['E:/Development/LGrl-G/LGrl.conf'])
+
+logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
+appLogger = logging.getLogger('Transcript')
+
+appLogger.info('GalaxyServer')
+
+dialogThread = None
+inSession = False
+sessionID = None
+lastEnv = None
+lastFrame = None
+properties = None
+metaInfo = []
+timeoutPeriod = 8
+
+inQueue = Queue.Queue()
+outQueue = Queue.Queue()
+
+def CallGalaxyModuleFunction(galaxyCall):
+    global lastEnv
+
+    frameToHub = Galaxy.Frame(str=galaxyCall)
+#    frameToHub[] = 
+    
+    if galaxyCall.blockingCall:
+        try:
+            frameFromHub = lastEnv.DispatchFrame(frameToHub)
+            appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
+        except GalaxyIO.DispatchError:
+            appLogger.info('dispatch error')
+    else:
+        lastEnv.WriteFrame(frameToHub)
+
+def SendActionThroughHub(galaxyCall):
+    global lastEnv
+
+    frameToHub = Galaxy.Frame()
+#    frameToHub[] = 
+    
+    lastEnv.WriteFrame(frameToHub)
+
+def DoDialogFlow():
+    global inQueue
+    global outQueue
+    global lastFrame
+
+    appLogger.info('DoDialogFlow')
+#    appLogger.info('lastFrame:\n %s'%str(lastFrame))
+    inQueue.put(lastFrame)
+    appLogger.info('Message out')
+
+    while True:
+        message = outQueue.get()
+        appLogger.info('Message in')
+        outQueue.task_done()
+        if message['type'] == 'GALAXYCALL':
+            appLogger.info('GALAXYCALL')
+            CallGalaxyModuleFunction(message['data'])
+            appLogger.info('CallGalaxyModuleFunction')
+            inQueue.put(None)
+            appLogger.info('Message out')
+            break            
+        elif message['type'] == 'GALAXYACTIONCALL':
+            SendActionThroughHub(message['data'])
+            inQueue.put(None)
+            break
+        elif message['type'] == 'WAITINPUT':
+            return
+        elif message['type'] == 'WAITINTERACTIONEVENT':
+            return
+        elif message['type'] == 'DIALOGFINISHED':
+            return
+        else:
+            break
+
+def reinitialize(env,frame):
+    global lastEnv
+    global incomingFrame
+
+    lastEnv = env
+    incomingFrame = frame
+
+    appLogger.info('reinitialize called. Hub connection completed.')
+    return frame
+
+def begin_session(env,frame):
+    global inSession
+    global lastEnv
+    global incomingFrame
+    global lastFrame
+    global dialogThread
+    global inQueue
+    global outQueue
+    
+    if inSession:
+        end_session(env,frame)
+    
+    inSession = True
+
+    lastEnv = env
+    incomingFrame = frame
+    lastFrame = frame
+
+    appLogger.info('begin_session called.')
+    appLogger.info('frame:\n %s.'%str(frame))
     try:
-        env.WriteFrame(Galaxy.Frame("DBQuery",
-                                                Galaxy.GAL_CLAUSE,
-                                                {":sql_query":"test"}))
-    except GalaxyIO.DispatchError,error_frame:
-        print error_frame
-
-    return None
-
-def begin_session(env,dict):
-    return dict
-
-def handle_event(env,dict):
-    return dict
-
-def process_parse(env,dict):
+        timeStamp = frame[':session_start_timestamp']
+        appLogger.info('Init timestamp: %s.'%str(timeStamp))
+    except KeyError:
+        appLogger.info("Can't find :session_start_timestamp")
     try:
-        resdict = env.DispatchFrame(Galaxy.Frame("gal_be",
-                                                Galaxy.GAL_CLAUSE,
-                                                {":sql_query":"parse"}))
-        print resdict
-    except GalaxyIO.DispatchError,error_frame:
-        print error_frame
+        sessionID = frame[':sess_id']
+        appLogger.info('Init session ID: %s.'%str(sessionID))
+    except KeyError:
+        appLogger.info("Can't find :sess_id")
+    
+    appLogger.info("Dialog thread creation")
+    dialogThread = DialogThread(inQueue,outQueue)
+    dialogThread.setDaemon(True)
+    dialogThread.start()
+
+    appLogger.info("reach here")
+    
+    DoDialogFlow()
+    
+    return frame
+
+def end_session(env,frame):
+    global inSession
+    global lastEnv
+    global lastFrame
+    global properties
+
+    if not inSession:
+        return frame
+    
+    lastEnv = env
+    lastFrame = frame
+    
+    lastFrame[':event_type'] = 'end_session'
+    lastFrame[':event_complete'] = 1
+    
+    properties = Galaxy.Frame(type = Galaxy.GAL_CLAUSE,name = "properties")
+    properties[':terminate_session'] = 'true'
+    
+    lastFrame[':properties'] = properties
+    
+    appLogger.info('end_session called; sending terminate to Core')
+    
+    DoDialogFlow()
+    
+    inSession = False
+    
+    return frame
+
+def handle_event(env,frame):
+    global inSession
+    global lastEnv
+    global lastFrame
+
+    if not inSession:
+        return frame
+    
+    lastEnv = env
+    lastFrame = frame
+    
+    DoDialogFlow()
+    
+    appLogger.info('DM processing finished.')
+    
+    return frame
+    
+def service_timeout():
+    global inSession
+    global metaInfo
+
+    if not inSession:
+        return
+    
+    appLogger.info('service_timeout called.')
+    metaInfo = []
+    metaInfo[':timeout_elapsed'] = True
+    
+    DoDialogFlow()
+    
+    appLogger.info('DM processing finished.')
+    
+def start_inactivity_timeout(env,frame):
+    global inSession
+    global lastEnv
+    global incomingFrame
+    
+    if not inSession:
+        return frame
+
+    lastEnv = env
+    incomingFrame = frame
+
+    appLogger.info('start_inactivity_timeout called; installing time trigger (%d secs)'%timeoutPeriod)
+    
+#    Gal_AddTimedTask(service_timeout, NULL, 1000*iTimeoutPeriod)
+
+    return frame
+
+def cancel_inactivity_timeout(env,frame):
+    global inSession
+    global lastEnv
+    global incomingFrame
+
+    if not inSession:
+        return frame
+    
+    lastEnv = env
+    incomingFrame = frame
+
+    appLogger.info('cancel_inactivity_timeout called; removing the trigger')
+    
+#    Gal_RemoveTimedTask(service_timeout, NULL)
+
+    return frame
+
+
+#def process_parse(env,frame):
+#    try:
+#        resframe = env.DispatchFrame(Galaxy.Frame("gal_be",
+#                                                Galaxy.GAL_CLAUSE,
+#                                                {":sql_query":"parse"}))
+#        print resframe
+#    except GalaxyIO.DispatchError,error_frame:
+#        print error_frame
 # reply
 #    self.env.Reply(new_f)
-    return None
+#    return None
 
-def start_inactivity_timeout(env,dict):
-    return dict
-
-def cancel_inactivity_timeout(env,dict):
-    return dict
-
-def end_session(env,dict):
-    return dict
-
-def notify_output_manager(env,dict):
-    return dict
+#def notify_output_manager(env,frame):
+#    return frame
 
 # oas in C is -increment i.
 
@@ -54,27 +262,26 @@ def notify_output_manager(env,dict):
 # Write a wrapper for the usage check.
 
 class LGrlServer(GalaxyIO.Server):
-    pass
-#    def __init__(self, in_args, server_name = "<unknown>",
-#                 default_port = 0,
-#                 verbosity = -1,
-#                 require_port = 0,
-#                 maxconns = 1,
-#                 validate = 0,
-#                 server_listen_status = GalaxyIO.GAL_CONNECTION_LISTENER,
-#                 client_pair_string = None,
-#                 session_id = None,
-#                 server_locations_file = None,
-#                 slf_name = None,
-#                 env_class = GalaxyIO.CallEnvironment):
-#        GalaxyIO.Server.__init__(self, in_args, server_name,
-#                         default_port, verbosity,
-#                         require_port, maxconns,
-#                         validate, server_listen_status,
-#                         client_pair_string, session_id,
-#                         server_locations_file,
-#                         slf_name,
-#                         env_class)
+    def __init__(self, in_args, server_name = "<unknown>",
+                 default_port = 0,
+                 verbosity = -1,
+                 require_port = 0,
+                 maxconns = 1,
+                 validate = 0,
+                 server_listen_status = GalaxyIO.GAL_CONNECTION_LISTENER,
+                 client_pair_string = None,
+                 session_id = None,
+                 server_locations_file = None,
+                 slf_name = None,
+                 env_class = GalaxyIO.CallEnvironment):
+        GalaxyIO.Server.__init__(self, in_args, server_name,
+                         default_port, verbosity,
+                         require_port, maxconns,
+                         validate, server_listen_status,
+                         client_pair_string, session_id,
+                         server_locations_file,
+                         slf_name,
+                         env_class)
 
 #    def CheckUsage(self, oas_list, args):
 #        global InitialIncrement
@@ -85,7 +292,7 @@ class LGrlServer(GalaxyIO.Server):
 #        return data, out_args
 
 def main():
-    s = LGrlServer(sys.argv,"DialogManager",default_port = 17000,verbosity=3)
+    s = LGrlServer(sys.argv,"DialogManager",default_port=17000,verbosity=3)
     s.AddDispatchFunction("begin_session",begin_session,
                         [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
                         Galaxy.GAL_OTHER_KEYS_NEVER,
@@ -96,11 +303,11 @@ def main():
                         Galaxy.GAL_OTHER_KEYS_NEVER,
                         Galaxy.GAL_REPLY_NONE, [],
                         Galaxy.GAL_OTHER_KEYS_NEVER])
-    s.AddDispatchFunction("process_parse",process_parse,
-                        [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
-                        Galaxy.GAL_OTHER_KEYS_NEVER,
-                        Galaxy.GAL_REPLY_NONE, [],
-                        Galaxy.GAL_OTHER_KEYS_NEVER])
+#    s.AddDispatchFunction("process_parse",process_parse,
+#                        [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
+#                        Galaxy.GAL_OTHER_KEYS_NEVER,
+#                        Galaxy.GAL_REPLY_NONE, [],
+#                        Galaxy.GAL_OTHER_KEYS_NEVER])
     s.AddDispatchFunction("start_inactivity_timeout",start_inactivity_timeout,
                         [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
                         Galaxy.GAL_OTHER_KEYS_NEVER,
@@ -116,11 +323,11 @@ def main():
                         Galaxy.GAL_OTHER_KEYS_NEVER,
                         Galaxy.GAL_REPLY_NONE, [],
                         Galaxy.GAL_OTHER_KEYS_NEVER])
-    s.AddDispatchFunction("notify_output_manager",notify_output_manager,
-                        [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
-                        Galaxy.GAL_OTHER_KEYS_NEVER,
-                        Galaxy.GAL_REPLY_NONE, [],
-                        Galaxy.GAL_OTHER_KEYS_NEVER])
+#    s.AddDispatchFunction("notify_output_manager",notify_output_manager,
+#                        [[[":int", Galaxy.GAL_INT, Galaxy.GAL_KEY_ALWAYS]],
+#                        Galaxy.GAL_OTHER_KEYS_NEVER,
+#                        Galaxy.GAL_REPLY_NONE, [],
+#                        Galaxy.GAL_OTHER_KEYS_NEVER])
     s.AddDispatchFunction("reinitialize",reinitialize,
                           [[], Galaxy.GAL_OTHER_KEYS_NEVER,
                            Galaxy.GAL_REPLY_NONE, [],
