@@ -71,7 +71,7 @@ class PartitionDistribution(object):
         After creation, partitionDistributionObject.Init() method
         is called.
         '''
-        self.appLogger = logging.getLogger('Transcript')
+        self.appLogger = logging.getLogger('Learning')
         self.maxNBest = 0
         self.maxPartitions = 0
         self.defaultResetFraction = 0.0
@@ -114,19 +114,29 @@ class PartitionDistribution(object):
         and for each calls historySeed(partition) to obtain a list
         of starter dialog histories.
         '''
+        self.appLogger.info('!')
         self.partitionEntryList = []
+        self.appLogger.info('!!')
         self.nextPartitionEntryID = [0]  # use a list so that _PartitionEntry can modify this
+        self.appLogger.info('!!!')
         for partition in self.partitionSeed():
+            self.appLogger.info('1')
             partitionEntry = _PartitionEntry( partition=partition, belief=partition.prior, parent=None, nextPartitionEntryID=self.nextPartitionEntryID )
+            self.appLogger.info('2')
             for history in self.historySeed(partition):
+                self.appLogger.info('3')
                 historyEntry = _HistoryEntry()
+                self.appLogger.info('4')
                 historyEntry.history = history
                 historyEntry.belief = history.prior
                 historyEntry.origBelief = historyEntry.belief
                 historyEntry.userActionLikelihoodTotal = 0.0
                 historyEntry.belief = history.prior
+                self.appLogger.info('5')
                 partitionEntry.historyEntryList.append(historyEntry)
+                self.appLogger.info('6')
             self.partitionEntryList.append(partitionEntry)
+            self.appLogger.info('7')
 
     def Update(self,asrResult,sysAction):
         '''

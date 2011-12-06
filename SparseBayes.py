@@ -9,7 +9,7 @@ MY_ID = 'SparseBayes'
 class SparseBayes(object):
     def __init__(self):
         old_settings = np.seterr(all='warn',divide='raise',invalid='raise') 
-        logging.config.fileConfig('logging.conf')
+#        logging.config.fileConfig('logging.conf')
         self.appLogger = logging.getLogger('Learning')
         if id(np.dot) == id(np.core.multiarray.dot):
             self.appLogger.info("Not using blas/lapack!")

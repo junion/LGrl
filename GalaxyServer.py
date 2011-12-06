@@ -20,7 +20,7 @@ config = GetConfig()
 config.read(['E:/Development/LGrl-G/LGrl.conf'])
 
 logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
-appLogger = logging.getLogger('Transcript')
+appLogger = logging.getLogger('Galaxy')
 
 appLogger.info('GalaxyServer')
 
@@ -40,33 +40,39 @@ def CallGalaxyModuleFunction(galaxyCall):
     global lastEnv
 
     frameToHub = Galaxy.Frame(str=galaxyCall)
-#    frameToHub[] = 
+    print '%s'%str(frameToHub) 
+
+    try:
+        frameFromHub = lastEnv.DispatchFrame(frameToHub)
+        appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
+    except GalaxyIO.DispatchError:
+        appLogger.info('dispatch error')
     
-    if galaxyCall.blockingCall:
-        try:
-            frameFromHub = lastEnv.DispatchFrame(frameToHub)
-            appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
-        except GalaxyIO.DispatchError:
-            appLogger.info('dispatch error')
-    else:
-        lastEnv.WriteFrame(frameToHub)
+#    if galaxyCall.blockingCall:
+#        try:
+#            frameFromHub = lastEnv.DispatchFrame(frameToHub)
+#            appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
+#        except GalaxyIO.DispatchError:
+#            appLogger.info('dispatch error')
+#    else:
+#        lastEnv.WriteFrame(frameToHub)
 
 def SendActionThroughHub(galaxyCall):
     global lastEnv
 
-    frameToHub = Galaxy.Frame()
+    frameToHub = Galaxy.Frame(str=galaxyCall)
 #    frameToHub[] = 
     
     lastEnv.WriteFrame(frameToHub)
 
-def DoDialogFlow():
+def DoDialogFlow(frame=None):
     global inQueue
     global outQueue
     global lastFrame
 
     appLogger.info('DoDialogFlow')
 #    appLogger.info('lastFrame:\n %s'%str(lastFrame))
-    inQueue.put(lastFrame)
+    inQueue.put(frame)
     appLogger.info('Message out')
 
     while True:
@@ -122,7 +128,7 @@ def begin_session(env,frame):
     lastFrame = frame
 
     appLogger.info('begin_session called.')
-    appLogger.info('frame:\n %s.'%str(frame))
+#    appLogger.info('frame:\n %s.'%str(frame))
     try:
         timeStamp = frame[':session_start_timestamp']
         appLogger.info('Init timestamp: %s.'%str(timeStamp))
@@ -134,14 +140,15 @@ def begin_session(env,frame):
     except KeyError:
         appLogger.info("Can't find :sess_id")
     
-    appLogger.info("Dialog thread creation")
-    dialogThread = DialogThread(inQueue,outQueue)
+#    appLogger.info("Dialog thread creation")
+    dialogThread = DialogThread(str(sessionID),inQueue,outQueue)
+#    appLogger.info("Done")
     dialogThread.setDaemon(True)
+#    appLogger.info("Daemonized")
     dialogThread.start()
-
-    appLogger.info("reach here")
+#    appLogger.info("Started")
     
-    DoDialogFlow()
+    DoDialogFlow(frame)
     
     return frame
 
@@ -167,7 +174,7 @@ def end_session(env,frame):
     
     appLogger.info('end_session called; sending terminate to Core')
     
-    DoDialogFlow()
+    DoDialogFlow(frame)
     
     inSession = False
     
@@ -178,13 +185,15 @@ def handle_event(env,frame):
     global lastEnv
     global lastFrame
 
+    appLogger.info('frame:\n%s',frame.PPrint())
+    
     if not inSession:
         return frame
     
     lastEnv = env
     lastFrame = frame
     
-    DoDialogFlow()
+    DoDialogFlow(frame)
     
     appLogger.info('DM processing finished.')
     

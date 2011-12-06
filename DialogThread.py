@@ -17,33 +17,34 @@ import threading
 import Queue
 from GlobalConfig import *
 from DialogManager import SBSarsaDialogManager as DialogManager
-
-    
-f_text = '''{c gal_be.launch_query 
-                                :inframe "{
-    query    {
-        place    {
-            name    MURRAY AND HAZELWOOD
-            type    stop
-        }
-        type    100
-    }
-}\n"
-                            }'''
+from GalaxyFrames import *
     
 class DialogThread(threading.Thread):
-    def __init__(self,inQueue,outQueue):
+    def __init__(self,sessionID,inQueue,outQueue):
         threading.Thread.__init__(self)
-        self.appLogger = logging.getLogger('Transcript')
+
+        logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
+        self.appLogger = logging.getLogger('DialogThread')
+#        self.appLogger.info('DialogThread init')
+        self.sessionID = sessionID
+        self.msg_idx = 0
+        self.utt_count = 0
         self.inQueue = inQueue
         self.outQueue = outQueue
-        dialogManager = DialogManager()
+        self.dialogManager = DialogManager()
+
+        self.appLogger.info('Dialog thread %s created'%self.getName())
     
     def run(self):
         while True:
-            event = self.inQueue.get()
-            self.appLogger.info('Event:\n %s'%str(event))
+            frame = self.inQueue.get()
+            
+#            self.appLogger.info('Event:\n %s'%str(event))
             self.inQueue.task_done()
-            message = {'type':'GALAXYCALL','data':f_text}
+            message = {'type':'GALAXYACTIONCALL',
+                       'data':intro%(self.sessionID,self.msg_idx,"welcome",self.utt_count)}
+            self.appLogger.info('message:\n %s'%str(message))
+#            self.appLogger.info('message:\n %s'%str(message))
+#            message = {'type':'WAITINPUT'}
             self.outQueue.put(message)
                     
