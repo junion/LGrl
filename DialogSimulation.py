@@ -207,13 +207,13 @@ def main():
 #            config.set('BeliefState','useLearnedUserModel','false')
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
             
-        dialogManager = DialogManager()
-    #    dialogManager = DialogManager(confidenceScoreCalibration=None,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None)
-        userSimulation = UserSimulation()
-    #    asrSimulation = ASRSimulation()
-        iter = [200,400,400,50]
-        interval = 10
-        basisFunctionMax = [500,700,900,900]
+#        iter = [300,400,500,50]
+        iter = [200,150,100]
+#        errorRates = [0,1,2,0]
+        errorRates = [0,1,2]
+        interval = 9
+#        basisFunctionMax = [500]
+        basisFunctionMax = ['500','700','900','900']
         totalDialogSuccessCount = 0
         intervalDialogSuccessCount = 0
         totalDialogSuccessRate = []
@@ -237,10 +237,32 @@ def main():
 
         appLogger = logging.getLogger('Transcript')
 
+        dialogStrategyLearning = config.getboolean('DialogManager','dialogStrategyLearning')
+#        config.set('DialogManager','dialogStrategyLearning',dialogStrategyLearning)
+        
+        if dialogStrategyLearning:
+            config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[0])
+        
+        dialogManager = DialogManager()
+        userSimulation = UserSimulation()
+
         dialogNum = 0    
         maxDialogNum = sum(iter)    
-        for ei,errorRate in enumerate([0,1,2,0]):
-#            config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[errorRate])
+        for ei,errorRate in enumerate(errorRates):
+#        for ei,errorRate in enumerate([0]):
+#            if ei > 0:
+#                X,Targets,raw_BASIS,BASIS,Used,\
+#                Alpha,beta,\
+#                Aligned_out,Aligned_in,\
+#                Relevant,Mu = dialogManager.GetPresentLearningStatus()
+#            config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[ei])
+#                dialogManager = DialogManager()
+#                dialogManager.SetLearningStatus(X,Targets,raw_BASIS,BASIS,Used,
+#                                                  Alpha,beta,Aligned_out,Aligned_in,Relevant,Mu)
+            if dialogStrategyLearning:
+                config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[ei])
+                
+            dialogManager.ReloadConfig()
             for i in range(iter[ei]):
 #                appLogger = logging.getLogger('Transcript')
 #                appLogger.info('Dialog %d'%i)

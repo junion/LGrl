@@ -59,7 +59,7 @@ class Partition(object):
 
     This class tracks a partition of listings.
     '''
-    def __init__(self,existingPartition=None,fieldToSplit=None,value=None,useLearnedUserModel=True,confirmUnlikelyDiscountFactor=0.1):
+    def __init__(self,existingPartition=None,fieldToSplit=None,value=None):
         '''
         Constructor, and copy constructor.
 
@@ -74,8 +74,6 @@ class Partition(object):
         '''
         self.appLogger = logging.getLogger('Transcript')
         self.config = GetConfig()
-#        self.useLearnedUserModel = useLearnedUserModel
-#        self.confirmUnlikelyDiscountFactor = confirmUnlikelyDiscountFactor
         self.useLearnedUserModel = self.config.getboolean(MY_ID,'useLearnedUserModel')
         self.confirmUnlikelyDiscountFactor = self.config.getfloat(MY_ID,'confirmUnlikelyDiscountFactor')
         self.num_route = self.config.getint(MY_ID,'numberOfRoute')
@@ -128,14 +126,12 @@ class Partition(object):
             assert not value == None,'arg not defined'
             self.fieldList = existingPartition.fieldList
             self.fieldCount = existingPartition.fieldCount
-#            self.useLearnedUserModel = existingPartition.useLearnedUserModel
             if not self.useLearnedUserModel:
                 self.umParams = existingPartition.umParams
             else:
                 self.userModel = existingPartition.userModel
                 self.irrelevantUserActProb = existingPartition.irrelevantUserActProb
                 self.minRelevantUserActProb = existingPartition.minRelevantUserActProb
-#            self.confirmUnlikelyDiscountFactor = existingPartition.confirmUnlikelyDiscountFactor
             self.totalCount = existingPartition.totalCount
             self.fields = {}
             self.count = 1
@@ -602,7 +598,7 @@ class BeliefState(object):
       print '%s' % (beliefState)
 
     '''
-    def __init__(self,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None):
+    def __init__(self):
         '''
         Creates a new partitionDistribution object, using the classes in this
         module.
@@ -610,19 +606,11 @@ class BeliefState(object):
         self.config = GetConfig()
         self.appLogger = logging.getLogger(MY_ID)
         self.db = GetDB()
-#        if useLearnedUserModel == None:
-#            self.useLearnedUserModel = self.config.getboolean(MY_ID,'useLearnedUserModel')
-#        else:
-#            self.useLearnedUserModel = useLearnedUserModel
-#        if confirmUnlikelyDiscountFactor == None:
-#            self.confirmUnlikelyDiscountFactor = self.config.getfloat(MY_ID,'confirmUnlikelyDiscountFactor')
-#        else:
-#            self.confirmUnlikelyDiscountFactor = confirmUnlikelyDiscountFactor
             
         #self.fields = self.db.GetFields()
         self.fields = ['route','departure_place','arrival_place','travel_time']
         def PartitionSeed():
-            return [ Partition(useLearnedUserModel=useLearnedUserModel) ]
+            return [ Partition() ]
         def HistorySeed(partition):
             return [ History() ]
         if (self.config.getboolean(MY_ID,'useHistory')):

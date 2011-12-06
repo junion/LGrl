@@ -69,10 +69,10 @@ class DialogManager(object):
     '''
     Base class.  Not meant to be instantiated on its own.
     '''
-    def __init__(self,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None):
+    def __init__(self):
         self.appLogger = logging.getLogger('Learning')
         self.config = GetConfig()
-        self.beliefState = BeliefState(useLearnedUserModel,confirmUnlikelyDiscountFactor)
+        self.beliefState = BeliefState()
         self.db = GetDB()
 #        self.fields = self.db.GetFields()
         self.prompts = LetsGoPrompts()
@@ -320,19 +320,17 @@ class SBSarsaDialogManager(DialogManager):
     '''
     See module header for a description.
     '''
-    def __init__(self,confidenceScoreCalibration=None,useLearnedUserModel=None,confirmUnlikelyDiscountFactor=None):
-        DialogManager.__init__(self,useLearnedUserModel,confirmUnlikelyDiscountFactor)
+    def __init__(self):
+        DialogManager.__init__(self)
         self.fields = ['route','departure_place','arrival_place','travel_time']
-        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
-        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
-        self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
-        self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
-        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
-        self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
-        if confidenceScoreCalibration == None:
-            self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
-        else:
-            self.confidenceScoreCalibration = confidenceScoreCalibration
+#        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
+#        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
+#        self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
+#        self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
+#        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+#        self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
+#        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
+        self._LoadConfig()
         self.sb = SparseBayes()
         if self.confidenceScoreCalibration:
             self.appLogger.info('Apply confidence score calibration')
@@ -346,6 +344,11 @@ class SBSarsaDialogManager(DialogManager):
                               'multi3':pickle.load(open('_calibrated_confidence_score_sbr_multi3.model','rb')),\
                               'multi4':pickle.load(open('_calibrated_confidence_score_sbr_multi4.model','rb'))
                               }
+        if not self.dialogStrategyLearning:
+            self.Relevant = pickle.load(open('Relevant.model','r'))
+            self.Mu = pickle.load(open('Mu.model','r'))
+            self.X = pickle.load(open('DataPoints.model','r'))
+            self.sizeX = len(self.X)
 
     def Init(self,userGoal=None):
         self.userGoal = userGoal
@@ -359,6 +362,20 @@ class SBSarsaDialogManager(DialogManager):
         self.dialogResult = False
         self.dialogReward = 0
         return sysAction
+
+    def _LoadConfig(self):
+        self.dialogStrategyLearning = self.config.getboolean(MY_ID,'dialogStrategyLearning')
+        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
+        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
+        self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
+        self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
+        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+        self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
+        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
+         
+    def ReloadConfig(self):
+        self._LoadConfig()
+        self.sb.reload_config()
     
     def DialogResult(self):
         return (self.dialogResult,self.dialogReward)
@@ -406,8 +423,9 @@ class SBSarsaDialogManager(DialogManager):
         if asrResult == None:
 #            reward = self._GetReward(self.beliefState,sysAction)
             self.dialogReward += reward
-            self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
-                          self.prevSysAction,reward,0,self.prevAsrResult)
+            if self.dialogStrategyLearning:
+                self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
+                              self.prevSysAction,reward,0,self.prevAsrResult)
             if reward == self.taskSuccessReward:
                 self.dialogResult = True
             return None
@@ -417,17 +435,20 @@ class SBSarsaDialogManager(DialogManager):
 #            asrResult = deepcopy(asrResult)
             self.Calibrate(asrResult)
             self.appLogger.info('Calibrated asrResult %s'%asrResult)
-        self.prevTopBelief = self.beliefState.GetTopUserGoalBelief()
-        self.prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
-        self.prevMarginals = deepcopy(self.beliefState.GetMarginals())
-#        reward = self._GetReward(self.beliefState,self.prevSysAction)
+        if self.dialogStrategyLearning:
+            self.prevTopBelief = self.beliefState.GetTopUserGoalBelief()
+            self.prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
+            self.prevMarginals = deepcopy(self.beliefState.GetMarginals())
+    #        reward = self._GetReward(self.beliefState,self.prevSysAction)
         self.dialogReward += reward
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
-        self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
-                      self.prevSysAction,reward,Qval,self.prevAsrResult)
+        if self.dialogStrategyLearning:
+            self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
+                          self.prevSysAction,reward,Qval,self.prevAsrResult)
         self.prevSysAction = sysAction
-        self.prevAsrResult = asrResult
+        if self.dialogStrategyLearning:
+            self.prevAsrResult = asrResult
         # terminal case
 #        if sysAction.type == 'inform':
 #            reward = self._GetReward(self.beliefState,sysAction)
@@ -540,6 +561,18 @@ class SBSarsaDialogManager(DialogManager):
 #        print 'BASIS %s'%str(BASIS)
         return BASIS
         
+    def GetBasisSize(self):
+        if self.dialogStrategyLearning:
+            return self.sb.get_basis_size()
+        else:
+            return self.sizeX
+
+    def GetBasisPoints(self):
+        if self.dialogStrategyLearning:
+            return self.sb.get_basis_points()
+        else:
+            return self.X
+        
     def _SBSarsa(self,topBelief,topFields,marginals,sysAction,reward,nextQval,asrResult):
         self.appLogger.info('reward %d'%reward)
         self.appLogger.info('nextQval %f'%nextQval)
@@ -560,7 +593,7 @@ class SBSarsaDialogManager(DialogManager):
         try:
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
             self.sb.incremental_learn([X],np.atleast_2d(y),self._gaussian_basis_matrix)
-            self.appLogger.info('Number of data points: %d'%self.sb.get_basis_size())
+            self.appLogger.info('Number of data points: %d'%self.GetBasisSize())
 #            self._TraceQval()
         except RuntimeError,(XN,Y,raw_BASIS):
             self.appLogger.info('BASIS:\n %s'%str(raw_BASIS))
@@ -573,8 +606,15 @@ class SBSarsaDialogManager(DialogManager):
         import pickle
         pickle.dump(self.Relevant,open('Relevant-%s.model'%tag,'w'))
         pickle.dump(self.Mu,open('Mu-%s.model'%tag,'w'))
-        pickle.dump(self.sb.get_basis_points(),open('DataPoints-%s.model'%tag,'w'))        
-        
+        pickle.dump(self.GetBasisPoints(),open('DataPoints-%s.model'%tag,'w'))        
+    
+    def GetPresentLearningStatus(self):
+        return self.sb.get_present_learning_status()
+    
+    def SetLearningStatus(self,X,Targets,raw_BASIS,BASIS,Used,Alpha,beta,Aligned_out,Aligned_in,Relevant,Mu):
+        self.Relevant,self.Mu = Relevant,Mu
+        self.sb.set_learning_status(X,Targets,raw_BASIS,BASIS,Used,Alpha,beta,Aligned_out,Aligned_in,Relevant,Mu)
+          
     def _TraceQval(self):
         import operator
         
@@ -584,7 +624,7 @@ class SBSarsaDialogManager(DialogManager):
                 '[ask] confirm arrival_place','[ask] confirm travel_time',\
                 '[inform]']
         
-        w_infer = np.zeros((self.sb.get_basis_size(),1))
+        w_infer = np.zeros((self.GetBasisSize(),1))
         w_infer[self.Relevant] = self.Mu 
 
         Bs = [np.array([0.25,0.25,0.25,0.25,0.25]),\
@@ -601,7 +641,7 @@ class SBSarsaDialogManager(DialogManager):
             Qvals = []
             for act in acts:
                 X = [B,'',act]
-                Qvals.append((act,np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]))
+                Qvals.append((act,np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]))
             Qvals = sorted(Qvals,key=lambda q:q[1],reverse=True)
             for Qval in Qvals:
                 self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
@@ -639,9 +679,9 @@ class SBSarsaDialogManager(DialogManager):
                 self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
             
         act = ''        
-        if asrResult == None or self.sb.get_basis_size() == 0:
+        if asrResult == None or self.GetBasisSize() == 0:
             act = random.choice(acts[:4])
-        elif random.random() < 0.1:
+        elif self.dialogStrategyLearning and random.random() < 0.1:
             act = random.choice(acts)
             self.appLogger.info('Exploration act: %s'%act)
 #        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
@@ -666,7 +706,7 @@ class SBSarsaDialogManager(DialogManager):
 #            else:
 #                contX.append(1.0)
         try:
-            w_infer = np.zeros((self.sb.get_basis_size(),1))
+            w_infer = np.zeros((self.GetBasisSize(),1))
             w_infer[self.Relevant] = self.Mu 
             if act == '':
                 ys = np.array([])
@@ -674,15 +714,15 @@ class SBSarsaDialogManager(DialogManager):
                     X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
 #                    print 'choose X:%s'%str(X)
     #                print ys
-    #                print np.dot(self._basis_vector(self.sb.get_basis_points(),X).T,w_infer).flatten()
-                    ys = np.concatenate((ys,np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer).ravel()))
+    #                print np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).flatten()
+                    ys = np.concatenate((ys,np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer).ravel()))
                     
                 self.appLogger.info('Qvals: %s'%str(ys))
                 act = acts[ys.argmax(0)]
                 Qval = ys.max(0)
             else:
                 X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
-                Qval = np.dot(self._gaussian_basis_vector(self.sb.get_basis_points(),X).T,w_infer)[0,0]
+                Qval = np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]
         except:
             Qval = 0.0
             
