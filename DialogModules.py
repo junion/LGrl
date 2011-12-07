@@ -383,6 +383,39 @@ class ASRResult:
         return self
 
     @classmethod
+    def FromHelios(cls,userActions,probs,isTerminal=False,correctPosition=None):
+        '''
+        Creates an ASRResult object for use in a simulated environment.
+
+        grammar is a Grammar object.
+
+        userActions is a list of UserAction objects on the N-Best list.  Up to one 'silent'
+        userAction can be included.  Do not include an 'oog' action.
+
+        probs is the list of probabilities indicating the ASR probabilities of
+        each of the userActions.
+
+        isTerminal indicates if the user hung up.  If not provided, defaults to False.
+
+        correctPosition indicates the position of the correct N-Best list entry.
+          None: unknown
+          -1: not anywhere on the list
+          0: first entry on the list
+          1: second entry on the list, etc.
+        if not provided, defaults to None
+        '''
+        self = cls()
+        assert (len(userActions) == len(probs)),'In ASRResult, length of userActions (%d) not equal to length of probs (%d)' % (len(userActions),len(probs))
+        for userAction in userActions:
+            assert (not userAction.type == 'oog'),'userAction type for ASR result cannot be oog -- oog is implicit in left-over mass'
+        self.userActions = userActions
+        self.probs = probs
+        for prob in self.probs:
+            self.probTotal += prob
+        assert (self.probTotal <= 1.0),'Total probability exceeds 1.0: %f' % (self.probTotal)
+        return self
+
+    @classmethod
     def Simulated(cls,grammar,userActions,probs,isTerminal=False,correctPosition=None):
         '''
         Creates an ASRResult object for use in a simulated environment.

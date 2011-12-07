@@ -81,13 +81,13 @@ def DoDialogFlow(frame=None):
         outQueue.task_done()
         if message['type'] == 'GALAXYCALL':
             appLogger.info('GALAXYCALL')
-            CallGalaxyModuleFunction(message['data'])
+            CallGalaxyModuleFunction(message['content'])
             appLogger.info('CallGalaxyModuleFunction')
             inQueue.put(None)
             appLogger.info('Message out')
             break            
         elif message['type'] == 'GALAXYACTIONCALL':
-            SendActionThroughHub(message['data'])
+            SendActionThroughHub(message['content'])
             inQueue.put(None)
             break
         elif message['type'] == 'WAITINPUT':

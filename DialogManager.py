@@ -169,13 +169,13 @@ class SBSarsaDialogManager(DialogManager):
             self.sizeX = len(self.X)
         self.appLogger.info('SBSarsaDialogManager init done')
 
-    def Init(self):
+    def Init(self,userFirst=False):
 #        self.userGoal = userGoal
         self.beliefState.Init()
         self.fieldCounts = dict([(field,0) for field in self.fields])
         self.fieldCounts['all'] = 0
         self.routeConfirmCount = 0
-        sysAction,Qval = self._ChooseAction()
+        sysAction,Qval = self._ChooseAction(userFirst=userFirst)
         self.prevSysAction = sysAction
         self.prevAsrResult = None
 #        self.dialogResult = False
@@ -465,7 +465,7 @@ class SBSarsaDialogManager(DialogManager):
             for Qval in Qvals:
                 self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
                 
-    def _ChooseAction(self,asrResult=None):
+    def _ChooseAction(self,asrResult=None,userFirst=False):
         import random
         
         # action list
@@ -504,8 +504,11 @@ class SBSarsaDialogManager(DialogManager):
                 acts.remove('[ask] confirm_immediate %s'%field)
                 self.appLogger.info('Exclude confirm_immediate %s because of ASR result'%field)
                         
-        act = ''        
-        if asrResult == None or self.GetBasisSize() == 0:
+        act = ''
+        if userFirst:
+            act = '[ask] request all' 
+            self.appLogger.info('Choose request all')
+        elif asrResult == None or self.GetBasisSize() == 0:
             act = random.choice(acts[:4])
         elif self.dialogStrategyLearning and random.random() < 0.1:
             act = random.choice(acts)
