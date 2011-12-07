@@ -89,7 +89,7 @@ def GetSubSuccess(userGoal,beliefState,sysAction):
     else:
         return False
     
-def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=0):
+def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
     '''
     Simulates one dialog.
 
@@ -102,7 +102,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=0):
     Displays result on the "Transcript" logger
     '''
     userSimulation.Init(errorRate)
-    systemAction = dialogManager.Init(userSimulation.goal)
+    systemAction = dialogManager.Init()
 
     appLogger = logging.getLogger('Transcript')
     appLogger.info('------ Prior to start of dialog ------')
@@ -141,7 +141,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=0):
         
         systemAction = nextSystemAction
         
-        if i >= rewards['taskSuccessReward']:
+        if i >= 50:#rewards['taskSuccessReward']:
             break
         i += 1
     reward = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
@@ -207,13 +207,15 @@ def main():
 #            config.set('BeliefState','useLearnedUserModel','false')
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
             
-#        iter = [300,400,500,50]
-        iter = [200,150,100]
+#        iter = [300,400,500]
+#        iter = [100,50,25]
+        iter = [200]
 #        errorRates = [0,1,2,0]
-        errorRates = [0,1,2]
-        interval = 9
+#        errorRates = [0,1,2]
+        errorRates = [-1]
+        interval = 4
 #        basisFunctionMax = [500]
-        basisFunctionMax = ['500','700','900','900']
+        basisFunctionMax = ['500','500','500','500']
         totalDialogSuccessCount = 0
         intervalDialogSuccessCount = 0
         totalDialogSuccessRate = []
@@ -272,8 +274,8 @@ def main():
                 appLogger.info('Dialog %d'%dialogNum)
                 appLogger.info('Error rate %d'%errorRate)
 
-                rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
-                rewards['taskSuccessReward'] += errorRate*5 
+#                rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
+#                rewards['taskSuccessReward'] += errorRate*5 
                 log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
                 
                 totalDialogReward.append(log['result'][1])

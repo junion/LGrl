@@ -18,6 +18,7 @@ import Queue
 from GlobalConfig import *
 from DialogManager import SBSarsaDialogManager as DialogManager
 from GalaxyFrames import *
+from DialogModules import UserAction,ASRResult
     
 class DialogThread(threading.Thread):
     def __init__(self,sessionID,inQueue,outQueue):
@@ -34,17 +35,54 @@ class DialogThread(threading.Thread):
         self.dialogManager = DialogManager()
 
         self.appLogger.info('Dialog thread %s created'%self.getName())
-    
+
+    def _MapInputToUserAction(self,frame):
+        '''
+        Example
+            userAction = UserAction('non-understanding')
+            userAction = UserAction('ig',{'route':'28X','confirm':'NO'})
+        '''
+        userActionHyps = [UserAction('ig',{'route':'28X','confirm':'NO'})]
+        probs = [0.9]
+        correctPosition = 0
+        return ASRResult.Simulated(None,userActionHyps,probs,correctPosition=correctPosition)
+            
     def run(self):
         while True:
             frame = self.inQueue.get()
-            
-#            self.appLogger.info('Event:\n %s'%str(event))
             self.inQueue.task_done()
-            message = {'type':'GALAXYACTIONCALL',
-                       'data':intro%(self.sessionID,self.msg_idx,"welcome",self.utt_count)}
-            self.appLogger.info('message:\n %s'%str(message))
-#            self.appLogger.info('message:\n %s'%str(message))
-#            message = {'type':'WAITINPUT'}
-            self.outQueue.put(message)
-                    
+            
+            if frame.name == 'begin_session':
+                systemAction = self.dialogManager.Init()
+                message = {'type':'GALAXYACTIONCALL',
+                           'data':introMessage%(self.sessionID,self.msg_idx,"welcome",self.utt_count)}
+                self.outQueue.put(message)
+#                message = {'type':'GALAXYACTIONCALL',
+#                           'data':intro%(self.sessionID,self.msg_idx,"how_to_get_help",self.utt_count)}
+#                self.outQueue.put(message)
+                message = {'type':'GALAXYCALL',
+                           'data':systemUtterance%(self.sessionID,self.msg_idx,"welcome",self.utt_count)}
+                self.outQueue.put(message)
+            elif frame.name == 'handle_event':
+                if frame == 'user_utterance_end':
+                    self.appLogger.info('user_utterance_end')
+                    # userAction = frame
+#                    systemAction = self.dialogManager.TakeTurn(userAction)  
+#                    message = {'type':'GALAXYCALL',
+#                           'data':systemUtterance%(self.sessionID,self.msg_idx,"welcome",self.utt_count)}
+#                    self.outQueue.put(message)  
+                    # broadcast dialog state
+                elif frame == 'system_utterance_start':
+                    self.appLogger.info('system_utterance_start')
+                    # broadcast dialog state
+                elif frame == 'system_utterance_end':
+                    self.appLogger.info('system_utterance_end')
+                    self.utt_count += 1
+                    # broadcast dialog state
+                elif frame == 'timeout':
+                    self.appLogger.info('timeout')
+                    # broadcast dialog state
+            elif frame.name == 'end_session':
+                self.appLogger.info('end_session')
+                
+            

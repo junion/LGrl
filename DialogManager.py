@@ -169,8 +169,8 @@ class SBSarsaDialogManager(DialogManager):
             self.sizeX = len(self.X)
         self.appLogger.info('SBSarsaDialogManager init done')
 
-    def Init(self,userGoal=None):
-        self.userGoal = userGoal
+    def Init(self):
+#        self.userGoal = userGoal
         self.beliefState.Init()
         self.fieldCounts = dict([(field,0) for field in self.fields])
         self.fieldCounts['all'] = 0
@@ -178,8 +178,8 @@ class SBSarsaDialogManager(DialogManager):
         sysAction,Qval = self._ChooseAction()
         self.prevSysAction = sysAction
         self.prevAsrResult = None
-        self.dialogResult = False
-        self.dialogReward = 0
+#        self.dialogResult = False
+#        self.dialogReward = 0
         return sysAction
 
     def _LoadConfig(self):
@@ -196,8 +196,8 @@ class SBSarsaDialogManager(DialogManager):
         self._LoadConfig()
         self.sb.reload_config()
     
-    def DialogResult(self):
-        return (self.dialogResult,self.dialogReward)
+#    def DialogResult(self):
+#        return (self.dialogResult,self.dialogReward)
 
     def Calibrate(self,asrResult):
         def dist_squared(X,Y):
@@ -236,17 +236,17 @@ class SBSarsaDialogManager(DialogManager):
                                         sbr_model['weights'])[0,0]
             if asrResult.probs[0] < 0: asrResult.probs[0] = 0
          
-    def TakeTurn(self,asrResult,reward):
+    def TakeTurn(self,asrResult,reward=0):
         from copy import deepcopy
         # terminal case
         if asrResult == None:
 #            reward = self._GetReward(self.beliefState,sysAction)
-            self.dialogReward += reward
+#            self.dialogReward += reward
             if self.dialogStrategyLearning:
                 self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
                               self.prevSysAction,reward,0,self.prevAsrResult)
-            if reward == self.taskSuccessReward:
-                self.dialogResult = True
+#            if reward == self.taskSuccessReward:
+#                self.dialogResult = True
             return None
             
         if self.confidenceScoreCalibration:
@@ -259,7 +259,7 @@ class SBSarsaDialogManager(DialogManager):
             self.prevTopFields = deepcopy(self.beliefState.GetTopUserGoal())
             self.prevMarginals = deepcopy(self.beliefState.GetMarginals())
     #        reward = self._GetReward(self.beliefState,self.prevSysAction)
-        self.dialogReward += reward
+#        self.dialogReward += reward
         self.beliefState.Update(asrResult,self.prevSysAction)
         sysAction,Qval = self._ChooseAction(asrResult)
         if self.dialogStrategyLearning:
@@ -278,36 +278,36 @@ class SBSarsaDialogManager(DialogManager):
 #                self.dialogResult = True
         return sysAction
 
-    def _GetReward(self,beliefState,sysAction):
-        if sysAction.type == 'inform':
-            field = beliefState.GetTopUserGoal()
-            if self.userGoal['Bus number'] == '' and field['route'].type == 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Bus number'] != '' and field['route'].type != 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Bus number'] != '' and self.userGoal['Bus number'] != field['route'].equals:
-                return self.taskFailureReward
-            if self.userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Departure place'] != '' and self.userGoal['Departure place'] != field['departure_place'].equals:
-                return self.taskFailureReward
-            if self.userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Arrival place'] != '' and self.userGoal['Arrival place'] != field['arrival_place'].equals:
-                return self.taskFailureReward
-            if self.userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
-                return self.taskFailureReward
-            if self.userGoal['Travel time'] != '' and self.userGoal['Travel time'] != field['travel_time'].equals:
-                return self.taskFailureReward
-            return self.taskSuccessReward
-        else:
-            return self.taskProceedReward
+#    def _GetReward(self,beliefState,sysAction):
+#        if sysAction.type == 'inform':
+#            field = beliefState.GetTopUserGoal()
+#            if self.userGoal['Bus number'] == '' and field['route'].type == 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Bus number'] != '' and field['route'].type != 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Bus number'] != '' and self.userGoal['Bus number'] != field['route'].equals:
+#                return self.taskFailureReward
+#            if self.userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Departure place'] != '' and self.userGoal['Departure place'] != field['departure_place'].equals:
+#                return self.taskFailureReward
+#            if self.userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Arrival place'] != '' and self.userGoal['Arrival place'] != field['arrival_place'].equals:
+#                return self.taskFailureReward
+#            if self.userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
+#                return self.taskFailureReward
+#            if self.userGoal['Travel time'] != '' and self.userGoal['Travel time'] != field['travel_time'].equals:
+#                return self.taskFailureReward
+#            return self.taskSuccessReward
+#        else:
+#            return self.taskProceedReward
 
     def _polynomial_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
@@ -479,6 +479,8 @@ class SBSarsaDialogManager(DialogManager):
                 '[ask] request arrival_place','[ask] request travel_time',\
                 '[ask] confirm route','[ask] confirm departure_place',\
                 '[ask] confirm arrival_place','[ask] confirm travel_time',\
+                '[ask] confirm_immediate route','[ask] confirm_immediate departure_place',\
+                '[ask] confirm_immediate arrival_place','[ask] confirm_immediate travel_time',\
                 '[inform]']
 
         if self.beliefState.GetTopUserGoalBelief() != 1.0:
@@ -496,7 +498,12 @@ class SBSarsaDialogManager(DialogManager):
                 self.appLogger.info('Exclude confirm %s because of no value'%field)
             else:
                 self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
-            
+
+        for field in self.fields:
+            if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
+                acts.remove('[ask] confirm_immediate %s'%field)
+                self.appLogger.info('Exclude confirm_immediate %s because of ASR result'%field)
+                        
         act = ''        
         if asrResult == None or self.GetBasisSize() == 0:
             act = random.choice(acts[:4])
@@ -561,6 +568,10 @@ class SBSarsaDialogManager(DialogManager):
             elif force == 'confirm':
                 surface = 'Is this right?'
                 value = '' if len(marginals[field]) == 0 else marginals[field][-1]['equals']
+                sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+            elif force == 'confirm_immediate':
+                surface = 'Is this right?'
+                value = asrResult.userActions[0].content[field]
                 sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
         return sysAction,Qval
 
