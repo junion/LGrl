@@ -92,10 +92,13 @@ class DialogThread(threading.Thread):
                 eventType = frame[':event_type']
                 
                 if eventType == 'user_utterance_end':
+                    self.appLogger.info('user_utterance_end')
+
                     if not self.dialogManager.Initialized():
                         self.systemAction = self.dialogManager.Init(True)
-                    self.appLogger.info('user_utterance_end')
+
                     userAction = UserAction('ig',{})
+
                     if frame[':properties'][':top_slots'] == '1_SinglePlace':
                         hypothesis = frame[':properties'][':hypothesis']
                         if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
@@ -105,11 +108,14 @@ class DialogThread(threading.Thread):
                                 userAction.update({'arrival_place':hypothesis})
                         else:
                             userAction.update({'departure_place':hypothesis,'arrival_place':hypothesis})
+
                     userActions = [userAction]
                     probs = [float(frame[':properties'][':confidence'])]
                     asrResult = ASRResult.FromHelios(userActions,probs)
+
                     systemAction = self.dialogManager.TakeTurn(asrResult)
-                    if systemAction.type == 'ask' and systemAction.force == 'confirm':
+
+                    if systemAction.type == 'ask' and systemAction.force == 'request':
                         message = {'type':'GALAXYACTIONCALL',
                                    'content':systemRequest%(self.turn_number,\
                                                         ' '.join(self.systemUtteranceList),\
@@ -123,10 +129,23 @@ class DialogThread(threading.Thread):
                                                         self.id_suffix,\
                                                         "how_to_get_help",\
                                                         self.utt_count)}
-                        self.systemUtteranceList.append(str(self.utt_count))
-                        self.id_suffix += 1
-                        self.utt_count += 1
-                        self.outQueue.put(message)
+                    elif systemAction.type == 'ask' and systemAction.force == 'confirm':
+                        message = {'type':'GALAXYACTIONCALL',
+                                   'content':systemConfirm%(self.turn_number,\
+                                                        ' '.join(self.systemUtteranceList),\
+                                                        self.dialog_state,\
+                                                        self.stack,\
+                                                        self.agenda,\
+                                                        self.dialog_state_index,\
+                                                        self.floor,\
+                                                        self.sessionID,\
+                                                        self.id_suffix,\
+                                                        "how_to_get_help",\
+                                                        self.utt_count)}
+                    self.systemUtteranceList.append(str(self.utt_count))
+                    self.id_suffix += 1
+                    self.utt_count += 1
+                    self.outQueue.put(message)
                     self.turn_number += 1
                     
                 elif eventType == 'system_utterance_start':

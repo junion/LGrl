@@ -144,7 +144,14 @@ class SBSarsaDialogManager(DialogManager):
 #        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
         self._LoadConfig()
         self.appLogger.info('SBSarsaDialogManager init 1')
-
+        
+        if self.basisFunction == 'gaussian':
+            self._basis_matrix = self._gaussian_basis_matrix
+            self._basis_vector = self._gaussian_basis_vector
+        elif self.basisFunction == 'polynomial':
+            self._basis_matrix = self._polynomial_basis_matrix
+            self._basis_vector = self._polynomial_basis_vector
+            
         self.sb = SparseBayes()
         self.appLogger.info('SBSarsaDialogManager init 2')
         modelPath = self.config.get('Global','modelPath')
@@ -189,6 +196,7 @@ class SBSarsaDialogManager(DialogManager):
         self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
         self.taskProceedReward = self.config.getfloat(MY_ID,'taskProceedReward')
         self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+        self.basisFunction = self.config.get(MY_ID,'basisFunction')
         self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
         self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
          
@@ -312,39 +320,22 @@ class SBSarsaDialogManager(DialogManager):
     def _polynomial_basis_vector(self,XN,x):
         BASIS = np.zeros((len(XN),1))
         for i, xi in enumerate(XN):
-#            if xi[1] == x[1] and xi[2] == x[2]:
-            if xi[2] == x[2]:
+            if xi[1] == x[1] and xi[2] == x[2]:
+#            if xi[2] == x[2]:
                 BASIS[i] = (np.dot(xi[0],x[0]) + 0.1)**2
         return BASIS
     
     def _polynomial_basis_matrix(self,X,BASIS=None):
-#        print X
-#        BASIS = np.zeros((len(X),len(X)))
-##        print BASIS
-#        for i, x1 in enumerate(X):
-##            print 'x1: %s'%str(x1)
-#            for j, x2 in enumerate(X):
-##                print 'x2: %s'%str(x2)
-##                if x1[1] == x2[1] and x1[2] == x2[2]:
-#                if x1[2] == x2[2]:
-#                    BASIS[j,i] = (np.dot(x1[0],x2[0]) + 0.1)**2
-#        print 'BASIS %s'%str(BASIS)
-
-        basis = np.zeros((len(X),1)) + np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
+        basis = np.zeros((len(X),1)) #+ np.atleast_2d(np.random.standard_normal(len(X))/1e10).T
         for i, xi in enumerate(X):
-#            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
-            if xi[2] == X[-1][2]:
+            if xi[1] == X[-1][1] and xi[2] == X[-1][2]:
+#            if xi[2] == X[-1][2]:
                 basis[i,0] += (np.dot(xi[0],X[-1][0]) + 0.1)**2
-#        print basis
         if BASIS != None:
-#            print basis[:-1,0].T
             BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
-#            print 'BASIS %s'%str(BASIS)
             BASIS = np.hstack((BASIS,basis))
-#            print 'BASIS %s'%str(BASIS)
         else:
             BASIS = basis
-#        print 'BASIS %s'%str(BASIS)
         return BASIS
 
     def _gaussian_basis_vector(self,XN,x):
@@ -366,18 +357,11 @@ class SBSarsaDialogManager(DialogManager):
                     basis[i,0] += np.exp(-(np.sum(xi[0]**2) + np.sum(X[-1][0]**2) - 2*np.dot(xi[0],X[-1][0]))/(self.basisWidth**2)) * ua_kernel
                 except:
                     raise RuntimeError
-        
-#        self.appLogger.info('basis %s'%str(basis))
-
         if BASIS != None:
-#            print basis[:-1,0].T
             BASIS = np.vstack((BASIS,np.atleast_2d(basis[:-1,0].T)))
-#            print 'BASIS %s'%str(BASIS)
             BASIS = np.hstack((BASIS,basis))
-#            print 'BASIS %s'%str(BASIS)
         else:
             BASIS = basis
-#        print 'BASIS %s'%str(BASIS)
         return BASIS
         
     def GetBasisSize(self):
@@ -411,7 +395,7 @@ class SBSarsaDialogManager(DialogManager):
         X = [np.array(contX),userAct,str(sysAction).split('=')[0]]
         try:
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-            self.sb.incremental_learn([X],np.atleast_2d(y),self._gaussian_basis_matrix)
+            self.sb.incremental_learn([X],np.atleast_2d(y),self._basis_matrix)
             self.appLogger.info('Number of data points: %d'%self.GetBasisSize())
 #            self._TraceQval()
         except RuntimeError,(XN,Y,raw_BASIS):
@@ -419,7 +403,7 @@ class SBSarsaDialogManager(DialogManager):
 #            print 'BASIS:\n %s'%str(BASIS)
             self.sb = SparseBayes()
             self.Relevant,self.Mu,Alpha,beta,update_count,add_count,delete_count,full_count = \
-            self.sb.incremental_learn(XN,Y,self._gaussian_basis_matrix,raw_BASIS)
+            self.sb.incremental_learn(XN,Y,self._basis_matrix,raw_BASIS)
             
     def StoreModel(self,tag=''):
         import pickle
@@ -460,7 +444,7 @@ class SBSarsaDialogManager(DialogManager):
             Qvals = []
             for act in acts:
                 X = [B,'',act]
-                Qvals.append((act,np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]))
+                Qvals.append((act,np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]))
             Qvals = sorted(Qvals,key=lambda q:q[1],reverse=True)
             for Qval in Qvals:
                 self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
@@ -544,14 +528,14 @@ class SBSarsaDialogManager(DialogManager):
 #                    print 'choose X:%s'%str(X)
     #                print ys
     #                print np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).flatten()
-                    ys = np.concatenate((ys,np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer).ravel()))
+                    ys = np.concatenate((ys,np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).ravel()))
                     
                 self.appLogger.info('Qvals: %s'%str(ys))
                 act = acts[ys.argmax(0)]
                 Qval = ys.max(0)
             else:
                 X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
-                Qval = np.dot(self._gaussian_basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]
+                Qval = np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]
         except:
             Qval = 0.0
             
