@@ -19,19 +19,18 @@ class DialogThread(threading.Thread):
         self.appLogger = logging.getLogger('DialogThread')
 #        self.appLogger.info('DialogThread init')
         self.sessionID = sessionID
-        self.turn_number = 0
-        self.id_suffix = 0
-        self.utt_count = 0
-        self.dialog_state_index = 0
-        self.dialog_state = initDialogState
-        self.stack = initStack
-        self.agenda = initAgenda
-        self.lineConfig = initLineConfig
-        self.floor = 'system'
+        self.turnNumber = 0
+        self.idSuffix = 0
+        self.uttCount = 0
+        self.dialogStateIndex = 0
+        self.dialogState = 'initial'
+        self.floorStatus = 'system'
+        self.notifyPrompts = []
+        self.systemAction = None
+        self.newDialogState = None
         self.inQueue = inQueue
         self.outQueue = outQueue
         self.dialogManager = DialogManager()
-        self.systemUtteranceList = []
 
         self.appLogger.info('Dialog thread %s created'%self.getName())
 
@@ -46,55 +45,77 @@ class DialogThread(threading.Thread):
         correctPosition = 0
         return ASRResult.Simulated(None,userActionHyps,probs,correctPosition=correctPosition)
             
+    def _GetNewDialogState(self):
+        if not self.systemAction:
+            self.newDialogState = 'inform_welcome'
+        elif self.systemAction.type == 'ask' and self.systemAction.force == 'request':
+            if self.systemAction.content == 'all':
+                self.newDialogState = 'request_all'
+            elif self.systemAction.content == 'departure_place':
+                self.newDialogState = 'request_departure_place'
+            elif self.systemAction.content == 'arrival_place':
+                self.newDialogState = 'request_arrival_place'
+            elif self.systemAction.content == 'travel_time':
+                self.newDialogState = 'request_travel_time'
+        elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
+            if 'route' in self.systemAction.content:
+                self.newDialogState = 'confirm_route'
+            elif 'departure_place' in self.systemAction.content:
+                self.newDialogState = 'confirm_departure_place'
+            elif 'arrival_place' in self.systemAction.content:
+                self.newDialogState = 'confirm_arrival_place'
+            elif 'travel_time' in self.systemAction.content:
+                self.newDialogState = 'confirm_travel_time'
+        elif self.systemAction.type == 'inform':
+            if self.systemAction.force == 'confirm_okay':
+                self.newDialogState = 'inform_confirm_okay'
+            elif self.systemAction.force == 'processing':
+                self.newDialogState = 'inform_processing'
+            elif self.systemAction.force == 'success':
+                self.newDialogState = 'inform_success'
+            elif self.systemAction.force == 'subsequent_processing':
+                self.newDialogState = 'inform_subsequent_processing'
+            elif self.systemAction.force == 'starting_new_query':
+                self.newDialogState = 'inform_starting_new_query'
+        
     def run(self):
         while True:
+            self.appLogger.info('Wait event')
             frame = self.inQueue.get()
             self.inQueue.task_done()
+            self.appLogger.info('Frame:\n%s'%frame.PPrint())
             
             if frame.name == 'begin_session':
-                message = {'type':'GALAXYACTIONCALL',
-                           'content':introMessage%(self.turn_number,\
-                                                ' '.join(self.systemUtteranceList),\
-                                                self.dialog_state,\
-                                                self.stack,\
-                                                self.agenda,\
-                                                self.lineConfig,\
-                                                self.dialog_state_index,\
-                                                self.floor,\
-                                                self.sessionID,\
-                                                self.id_suffix,\
-                                                "welcome",\
-                                                self.utt_count)}
-                self.systemUtteranceList.append(str(self.utt_count))
-                self.id_suffix += 1
-                self.utt_count += 1
+                self.appLogger.info('begin_session')
+                message = MakeSystemUtterance('inform_welcome',self.dialogState,self.turnNumber,\
+                                              ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+                                              self.sessionID,self.idSuffix,self.uttCount)
+#                self.appLogger.info('message:\n%s'%message)
+
+                self.notifyPrompts.append(str(self.uttCount))
+                self.idSuffix += 1
+                self.uttCount += 1
                 self.outQueue.put(message)
                 
-                message = {'type':'GALAXYACTIONCALL',
-                           'content':introMessage%(self.turn_number,\
-                                                ' '.join(self.systemUtteranceList),\
-                                                self.dialog_state,\
-                                                self.stack,\
-                                                self.agenda,\
-                                                self.lineConfig,\
-                                                self.dialog_state_index,\
-                                                self.floor,\
-                                                self.sessionID,\
-                                                self.id_suffix,\
-                                                "how_to_get_help",\
-                                                self.utt_count)}
-                self.systemUtteranceList.append(str(self.utt_count))
-                self.id_suffix += 1
-                self.utt_count += 1
-                self.outQueue.put(message)
+#                message = MakeSystemUtterance('inform_how_to_get_help',self.dialogState,self.turnNumber,\
+#                                              ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+#                                              self.sessionID,self.idSuffix,self.uttCount)
+#                self.notifyPrompts.append(str(self.uttCount))
+#                self.idSuffix += 1
+#                self.uttCount += 1
+#                self.outQueue.put(message)
                 
-            elif frame.name == 'handle_event':
+#                message = {'type':'WAITINTERACTIONEVENT'}
+#                self.outQueue.put(message)
+                
+            elif frame.name == 'DialogManager.handle_event':
                 eventType = frame[':event_type']
+                self.appLogger.info('event_type: %s'%eventType)
                 
                 if eventType == 'user_utterance_end':
                     self.appLogger.info('user_utterance_end')
 
-                    if not self.dialogManager.Initialized():
+                    if not self.systemAction:
                         self.systemAction = self.dialogManager.Init(True)
 
                     userAction = UserAction('ig',{})
@@ -113,97 +134,65 @@ class DialogThread(threading.Thread):
                     probs = [float(frame[':properties'][':confidence'])]
                     asrResult = ASRResult.FromHelios(userActions,probs)
 
-                    systemAction = self.dialogManager.TakeTurn(asrResult)
-
-                    if systemAction.type == 'ask' and systemAction.force == 'request':
-                        message = {'type':'GALAXYACTIONCALL',
-                                   'content':systemRequest%(self.turn_number,\
-                                                        ' '.join(self.systemUtteranceList),\
-                                                        self.dialog_state,\
-                                                        self.stack,\
-                                                        self.agenda,\
-                                                        self.lineConfig,\
-                                                        self.dialog_state_index,\
-                                                        self.floor,\
-                                                        self.sessionID,\
-                                                        self.id_suffix,\
-                                                        "how_to_get_help",\
-                                                        self.utt_count)}
-                    elif systemAction.type == 'ask' and systemAction.force == 'confirm':
-                        message = {'type':'GALAXYACTIONCALL',
-                                   'content':systemConfirm%(self.turn_number,\
-                                                        ' '.join(self.systemUtteranceList),\
-                                                        self.dialog_state,\
-                                                        self.stack,\
-                                                        self.agenda,\
-                                                        self.dialog_state_index,\
-                                                        self.floor,\
-                                                        self.sessionID,\
-                                                        self.id_suffix,\
-                                                        "how_to_get_help",\
-                                                        self.utt_count)}
-                    self.systemUtteranceList.append(str(self.utt_count))
-                    self.id_suffix += 1
-                    self.utt_count += 1
+                    self.systemAction = self.dialogManager.TakeTurn(asrResult)
+                    self._GetNewDialogState()
+                    message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
+                                                  ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+                                                  self.sessionID,self.idSuffix,self.uttCount)
+                    self.notifyPrompts.append(str(self.uttCount))
+                    self.idSuffix += 1
+                    self.uttCount += 1
                     self.outQueue.put(message)
-                    self.turn_number += 1
+                    self.turnNumber += 1
                     
                 elif eventType == 'system_utterance_start':
                     self.appLogger.info('system_utterance_start(%s) %s'%(frame[':properties'][':utt_count'],\
                                                                          frame[':properties'][':tagged_prompt']))
+                    message = {'type':'WAITINTERACTIONEVENT'}
+                    self.outQueue.put(message)
                     
                 elif eventType == 'system_utterance_end':
                     self.appLogger.info('system_utterance_end(%s)'%frame[':properties'][':utt_count'])
-                    self.systemUtteranceList.pop(frame[':properties'][':utt_count'])
-                    if self.utt_count < 2 and self.systemUtteranceList == []: 
+                    self.appLogger.info('notifyPrompts: [ %s ]'%', '.join(self.notifyPrompts))
+                    self.notifyPrompts.remove(frame[':properties'][':utt_count'])
+                    self.appLogger.info('notifyPrompts: [ %s ]'%', '.join(self.notifyPrompts))
+                    if self.uttCount == 1 and self.notifyPrompts == []: 
                         self.systemAction = self.dialogManager.Init()
-                        message = {'type':'GALAXYACTIONCALL',
-                                   'content':systemRequest%(self.turn_number,\
-                                                        ' '.join(self.systemUtteranceList),\
-                                                        self.dialog_state,\
-                                                        self.stack,\
-                                                        self.agenda,\
-                                                        self.lineConfig,\
-                                                        self.dialog_state_index,\
-                                                        self.floor,\
-                                                        self.sessionID,\
-                                                        self.id_suffix,\
-                                                        "how_to_get_help",\
-                                                        self.utt_count)}
-                        self.systemUtteranceList.append(str(self.utt_count))
-                        self.id_suffix += 1
-                        self.utt_count += 1
+                        self._GetNewDialogState()
+                        message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
+                                                      ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+                                                      self.sessionID,self.idSuffix,self.uttCount)
+                        self.notifyPrompts.append(str(self.uttCount))
+                        self.idSuffix += 1
+                        self.uttCount += 1
                         self.outQueue.put(message)
-                    
+                    else:
+                        message = {'type':'WAITINTERACTIONEVENT'}
+                        self.outQueue.put(message)
+
                 elif eventType == 'dialog_state_change':
                     self.appLogger.info('dialog_state_change')
                     # update dialog state
-                    self.dialog_state_index += 1
+                    self.dialogState = 'initial' if not self.newDialogState else self.newDialogState
+                    self.dialogStateIndex += 1
                     # broadcast dialog state
-                    
+                    message = MakeDialogStateMessage(self.dialogState,self.turnNumber,\
+                                                  ' '.join(self.notifyPrompts))
+                    self.outQueue.put(message)
+
                 elif eventType == 'turn_timeout':
                     self.appLogger.info('turn_timeout')
-                    self.id_suffix += 1
+                    self.idSuffix += 1
                     asrResult = ASRResult.FromHelios([userAction('non-understanding')],[1.0])
-                    systemAction = self.dialogManager.TakeTurn(asrResult)
-                    if systemAction.type == 'ask' and systemAction.force == 'confirm':
-                        message = {'type':'GALAXYACTIONCALL',
-                                   'content':systemRequest%(self.turn_number,\
-                                                        ' '.join(self.systemUtteranceList),\
-                                                        self.dialog_state,\
-                                                        self.stack,\
-                                                        self.agenda,\
-                                                        self.lineConfig,\
-                                                        self.dialog_state_index,\
-                                                        self.floor,\
-                                                        self.sessionID,\
-                                                        self.id_suffix,\
-                                                        "how_to_get_help",\
-                                                        self.utt_count)}
-                        self.systemUtteranceList.append(str(self.utt_count))
-                        self.id_suffix += 1
-                        self.utt_count += 1
-                        self.outQueue.put(message)
+                    self.systemAction = self.dialogManager.TakeTurn(asrResult)
+                    self._GetNewDialogState()
+                    message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
+                                                  ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+                                                  self.sessionID,self.idSuffix,self.uttCount)
+                    self.notifyPrompts.append(str(self.uttCount))
+                    self.idSuffix += 1
+                    self.uttCount += 1
+                    self.outQueue.put(message)
                 else:
                     self.appLogger.info(eventType)
 

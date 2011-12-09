@@ -61,8 +61,6 @@ def SendActionThroughHub(galaxyCall):
     global lastEnv
 
     frameToHub = Galaxy.Frame(str=galaxyCall)
-#    frameToHub[] = 
-    
     lastEnv.WriteFrame(frameToHub)
 
 def DoDialogFlow(frame=None):
@@ -82,13 +80,13 @@ def DoDialogFlow(frame=None):
         if message['type'] == 'GALAXYCALL':
             appLogger.info('GALAXYCALL')
             CallGalaxyModuleFunction(message['content'])
-            appLogger.info('CallGalaxyModuleFunction')
-            inQueue.put(None)
-            appLogger.info('Message out')
+#            appLogger.info('CallGalaxyModuleFunction')
+#            inQueue.put(None)
             break            
         elif message['type'] == 'GALAXYACTIONCALL':
             SendActionThroughHub(message['content'])
-            inQueue.put(None)
+#            inQueue.put(None)
+            appLogger.info('Message sent')
             break
         elif message['type'] == 'WAITINPUT':
             return
@@ -150,6 +148,8 @@ def begin_session(env,frame):
     
     DoDialogFlow(frame)
     
+    appLogger.info('DM processing finished.')
+    
     return frame
 
 def end_session(env,frame):
@@ -185,8 +185,9 @@ def handle_event(env,frame):
     global lastEnv
     global lastFrame
 
-    appLogger.info('frame:\n%s',frame.PPrint())
-    
+    appLogger.info('handle_event')
+    appLogger.info('frame:\n%s'%frame.PPrint())
+   
     if not inSession:
         return frame
     
