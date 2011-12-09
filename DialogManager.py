@@ -76,14 +76,14 @@ class DialogManager(object):
     def __init__(self):
         self.appLogger = logging.getLogger('Learning')
         self.config = GetConfig()
-        self.appLogger.info('DialogManager init')
+#        self.appLogger.info('DialogManager init')
         self.beliefState = BeliefState()
-        self.appLogger.info('DialogManager init2')
+#        self.appLogger.info('DialogManager init2')
         self.db = GetDB()
 #        self.fields = self.db.GetFields()
-        self.appLogger.info('DialogManager init3')
+#        self.appLogger.info('DialogManager init3')
         self.prompts = LetsGoPrompts()
-        self.appLogger.info('DialogManager init done')
+#        self.appLogger.info('DialogManager init done')
 
 
     def Init(self):
@@ -133,7 +133,7 @@ class SBSarsaDialogManager(DialogManager):
     '''
     def __init__(self):
         DialogManager.__init__(self)
-        self.appLogger.info('SBSarsaDialogManager init')
+#        self.appLogger.info('SBSarsaDialogManager init')
         self.fields = ['route','departure_place','arrival_place','travel_time']
 #        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
 #        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
@@ -143,7 +143,7 @@ class SBSarsaDialogManager(DialogManager):
 #        self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
 #        self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
         self._LoadConfig()
-        self.appLogger.info('SBSarsaDialogManager init 1')
+#        self.appLogger.info('SBSarsaDialogManager init 1')
         
         if self.basisFunction == 'gaussian':
             self._basis_matrix = self._gaussian_basis_matrix
@@ -153,7 +153,7 @@ class SBSarsaDialogManager(DialogManager):
             self._basis_vector = self._polynomial_basis_vector
             
         self.sb = SparseBayes()
-        self.appLogger.info('SBSarsaDialogManager init 2')
+#        self.appLogger.info('SBSarsaDialogManager init 2')
         modelPath = self.config.get('Global','modelPath')
         if self.confidenceScoreCalibration:
             self.appLogger.info('Apply confidence score calibration')
@@ -167,14 +167,14 @@ class SBSarsaDialogManager(DialogManager):
                               'multi3':pickle.load(open(os.path.join(modelPath,'_calibrated_confidence_score_sbr_multi3.model'),'rb')),\
                               'multi4':pickle.load(open(os.path.join(modelPath,'_calibrated_confidence_score_sbr_multi4.model'),'rb'))
                               }
-        self.appLogger.info('SBSarsaDialogManager init 3')
+#        self.appLogger.info('SBSarsaDialogManager init 3')
 
         if not self.dialogStrategyLearning:
             self.Relevant = pickle.load(open(os.path.join(modelPath,'Relevant.model'),'r'))
             self.Mu = pickle.load(open(os.path.join(modelPath,'Mu.model'),'r'))
             self.X = pickle.load(open(os.path.join(modelPath,'DataPoints.model'),'r'))
             self.sizeX = len(self.X)
-        self.appLogger.info('SBSarsaDialogManager init done')
+#        self.appLogger.info('SBSarsaDialogManager init done')
 
     def Init(self,userFirst=False):
 #        self.userGoal = userGoal
@@ -269,6 +269,7 @@ class SBSarsaDialogManager(DialogManager):
     #        reward = self._GetReward(self.beliefState,self.prevSysAction)
 #        self.dialogReward += reward
         self.beliefState.Update(asrResult,self.prevSysAction)
+        self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
         sysAction,Qval = self._ChooseAction(asrResult)
         if self.dialogStrategyLearning:
             self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
@@ -562,6 +563,106 @@ class SBSarsaDialogManager(DialogManager):
                 sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
         return sysAction,Qval
 
+class OpenDialogManager(DialogManager):
+    '''
+    See module header for a description.
+    '''
+    def __init__(self):
+        DialogManager.__init__(self)
+        self.fields = ['route','departure_place','arrival_place','travel_time']
+        self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
+        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
+        self.openQuestionThreshold = self.config.getfloat(MY_ID,'openQuestionThreshold')
+        self.confirmRouteLowThreshold = self.config.getfloat(MY_ID,'confirmRouteLowThreshold')
+        self.confirmRouteHighThreshold = self.config.getfloat(MY_ID,'confirmRouteHighThreshold')
+        self.confirmDeparturePlaceHighThreshold = self.config.getfloat(MY_ID,'confirmDeparturePlaceHighThreshold')
+        self.confirmArrivalPlaceHighThreshold = self.config.getfloat(MY_ID,'confirmArrivalPlaceHighThreshold')
+        self.confirmTravelTimeHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimeHighThreshold')
+
+    def Init(self):
+        self.beliefState.Init()
+        self.fieldCounts = dict([(field,0) for field in self.fields])
+        self.fieldCounts['all'] = 0
+        self.routeConfirmCount = 0
+        sysAction = self._ChooseAction()
+        self.prevSysAction = sysAction
+        return sysAction
+
+    def TakeTurn(self,asrResult):
+        self.beliefState.Update(asrResult,self.prevSysAction)
+        self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
+        sysAction = self._ChooseAction(asrResult)
+        self.prevSysAction = sysAction
+        return sysAction
+
+    def _ChooseAction(self,asrResult=None):
+        (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()
+        if (belief > self.acceptThreshold):
+            destination = '%s' % (travelSpec)
+            surface = self.prompts.BusSchedule(travelSpec)
+            sysAction = SystemAction('inform',content=travelSpec,surface=surface,destination=destination)
+            return sysAction
+        else:
+            marginals = self.beliefState.GetMarginals()
+            for field in self.fields:
+                if (len(marginals[field]) > 0):
+                    self.appLogger.info('%s: %s(%f)'%(field,marginals[field][-1]['equals'],marginals[field][-1]['belief']))         
+            askField = confirmField = None
+            if (sum([len(marginals[elem]) for elem in marginals]) == 0):
+                askField = 'all'
+            if (askField == None):
+                maxMarginals = []
+                for field in self.fields:
+                    if (len(marginals[field]) > 0):
+                        maxMarginals.append(marginals[field][-1]['belief'])
+                if (max(maxMarginals) < self.openQuestionThreshold):
+                    askField = 'all'
+            if (askField == None):
+                if self.routeConfirmCount < 2 and len(marginals['route']) > 0 and\
+                marginals['route'][-1]['belief'] > self.confirmRouteLowThreshold and\
+                marginals['route'][-1]['belief'] < self.confirmRouteHighThreshold:
+                    confirmField = 'route' 
+                    self.routeConfirmCount += 1
+            if (askField == None and confirmField == None and asrResult.userActions[0].type != 'non-understanding'):
+#                print asrResult.userActions[0].content
+                if len(marginals['departure_place']) > 0 and\
+                'departure_place' in asrResult.userActions[0].content and marginals['departure_place'][-1]['belief'] < self.confirmDeparturePlaceHighThreshold:
+                    confirmField = 'departure_place' 
+                elif len(marginals['arrival_place']) > 0 and\
+                'arrival_place' in asrResult.userActions[0].content and marginals['arrival_place'][-1]['belief'] < self.confirmArrivalPlaceHighThreshold:
+                    confirmField = 'arrival_place' 
+                elif len(marginals['travel_time']) > 0 and\
+                'travel_time' in asrResult.userActions[0].content and marginals['travel_time'][-1]['belief'] < self.confirmTravelTimeHighThreshold:
+                    confirmField = 'travel_time' 
+            if (confirmField != None):
+                surface = 'Is this right?' #self.prompts.YNQuestion(confirmField,self.fieldCounts[confirmField])
+                sysAction = SystemAction('ask','confirm',{confirmField:marginals[confirmField][-1]['equals']},surface=surface,grammarName='')
+                return sysAction
+            
+            if (askField == None):
+                for field in self.fields:
+                    if (len(marginals[field]) == 0 and field != 'route'):
+                        askField = field
+                        break
+            if (askField == None):
+                minBelief = 1.1
+                for field in self.fields:
+                    if (field != 'route' and marginals[field][-1]['belief'] < minBelief ):
+                        askField = field
+                        minBelief = marginals[field][-1]['belief']
+            if (askField == None):
+                # should never be here; case added as a check
+                self.appLogger.warn('LOGIC ERROR')
+                askField = self.fields[0]
+            surface = self.prompts.WHQuestion(askField,self.fieldCounts[askField])
+            self.fieldCounts[askField] += 1
+            if (self.useAllGrammar):
+                grammarName = 'all'
+            else:
+                grammarName = askField
+            sysAction = SystemAction('ask','request',askField,surface=surface,grammarName=grammarName)
+            return sysAction
+
 class RigidDialogManager(DialogManager):
     '''
     See module header for a description.
@@ -657,105 +758,6 @@ class DirectedDialogManager(DialogManager):
                 grammarName = askField
             sysAction = SystemAction('ask','request',askField,surface=surface,grammarName=grammarName)
         return sysAction
-
-class OpenDialogManager(DialogManager):
-    '''
-    See module header for a description.
-    '''
-    def __init__(self):
-        DialogManager.__init__(self)
-        self.fields = ['route','departure_place','arrival_place','travel_time']
-        self.useAllGrammar = self.config.getboolean(MY_ID,'useAllGrammar')
-        self.acceptThreshold = self.config.getfloat(MY_ID,'acceptThreshold')
-        self.openQuestionThreshold = self.config.getfloat(MY_ID,'openQuestionThreshold')
-        self.confirmRouteLowThreshold = self.config.getfloat(MY_ID,'confirmRouteLowThreshold')
-        self.confirmRouteHighThreshold = self.config.getfloat(MY_ID,'confirmRouteHighThreshold')
-        self.confirmDeparturePlaceHighThreshold = self.config.getfloat(MY_ID,'confirmDeparturePlaceHighThreshold')
-        self.confirmArrivalPlaceHighThreshold = self.config.getfloat(MY_ID,'confirmArrivalPlaceHighThreshold')
-        self.confirmTravelTimeHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimeHighThreshold')
-
-    def Init(self):
-        self.beliefState.Init()
-        self.fieldCounts = dict([(field,0) for field in self.fields])
-        self.fieldCounts['all'] = 0
-        self.routeConfirmCount = 0
-        sysAction = self._ChooseAction()
-        self.prevSysAction = sysAction
-        return sysAction
-
-    def TakeTurn(self,asrResult):
-        self.beliefState.Update(asrResult,self.prevSysAction)
-        sysAction = self._ChooseAction(asrResult)
-        self.prevSysAction = sysAction
-        return sysAction
-
-    def _ChooseAction(self,asrResult=None):
-        (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()
-        if (belief > self.acceptThreshold):
-            destination = '%s' % (travelSpec)
-            surface = self.prompts.BusSchedule(travelSpec)
-            sysAction = SystemAction('inform',content=travelSpec,surface=surface,destination=destination)
-            return sysAction
-        else:
-            marginals = self.beliefState.GetMarginals()
-            for field in self.fields:
-                if (len(marginals[field]) > 0):
-                    print '%s: %s(%f)'%(field,marginals[field][-1]['equals'],marginals[field][-1]['belief'])            
-            askField = confirmField = None
-            if (sum([len(marginals[elem]) for elem in marginals]) == 0):
-                askField = 'all'
-            if (askField == None):
-                maxMarginals = []
-                for field in self.fields:
-                    if (len(marginals[field]) > 0):
-                        maxMarginals.append(marginals[field][-1]['belief'])
-                if (max(maxMarginals) < self.openQuestionThreshold):
-                    askField = 'all'
-            if (askField == None):
-                if self.routeConfirmCount < 2 and len(marginals['route']) > 0 and\
-                marginals['route'][-1]['belief'] > self.confirmRouteLowThreshold and\
-                marginals['route'][-1]['belief'] < self.confirmRouteHighThreshold:
-                    confirmField = 'route' 
-                    self.routeConfirmCount += 1
-            if (askField == None and confirmField == None and asrResult.userActions[0].type != 'non-understanding'):
-                print asrResult.userActions[0].content
-                if len(marginals['departure_place']) > 0 and\
-                'departure_place' in asrResult.userActions[0].content and marginals['departure_place'][-1]['belief'] < self.confirmDeparturePlaceHighThreshold:
-                    confirmField = 'departure_place' 
-                elif len(marginals['arrival_place']) > 0 and\
-                'arrival_place' in asrResult.userActions[0].content and marginals['arrival_place'][-1]['belief'] < self.confirmArrivalPlaceHighThreshold:
-                    confirmField = 'arrival_place' 
-                elif len(marginals['travel_time']) > 0 and\
-                'travel_time' in asrResult.userActions[0].content and marginals['travel_time'][-1]['belief'] < self.confirmTravelTimeHighThreshold:
-                    confirmField = 'travel_time' 
-            if (confirmField != None):
-                surface = 'Is this right?' #self.prompts.YNQuestion(confirmField,self.fieldCounts[confirmField])
-                sysAction = SystemAction('ask','confirm',{confirmField:marginals[confirmField][-1]['equals']},surface=surface,grammarName='')
-                return sysAction
-            
-            if (askField == None):
-                for field in self.fields:
-                    if (len(marginals[field]) == 0 and field != 'route'):
-                        askField = field
-                        break
-            if (askField == None):
-                minBelief = 1.1
-                for field in self.fields:
-                    if (field != 'route' and marginals[field][-1]['belief'] < minBelief ):
-                        askField = field
-                        minBelief = marginals[field][-1]['belief']
-            if (askField == None):
-                # should never be here; case added as a check
-                self.appLogger.warn('LOGIC ERROR')
-                askField = self.fields[0]
-            surface = self.prompts.WHQuestion(askField,self.fieldCounts[askField])
-            self.fieldCounts[askField] += 1
-            if (self.useAllGrammar):
-                grammarName = 'all'
-            else:
-                grammarName = askField
-            sysAction = SystemAction('ask','request',askField,surface=surface,grammarName=grammarName)
-            return sysAction
 
 class LetsGoPrompts(object):
     '''

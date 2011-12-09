@@ -40,23 +40,14 @@ def CallGalaxyModuleFunction(galaxyCall):
     global lastEnv
 
     frameToHub = Galaxy.Frame(str=galaxyCall)
-    print '%s'%str(frameToHub) 
-
     try:
         frameFromHub = lastEnv.DispatchFrame(frameToHub)
         appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
+        return frameFromHub
     except GalaxyIO.DispatchError:
         appLogger.info('dispatch error')
+        return None
     
-#    if galaxyCall.blockingCall:
-#        try:
-#            frameFromHub = lastEnv.DispatchFrame(frameToHub)
-#            appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
-#        except GalaxyIO.DispatchError:
-#            appLogger.info('dispatch error')
-#    else:
-#        lastEnv.WriteFrame(frameToHub)
-
 def SendActionThroughHub(galaxyCall):
     global lastEnv
 
@@ -76,26 +67,25 @@ def DoDialogFlow(frame=None):
     while True:
         message = outQueue.get()
         appLogger.info('Message in')
+        appLogger.info('%s'%message['content'])
         outQueue.task_done()
         if message['type'] == 'GALAXYCALL':
             appLogger.info('GALAXYCALL')
-            CallGalaxyModuleFunction(message['content'])
-#            appLogger.info('CallGalaxyModuleFunction')
-#            inQueue.put(None)
-            break            
-        elif message['type'] == 'GALAXYACTIONCALL':
-            SendActionThroughHub(message['content'])
-#            inQueue.put(None)
+            result = CallGalaxyModuleFunction(message['content'])
             appLogger.info('Message sent')
-            break
+            inQueue.put(result)
+        elif message['type'] == 'GALAXYACTIONCALL':
+            appLogger.info('GALAXYACTIONCALL')
+            SendActionThroughHub(message['content'])
+            appLogger.info('Message sent')
+            inQueue.put(None)
         elif message['type'] == 'WAITINPUT':
             return
         elif message['type'] == 'WAITINTERACTIONEVENT':
             return
         elif message['type'] == 'DIALOGFINISHED':
             return
-        else:
-            break
+
 
 def reinitialize(env,frame):
     global lastEnv

@@ -358,7 +358,7 @@ utterElementsDict['request_next_query']['Option'] = '''   :non-repeatable "true"
 utterElementsDict['confirm_route']['DialogAct'] = 'explicit_confirm'
 utterElementsDict['confirm_route']['FloorState'] = 'user'
 utterElementsDict['confirm_route']['Object'] = '/LetsGoPublic/query.route_number'
-utterElementsDict['confirm_route']['Query'] = 'query.route_number	28X'
+utterElementsDict['confirm_route']['Query'] = ''
 utterElementsDict['confirm_route']['Result'] = ''
 utterElementsDict['confirm_route']['Agent'] = ''
 utterElementsDict['confirm_route']['Version'] = ''
@@ -538,7 +538,7 @@ end
 "
 ${option}   :utt_count "${utt_count}" }}'''
 
-def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogStateIndex,sessionID,idSuffix,uttCount):
+def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogStateIndex,sessionID,idSuffix,uttCount,query,result,version):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 	content = systemUtterance
@@ -553,13 +553,13 @@ def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogState
 #	appLogger.info('%s'%content)
 	content = content.replace('${object}',elements['Object'])
 #	appLogger.info('%s'%content)
-	content = content.replace('${query}',elements['Query'])
+	content = content.replace('${query}',query)
 #	appLogger.info('%s'%content)
-	content = content.replace('${result}',elements['Result'])
+	content = content.replace('${result}',result)
 #	appLogger.info('%s'%content)
 	content = content.replace('${agent}',elements['Agent'])
 #	appLogger.info('%s'%content)
-	content = content.replace('${version}',elements['Version'])
+	content = content.replace('${version}',version)
 #	appLogger.info('%s'%content)
 	content = content.replace('${option}',elements['Option'])
 #	appLogger.info('%s'%content)
@@ -582,15 +582,138 @@ def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogState
 #===============================================================================
 # Backend Query Template
 #===============================================================================
-backendQuery = '''{c gal_be.launch_query 
-                                :inframe "{
-    query    {
-        place    {
-            name    MURRAY AND HAZELWOOD
-            type    stop
-        }
-        type    100
-    }
-}\n"
-                            }'''
+placeQuery = '{c gal_be.launch_query\n\
+:inframe "{\n\
+query {\n\
+type\t100\n\
+place\t{\n\
+name\t${name}\n\
+type\t${type}\n\
+}\n\
+}\n\
+}\n\
+"\n\
+}'
 
+def MakeDeparturePlaceQuery(querySpec):
+	import logging
+	appLogger = logging.getLogger('DialogThread')
+	appLogger.info('Make query for %s %s'%(querySpec['departure_place_type'],querySpec['departure_place']))
+	content = placeQuery
+	
+	content = content.replace('${name}',querySpec['departure_place'])
+	content = content.replace('${type}',querySpec['departure_place_type'])
+
+	appLogger.info('Done')
+
+	message = {'type':'GALAXYCALL',
+			   'content':content}
+	return message
+
+def MakeArrivalPlaceQuery(querySpec):
+	import logging
+	appLogger = logging.getLogger('DialogThread')
+	appLogger.info('Make query for %s %s'%(querySpec['arrival_place_type'],querySpec['arrival_place']))
+	content = placeQuery
+	
+	content = content.replace('${name}',querySpec['arrival_place'])
+	content = content.replace('${type}',querySpec['arrival_place_type'])
+
+	appLogger.info('Done')
+
+	message = {'type':'GALAXYCALL',
+			   'content':content}
+	return message
+
+
+scheduleQuery = '{c gal_be.launch_query\n\
+:inframe "{\n\
+query\t{\n\
+type\t2\n\
+travel_time\t{\n\
+date\t{\n\
+month\t${month}\n\
+day\t${day}\n\
+year\t${year}\n\
+weekday\t${weekday}\n\
+}\n\
+\n\
+period_spec\t${period_spec}\n\
+time\t{\n\
+value\t${value}\n\
+now\t${now}\n\
+type\t${time_type}\n\
+}\n\
+\n\
+}\n\
+\n\
+departure_place\t{\n\
+name\t${departure_place_name}\n\
+type\t${departure_place_type}\n\
+}\n\
+\n\
+arrival_place\t{\n\
+name\t${arrival_place_name}\n\
+type\t${arrival_place_type}\n\
+}\n\
+\n\
+route_number\t${route_number}\n\
+}\n\
+\n\
+${departure_stops}\n\
+\n\
+${arrival_stops}\n\
+\n\
+result\t{\n\
+}\n\
+\n\
+}\n\
+"\n\
+}'
+
+def MakeScheduleQuery(querySpec):
+	import logging
+	appLogger = logging.getLogger('DialogThread')
+	content = scheduleQuery
+	
+	content = content.replace('${month}',querySpec['month'])
+	content = content.replace('${day}',querySpec['day'])
+	content = content.replace('${year}',querySpec['year'])
+	content = content.replace('${weekday}',querySpec['weekday'])
+	content = content.replace('${period_spec}',querySpec['period_spec'])
+	content = content.replace('${value}',querySpec['value'])
+	content = content.replace('${now}',querySpec['now'])
+	content = content.replace('${time_type}',querySpec['time_type'])
+	content = content.replace('${departure_place_name}',querySpec['departure_place'])
+	content = content.replace('${departure_place_type}',querySpec['departure_place_type'])
+	content = content.replace('${arrival_place_name}',querySpec['arrival_place'])
+	content = content.replace('${arrival_place_type}',querySpec['arrival_place_type'])
+	content = content.replace('${route_number}',querySpec['route'])
+	querySpec['departure_stops'] = \
+	'\n'.join([x.strip() for x in querySpec['departure_stops'].split('\n')[2:-3]]).replace('stops','departure_stops')
+	content = content.replace('${departure_stops}',querySpec['departure_stops'])
+	querySpec['arrival_stops'] = \
+	'\n'.join([x.strip() for x in querySpec['arrival_stops'].split('\n')[2:-3]]).replace('stops','arrival_stops')
+	content = content.replace('${arrival_stops}',querySpec['arrival_stops'])
+	
+	message = {'type':'GALAXYCALL',
+			   'content':content}
+	return message
+
+
+#===============================================================================
+# Parse date and time
+#===============================================================================
+parseDateTime = '{c datetime.ParseDateTime\n\
+:Date_Time_Parse {c parse :slots ${gal_slotsframe}}}'
+
+def MakeParseDateTimeMessage(galSlotsFrame):
+	import logging
+	appLogger = logging.getLogger('DialogThread')
+	content = parseDateTime
+	
+	content = content.replace('${gal_slotsframe}',galSlotsFrame)
+
+	message = {'type':'GALAXYCALL',
+			   'content':content}
+	return message

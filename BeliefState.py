@@ -74,7 +74,7 @@ class Partition(object):
         Application code should use the BeliefState wrapper.
         '''
         self.appLogger = logging.getLogger('Learning')
-        self.appLogger.info('Partition init')
+#        self.appLogger.info('Partition init')
         self.config = GetConfig()
         self.useLearnedUserModel = self.config.getboolean(MY_ID,'useLearnedUserModel')
         self.confirmUnlikelyDiscountFactor = self.config.getfloat(MY_ID,'confirmUnlikelyDiscountFactor')
@@ -83,7 +83,7 @@ class Partition(object):
         self.num_time = self.config.getint(MY_ID,'numberOfTime')
         
         db = GetDB()
-        self.appLogger.info('Partition 1')
+#        self.appLogger.info('Partition 1')
         if (existingPartition == None):
             #self.fieldList = db.GetFields()
             self.fieldList = ['route','departure_place','arrival_place','travel_time']
@@ -91,12 +91,12 @@ class Partition(object):
             #self.totalCount = db.GetListingCount({})
             self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
             self.fields = {}
-            self.appLogger.info('Partition 2')
+#            self.appLogger.info('Partition 2')
             for field in self.fieldList:
                 self.fields[field] = _FieldEntry()
             self.count = self.totalCount
             self.prior = 1.0
-            self.appLogger.info('Partition 3')
+#            self.appLogger.info('Partition 3')
             if not self.useLearnedUserModel:
                 umFields = ['request_nonUnderstandingProb',
                             'request_directAnswerProb',
@@ -122,14 +122,14 @@ class Partition(object):
                   overCompleteActionCount
             else:
                 modelPath = self.config.get('Global','modelPath')
-                self.appLogger.info('Partition 4')
+#                self.appLogger.info('Partition 4')
                 self.userModelPath = self.config.get(MY_ID,'userModelPath')
-                self.appLogger.info('Partition 5')
+#                self.appLogger.info('Partition 5')
                 self.userModel = pickle.load(open(os.path.join(modelPath,self.userModelPath),'rb'))
-                self.appLogger.info('Partition 6')
+#                self.appLogger.info('Partition 6')
                 self.irrelevantUserActProb = self.config.getfloat(MY_ID,'irrelevantUserActProb')
                 self.minRelevantUserActProb = self.config.getfloat(MY_ID,'minRelevantUserActProb')
-                self.appLogger.info('Partition 7')
+#                self.appLogger.info('Partition 7')
         else:
             assert not fieldToSplit == None,'arg not defined'
             assert not value == None,'arg not defined'
@@ -664,7 +664,7 @@ class BeliefState(object):
         Returns (callee,belief) for the top unique user goal (i.e., goal with
         count == 1), or (None,None) if one doesnt exist.
         '''
-        callee = None
+        spec = None
         belief = None
         for partitionEntry in reversed(self.partitionDistribution.partitionEntryList):
 #            if (partitionEntry.partition.count == 1):
@@ -672,10 +672,15 @@ class BeliefState(object):
             if (partitionEntry.partition.fields['departure_place'].type == 'equals' and \
                 partitionEntry.partition.fields['arrival_place'].type == 'equals' and \
                 partitionEntry.partition.fields['travel_time'].type == 'equals'):
-                callee = 'temp' #dbReturn[0]
+                spec = {'departure_place':partitionEntry.partition.fields['departure_place'].equals,\
+                        'arrival_place':partitionEntry.partition.fields['arrival_place'].equals,\
+                        'travel_time':partitionEntry.partition.fields['travel_time'].equals,\
+                        'route':partitionEntry.partition.fields['route'].equals \
+                        if partitionEntry.partition.fields['route'].type == 'equals'\
+                        else ''}
                 belief = partitionEntry.belief
                 break
-        return (callee,belief)
+        return (spec,belief)
 
     def GetTopFullyInstantiatedUserGoal(self):
         '''
