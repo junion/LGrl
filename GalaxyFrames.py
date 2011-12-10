@@ -628,7 +628,7 @@ def MakeArrivalPlaceQuery(querySpec):
 
 scheduleQuery = '{c gal_be.launch_query\n\
 :inframe "{\n\
-query\t{\n\
+query {\n\
 type\t2\n\
 travel_time\t{\n\
 date\t{\n\
@@ -657,7 +657,7 @@ name\t${arrival_place_name}\n\
 type\t${arrival_place_type}\n\
 }\n\
 \n\
-route_number\t${route_number}\n\
+${route_number}\
 }\n\
 \n\
 ${departure_stops}\n\
@@ -671,47 +671,263 @@ result\t{\n\
 "\n\
 }'
 
+tempQuery = '''{c gal_be.launch_query
+:inframe "{
+query {
+type	2
+travel_time	{
+date	{
+month	12
+day	10
+year	2011
+weekday	6
+}
+
+period_spec	now
+time	{
+value	1047
+now	true
+type	departure
+}
+
+}
+departure_place	{
+name	CMU
+type	stop
+}
+
+arrival_place	{
+name	AIRPORT
+type	stop
+}
+
+}
+
+departure_stops :3
+{
+{
+id	2418
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+}
+{
+id	2417
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+}
+{
+id	2442
+name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
+}
+}
+
+arrival_stops :2
+{
+{
+id	5290
+name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
+}
+{
+id	3731
+name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
+}
+}
+
+result {
+}
+
+}
+"
+}
+'''
+
+temp2Query = '''{c gal_be.launch_query
+:inframe "{
+query	{
+type	2
+travel_time	{
+date	{
+month	12
+day	10
+year	2011
+weekday	6
+}
+
+period_spec	now 
+time	{
+value	2317
+now	true
+type	departure
+}
+
+}
+
+departure_place	{
+name	CMU
+type	stop
+}
+
+arrival_place	{
+name	AIRPORT
+type	stop
+}
+
+}
+
+departure_stops	:3
+{
+{
+id	2418
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+}
+{
+id	2417
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+}
+{
+id	2442
+name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
+}
+}
+
+arrival_stops	:2
+{
+{
+id	5290
+name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
+}
+{
+id	3731
+name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
+}
+}
+
+result	{
+}
+
+}
+"
+}
+'''
+
 def MakeScheduleQuery(querySpec):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 	content = scheduleQuery
 	
+	appLogger.info('Make query for schedule')
+	
 	content = content.replace('${month}',querySpec['month'])
+	appLogger.info('1')
 	content = content.replace('${day}',querySpec['day'])
+	appLogger.info('2')
 	content = content.replace('${year}',querySpec['year'])
+	appLogger.info('3')
 	content = content.replace('${weekday}',querySpec['weekday'])
+	appLogger.info('4')
 	content = content.replace('${period_spec}',querySpec['period_spec'])
+	appLogger.info('5')
 	content = content.replace('${value}',querySpec['value'])
+	appLogger.info('6')
 	content = content.replace('${now}',querySpec['now'])
+	appLogger.info('7')
 	content = content.replace('${time_type}',querySpec['time_type'])
+	appLogger.info('8')
 	content = content.replace('${departure_place_name}',querySpec['departure_place'])
+	appLogger.info('9')
 	content = content.replace('${departure_place_type}',querySpec['departure_place_type'])
+	appLogger.info('10')
 	content = content.replace('${arrival_place_name}',querySpec['arrival_place'])
+	appLogger.info('11')
 	content = content.replace('${arrival_place_type}',querySpec['arrival_place_type'])
-	content = content.replace('${route_number}',querySpec['route'])
+	appLogger.info('12')
+	if querySpec['route'] != '':
+		content = content.replace('${route_number}','route_number\t%s\n'%querySpec['route'])
+	else:
+		content = content.replace('${route_number}','')
+	appLogger.info('13')
 	querySpec['departure_stops'] = \
 	'\n'.join([x.strip() for x in querySpec['departure_stops'].split('\n')[2:-3]]).replace('stops','departure_stops')
 	content = content.replace('${departure_stops}',querySpec['departure_stops'])
+	appLogger.info('14')
 	querySpec['arrival_stops'] = \
 	'\n'.join([x.strip() for x in querySpec['arrival_stops'].split('\n')[2:-3]]).replace('stops','arrival_stops')
 	content = content.replace('${arrival_stops}',querySpec['arrival_stops'])
+
+	appLogger.info('Done')
 	
 	message = {'type':'GALAXYCALL',
 			   'content':content}
 	return message
 
+querySection = '\nquery\t{\n\
+type\t2\n\
+travel_time\t{\n\
+date\t{\n\
+month\t${month}\n\
+day\t${day}\n\
+year\t${year}\n\
+weekday\t${weekday}\n\
+}\n\
+\n\
+period_spec\t${period_spec}\n\
+time\t{\n\
+value\t${value}\n\
+now\t${now}\n\
+type\t${time_type}\n\
+}\n\
+\n\
+}\n\
+\n\
+departure_place\t{\n\
+name\t${departure_place_name}\n\
+type\t${departure_place_type}\n\
+}\n\
+\n\
+arrival_place\t{\n\
+name\t${arrival_place_name}\n\
+type\t${arrival_place_type}\n\
+}\n\
+\n\
+${route_number}\
+}\n'
+
+def MakeScheduleSection(querySpec,result):
+	import logging
+	appLogger = logging.getLogger('DialogThread')
+	query = querySection
+	
+	query = query.replace('${month}',querySpec['month'])
+	query = query.replace('${day}',querySpec['day'])
+	query = query.replace('${year}',querySpec['year'])
+	query = query.replace('${weekday}',querySpec['weekday'])
+	query = query.replace('${period_spec}',querySpec['period_spec'])
+	query = query.replace('${value}',querySpec['value'])
+	query = query.replace('${now}',querySpec['now'])
+	query = query.replace('${time_type}',querySpec['time_type'])
+	query = query.replace('${departure_place_name}',querySpec['departure_place'])
+	query = query.replace('${departure_place_type}',querySpec['departure_place_type'])
+	query = query.replace('${arrival_place_name}',querySpec['arrival_place'])
+	query = query.replace('${arrival_place_type}',querySpec['arrival_place_type'])
+	if querySpec['route'] != '':
+		query = query.replace('${route_number}','route_number\t%s\n'%querySpec['route'])
+	else:
+		query = query.replace('${route_number}','')
+	
+	result = '\n'.join([x.strip() for x in result.split('\n')[1:-2]]).replace('new_result','result')
+	
+	return query,'\n'+result+'\n'
 
 #===============================================================================
 # Parse date and time
 #===============================================================================
 parseDateTime = '{c datetime.ParseDateTime\n\
-:Date_Time_Parse {c parse :slots ${gal_slotsframe}}}'
+:Date_Time_Parse "{c parse :slots ${gal_slotsframe}}"}'
 
 def MakeParseDateTimeMessage(galSlotsFrame):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 	content = parseDateTime
-	
+
+	galSlotsFrame = galSlotsFrame.replace('"','\\"')	
 	content = content.replace('${gal_slotsframe}',galSlotsFrame)
 
 	message = {'type':'GALAXYCALL',

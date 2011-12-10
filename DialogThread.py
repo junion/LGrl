@@ -6,6 +6,7 @@ import logging.config
 import logging
 import threading
 import Queue
+from datetime import datetime
 from GlobalConfig import *
 #from DialogManager import SBSarsaDialogManager as DialogManager
 from DialogManager import OpenDialogManager as DialogManager
@@ -33,6 +34,7 @@ class DialogThread(threading.Thread):
         self.outQueue = outQueue
         self.departurePlaceTypeDict = {}
         self.arrivalPlaceTypeDict = {}
+        self.timeSpecDict = {}
         self.dialogManager = DialogManager()
 
         self.appLogger.info('Dialog thread %s created'%self.getName())
@@ -90,6 +92,21 @@ class DialogThread(threading.Thread):
             
             if frame.name == 'begin_session':
                 self.appLogger.info('begin_session')
+#                self.outQueue.put({'type':'GALAXYCALL','content':tempQuery})
+#                result = self.inQueue.get()
+#                self.inQueue.task_done()
+#                if result:
+#                    self.appLogger.info('Bus schedule: %s'%result.PPrint())
+#                else:
+#                    self.appLogger.info('Backend query for schedule failed')
+#                self.outQueue.put({'type':'GALAXYCALL','content':temp2Query})
+#                result = self.inQueue.get()
+#                self.inQueue.task_done()
+#                if result:
+#                    self.appLogger.info('Bus schedule: %s'%result.PPrint())
+#                else:
+#                    self.appLogger.info('Backend query for schedule failed')
+
                 message = MakeSystemUtterance('inform_welcome',self.dialogState,self.turnNumber,\
                                               ' '.join(self.notifyPrompts),self.dialogStateIndex,\
                                               self.sessionID,self.idSuffix,self.uttCount,'','','')
@@ -100,15 +117,15 @@ class DialogThread(threading.Thread):
                 self.inQueue.get()
                 self.inQueue.task_done()
                 
-                message = MakeSystemUtterance('inform_how_to_get_help',self.dialogState,self.turnNumber,\
-                                              ' '.join(self.notifyPrompts),self.dialogStateIndex,\
-                                              self.sessionID,self.idSuffix,self.uttCount,'','','')
-                self.notifyPrompts.append(str(self.uttCount))
-                self.idSuffix += 1
-                self.uttCount += 1
-                self.outQueue.put(message)
-                self.inQueue.get()
-                self.inQueue.task_done()
+#                message = MakeSystemUtterance('inform_how_to_get_help',self.dialogState,self.turnNumber,\
+#                                              ' '.join(self.notifyPrompts),self.dialogStateIndex,\
+#                                              self.sessionID,self.idSuffix,self.uttCount,'','','')
+#                self.notifyPrompts.append(str(self.uttCount))
+#                self.idSuffix += 1
+#                self.uttCount += 1
+#                self.outQueue.put(message)
+#                self.inQueue.get()
+#                self.inQueue.task_done()
                 
                 message = {'type':'WAITINTERACTIONEVENT'}
                 self.outQueue.put(message)
@@ -156,7 +173,51 @@ class DialogThread(threading.Thread):
                         self.outQueue.put(message)
                         result = self.inQueue.get()
                         self.inQueue.task_done()
-                        self.appLogger.info('%s'%result)
+                        self.appLogger.info('Timeinfo: %s'%result.PPrint())
+                        dateTime = {}
+                        if result[':valid_date'] == 'true':
+                            dateTime['weekday'] = result[':weekday']
+                            dateTime['year'] = result[':year']
+                            dateTime['day'] = result[':day']
+                            dateTime['month'] = result[':month']
+                        gotTime = False
+                        if result[':valid_time'] == 'true' and result[':start_time'] == result[':end_time'] and \
+                        result[':start_time'] != '' and result[':start_time'] != '1199':
+                            dtTime = int(result[':start_time'])
+                            self.appLogger.info('dtTime: %d'%dtTime)
+                            iTime = datetime.now(); iTime = iTime.hour*100 + iTime.minute
+                            self.appLogger.info('iTime: %d'%iTime)
+                            if dtTime >= 1200: dtTime -= 1200
+                            self.appLogger.info('dtTime: %d'%dtTime)
+                            if iTime < 1200:
+                                if dtTime < iTime - 15: dtTime += 1200
+                                self.appLogger.info('a dtTime: %d'%dtTime)
+                            else:
+                                if dtTime >= iTime - 1215: dtTime += 1200
+                                self.appLogger.info('b dtTime: %d'%dtTime)
+                            if result[':timeperiod_spec'] == 'now ':
+                                dateTime['value'] = '%d'%dtTime
+                                dateTime['now'] = 'true'
+                            elif result[':timeperiod_spec'] == '' and result[':day'] == '-1':
+                                dateTime['value'] = '%d'%dtTime
+                            else:
+                                dateTime['value'] = result[':start_time']
+                            gotTime = True   
+                        self.appLogger.info('2')
+                        if gotTime:   
+                            parse = frame[':properties'][':parse_str']
+                            if parse.find('[4_ArrivalTime]') > -1 or\
+                            parse.find('[3_ArrivalPlace]') > -1 or\
+                            parse.find('[DisambiguateArrival]') > -1:
+                                dateTime['time_type'] = 'arrival'
+                            else:
+                                dateTime['time_type'] = 'departure'
+                        self.appLogger.info('3')
+                        if result[':timeperiod_spec'] != '':
+                            dateTime['period_spec'] = result[':timeperiod_spec']
+                        self.appLogger.info('4')
+                        self.timeSpecDict.update({hypothesis:dateTime})
+                        self.appLogger.info('5')
                     elif frame[':properties'][':top_slots'] == 'Generic':
                         hypothesis = frame[':properties'][':hypothesis']
                         userAction.content.update({'confirm':hypothesis})
@@ -164,25 +225,34 @@ class DialogThread(threading.Thread):
                         hypothesis = frame[':properties'][':hypothesis']
                         userAction.content.update({'route':hypothesis})
 
-                    if frame[':properties'][':parse_str'].find('covered_neighborhood') > -1 or \
-                    frame[':properties'][':parse_str'].find('uncovered_neighborhood') > -1 or \
-                    frame[':properties'][':parse_str'].find('ambiguous_covered_place') > -1 or \
-                    frame[':properties'][':parse_str'].find('ambiguous_uncovered_place') > -1:
-                        if updateDeparturePlaceType:
-                            self.departurePlaceTypeDict[hypothesis] = 'neighborhood'
-                        if updateArrivalPlaceType:                        
-                            self.arrivalPlaceTypeDict[hypothesis] = 'neighborhood'
-                    else:                        
-                        if updateDeparturePlaceType:
-                            self.departurePlaceTypeDict[hypothesis] = 'stop'
-                        if updateArrivalPlaceType:                        
-                            self.arrivalPlaceTypeDict[hypothesis] = 'stop'
+                    self.appLogger.info('6')
+
+                    if updateDeparturePlaceType or updateArrivalPlaceType:
+                        parse = frame[':properties'][':parse_str']
+                        if parse.find('covered_neighborhood') > -1 or \
+                        parse.find('uncovered_neighborhood') > -1 or \
+                        parse.find('ambiguous_covered_place') > -1 or \
+                        parse.find('ambiguous_uncovered_place') > -1:
+                            if updateDeparturePlaceType:
+                                self.departurePlaceTypeDict[hypothesis] = 'neighborhood'
+                            if updateArrivalPlaceType:                        
+                                self.arrivalPlaceTypeDict[hypothesis] = 'neighborhood'
+                        else:                        
+                            if updateDeparturePlaceType:
+                                self.departurePlaceTypeDict[hypothesis] = 'stop'
+                            if updateArrivalPlaceType:                        
+                                self.arrivalPlaceTypeDict[hypothesis] = 'stop'
+
+                    self.appLogger.info('7')
 
                     self.appLogger.info('userAction: %s'%str(userAction))
 
-                    userActions = [userAction]
-                    probs = [float(frame[':properties'][':confidence'])]
-                    asrResult = ASRResult.FromHelios(userActions,probs)
+                    if userAction.content == {}:
+                        asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                    else:
+                        userActions = [userAction]
+                        probs = [float(frame[':properties'][':confidence'])]
+                        asrResult = ASRResult.FromHelios(userActions,probs)
 
                     self.appLogger.info('ASRResult: %s'%str(asrResult))
 
@@ -207,41 +277,14 @@ class DialogThread(threading.Thread):
                         self.inQueue.task_done()
 
                         # Backend lookup
-#                        querySpec = {'departure_place':'',\
-#                                'arrival_place':'',\
-#                                'travel_time':'',\
-#                                'route':'',\
-#                                'month':'12',\
-#                                'day':'9',\
-#                                'year':'2011',\
-#                                'weekday':'5',\
-#                                'period_spec':'now',\
-#                                'value':'1421',\
-#                                'now':'true',\
-#                                'time_type':'departure',\
-#                                'departure_place_type':'stop',\
-#                                'arrival_place_type':'stop',\
-#                                'departure_stops':'',\
-#                                'arrival_stops':''}
                         querySpec,belief = self.dialogManager.beliefState.GetTopUniqueUserGoal()
+                        self.appLogger.info('query spec %s'%str(querySpec))
                         querySpec['departure_place_type'] = self.departurePlaceTypeDict[querySpec['departure_place']]
                         querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[querySpec['arrival_place']]
-                        
-                        message = MakeDeparturePlaceQuery(querySpec)
-                        self.outQueue.put(message)
-                        result = self.inQueue.get()
-                        self.inQueue.task_done()
-#                        if result:
-#                        
-#                        querySpec['now'] =
-#                        querySpec['value'] =
-#                        querySpec['period_spec'] =
-#                        querySpec['weekday'] =
-#                        querySpec['year'] =
-#                        querySpec['day'] =
-#                        querySpec['month'] =
-#                        querySpec['time_type'] = 'departure'
-                        
+                        self.appLogger.info('query spec %s'%str(querySpec))
+                        querySpec.update(self.timeSpecDict[querySpec['travel_time']])
+                        self.appLogger.info('query spec %s'%str(querySpec))
+
                         message = MakeDeparturePlaceQuery(querySpec)
                         self.outQueue.put(message)
                         result = self.inQueue.get()
@@ -250,6 +293,7 @@ class DialogThread(threading.Thread):
                             querySpec['departure_stops'] = result[':outframe']
                         else:
                             self.appLogger.info('Backend query for place failed')
+
                         message = MakeArrivalPlaceQuery(querySpec)
                         self.outQueue.put(message)
                         result = self.inQueue.get()
@@ -258,13 +302,13 @@ class DialogThread(threading.Thread):
                             querySpec['arrival_stops'] = result[':outframe']
                         else:
                             self.appLogger.info('Backend query for place failed')
-        
+
                         message = MakeScheduleQuery(querySpec)
                         self.outQueue.put(message)
                         result = self.inQueue.get()
                         self.inQueue.task_done()
                         if result:
-                            self.appLogger.info('Bus schedule: %s'%result)
+                            self.appLogger.info('Bus schedule: %s'%result.PPrint())
                         else:
                             self.appLogger.info('Backend query for schedule failed')
         
@@ -274,6 +318,9 @@ class DialogThread(threading.Thread):
                         self.systemAction.force = 'success'
                         self._GetNewDialogState()
                         self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                        query,result = MakeScheduleSection(querySpec,result[':outframe'])
+                        self.appLogger.info('query: %s'%query)
+                        self.appLogger.info('result: %s'%result)
                         message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
                                                       ' '.join(self.notifyPrompts),self.dialogStateIndex,\
                                                       self.sessionID,self.idSuffix,self.uttCount,\
@@ -339,8 +386,8 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('notifyPrompts: [ %s ]'%', '.join(self.notifyPrompts))
                     self.notifyPrompts.remove(frame[':properties'][':utt_count'])
                     self.appLogger.info('notifyPrompts: [ %s ]'%', '.join(self.notifyPrompts))
-                    if self.uttCount == 2 and self.notifyPrompts == []: 
-#                    if self.uttCount == 1 and self.notifyPrompts == []: 
+#                    if self.uttCount == 2 and self.notifyPrompts == []: 
+                    if self.uttCount == 1 and self.notifyPrompts == []: 
                         self.systemAction = self.dialogManager.Init()
                         self._GetNewDialogState()
                         message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
@@ -359,7 +406,7 @@ class DialogThread(threading.Thread):
                 elif eventType == 'dialog_state_change':
                     self.appLogger.info('dialog_state_change')
                     # update dialog state
-                    self.dialogState = 'initial' if not self.newDialogState else self.newDialogState
+                    self.dialogState = 'inform_welcome' if not self.newDialogState else self.newDialogState
                     self.dialogStateIndex += 1
                     # broadcast dialog state
                     message = MakeDialogStateMessage(self.dialogState,self.turnNumber,\
@@ -375,7 +422,7 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('turn_timeout')
                     self.idSuffix += 1
 
-                    asrResult = ASRResult.FromHelios([userAction('non-understanding',{})],[1.0])
+                    asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                     self.appLogger.info('ASRResult: %s'%str(asrResult))
 
                     self.systemAction = self.dialogManager.TakeTurn(asrResult)
