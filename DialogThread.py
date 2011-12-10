@@ -149,8 +149,8 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('confidence: %s'%frame[':properties'][':confidence'])
                     
                     updateDeparturePlaceType = updateArrivalPlaceType = False
-                    if frame[':properties'][':top_slots'] == '1_SinglePlace':
-                        hypothesis = frame[':properties'][':hypothesis']
+                    if frame[':properties'].has_key(':[1_singleplace.stop_name]'):
+                        hypothesis = frame[':properties'][':[1_singleplace.stop_name]']
                         if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
                             if self.systemAction.content == 'departure_place':
                                 userAction.content.update({'departure_place':hypothesis})
@@ -166,9 +166,15 @@ class DialogThread(threading.Thread):
                             userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
                             updateDeparturePlaceType = True
                             updateArrivalPlaceType = True
-                    elif frame[':properties'][':top_slots'] == '4_DateTime':
-                        hypothesis = frame[':properties'][':hypothesis']
-                        userAction.content.update({'travel_time':hypothesis})
+                    if frame[':properties'].has_key(':[2_departureplace.stop_name]'):
+                        hypothesis = frame[':properties'][':[2_departureplace.stop_name]']
+                        userAction.content.update({'departure_place':hypothesis})
+                        updateDeparturePlaceType = True
+                    if frame[':properties'].has_key(':[3_arrivalplace.stop_name]'):
+                        hypothesis = frame[':properties'][':[3_arrivalplace.stop_name]']
+                        userAction.content.update({'arrival_place':hypothesis})
+                        updateArrivalPlaceType = True
+                    if frame[':properties'].has_key(':[4_datetime]'):
                         message = MakeParseDateTimeMessage(frame[':properties'][':gal_slotsframe'])
                         self.outQueue.put(message)
                         result = self.inQueue.get()
@@ -216,32 +222,41 @@ class DialogThread(threading.Thread):
                         if result[':timeperiod_spec'] != '':
                             dateTime['period_spec'] = result[':timeperiod_spec']
                         self.appLogger.info('4')
-                        self.timeSpecDict.update({hypothesis:dateTime})
+                        self.timeSpecDict.update({dateTime['value']:dateTime})
+                        self.appLogger.info('dateTime: %s'%str(dateTime))
+                        userAction.content.update({'travel_time':dateTime['value']})
                         self.appLogger.info('5')
-                    elif frame[':properties'][':top_slots'] == 'Generic':
-                        hypothesis = frame[':properties'][':hypothesis']
-                        userAction.content.update({'confirm':hypothesis})
-                    elif frame[':properties'][':top_slots'] == '0_BusNumber':
-                        hypothesis = frame[':properties'][':hypothesis']
-                        userAction.content.update({'route':hypothesis})
+                    if frame[':properties'].has_key(':[0_busnumber.route]'):
+                        userAction.content.update({'route':frame[':properties'][':[0_busnumber.route]']})
+                    if frame[':properties'].has_key(':[generic.yes]'):
+                        userAction.content.update({'confirm':'YES'})
+                    if frame[':properties'].has_key(':[generic.no]'):
+                        userAction.content.update({'confirm':'NO'})
+                    if frame[':properties'].has_key(':[4_busafterthatrequest]'):
+                        self.appLogger.info('%s'%frame[':properties'][':[4_busafterthatrequest]'])
+                    if frame[':properties'].has_key(':[generic.quit]'):
+                        self.appLogger.info('Good bye')
 
                     self.appLogger.info('6')
 
-                    if updateDeparturePlaceType or updateArrivalPlaceType:
-                        parse = frame[':properties'][':parse_str']
-                        if parse.find('covered_neighborhood') > -1 or \
-                        parse.find('uncovered_neighborhood') > -1 or \
-                        parse.find('ambiguous_covered_place') > -1 or \
-                        parse.find('ambiguous_uncovered_place') > -1:
-                            if updateDeparturePlaceType:
-                                self.departurePlaceTypeDict[hypothesis] = 'neighborhood'
-                            if updateArrivalPlaceType:                        
-                                self.arrivalPlaceTypeDict[hypothesis] = 'neighborhood'
+                    parse = frame[':properties'][':parse_str']
+                    if updateDeparturePlaceType:
+                        place = userAction.content['departure_place']
+                        self.appLogger.info('%d'%parse.find(place))
+                        subParse = parse[parse.find(place)-20:parse.find(place)]
+                        self.appLogger.info('place %s, subParse %s'%(place,subParse))
+                        if subParse.find('neighborhood') > -1:
+                            self.departurePlaceTypeDict[place] = 'neighborhood'
+                        else:
+                            self.departurePlaceTypeDict[place] = 'stop'
+                    if updateArrivalPlaceType:
+                        place = userAction.content['arrival_place']
+                        subParse = parse[parse.find(place)-20:parse.find(place)]
+                        self.appLogger.info('place %s, subParse %s'%(place,subParse))
+                        if subParse.find('neighborhood') > -1:
+                            self.arrivalPlaceTypeDict[place] = 'neighborhood'
                         else:                        
-                            if updateDeparturePlaceType:
-                                self.departurePlaceTypeDict[hypothesis] = 'stop'
-                            if updateArrivalPlaceType:                        
-                                self.arrivalPlaceTypeDict[hypothesis] = 'stop'
+                            self.arrivalPlaceTypeDict[place] = 'stop'
 
                     self.appLogger.info('7')
 
@@ -350,11 +365,21 @@ class DialogThread(threading.Thread):
                         self.inQueue.task_done()
                     elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
                         if 'departure_place' in self.systemAction.content:
-                            query = 'query.departure_place\t{\nname\t%s\ntype\tstop\n}\n'%self.systemAction.content['departure_place']
+                            query = 'query.departure_place\t{\nname\t%s\ntype\t%s\n}\n'%\
+                            (self.systemAction.content['departure_place'],self.departurePlaceTypeDict[self.systemAction.content['departure_place']])
                         elif 'arrival_place' in self.systemAction.content:
-                            query = 'query.arrival_place\t{\nname\t%s\ntype\tneighborhood\n}\n'%self.systemAction.content['arrival_place']
+                            query = 'query.arrival_place\t{\nname\t%s\ntype\t%s\n}\n'%\
+                            (self.systemAction.content['arrival_place'],self.arrivalPlaceTypeDict[self.systemAction.content['arrival_place']])
                         elif 'travel_time' in self.systemAction.content:
-                            query = 'query.travel_time.time\t{\nvalue\t1421\nnow\ttrue\ntype\tdeparture\n}\n'
+                            self.appLogger.info('time: %s'%self.systemAction.content['travel_time'])
+                            timeSpec = self.timeSpecDict[self.systemAction.content['travel_time']]
+                            self.appLogger.info('timeSpec: %s'%str(timeSpec))
+                            try:
+                                query = 'query.travel_time.time\t{\nvalue\t%s\nnow\t%s\ntype\t%s\n}\n'%\
+                                (timeSpec['value'],timeSpec['now'],timeSpec['time_type'])
+                            except:
+                                query = 'query.travel_time.time\t{\nvalue\t%s\ntype\t%s\n}\n'%\
+                                (timeSpec['value'],timeSpec['time_type'])
                         elif 'route' in self.systemAction.content:
                             query = 'query.route_number\t%s\n'%self.systemAction.content['route']
                     self._GetNewDialogState()
@@ -433,7 +458,8 @@ class DialogThread(threading.Thread):
                     self._GetNewDialogState()
                     self.appLogger.info('New dialog state: %s'%self.newDialogState)
 
-                    query = result = version = ''
+                    query = result = ''
+                    version = 'version\ttimeout\n'
                     message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
                                                   ' '.join(self.notifyPrompts),self.dialogStateIndex,\
                                                   self.sessionID,self.idSuffix,self.uttCount,\

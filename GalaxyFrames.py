@@ -151,13 +151,13 @@ stateElementsDict['confirm_travel_time']['LineConfig'] = 'set_dtmf_len = 1, set_
 # Inform
 #===============================================================================
 stateElementsDict['inform_welcome']['DialogState'] = '/LetsGoPublic/GiveIntroduction/InformWelcome'
-stateElementsDict['inform_welcome']['informWelcomeStack'] = '''/LetsGoPublic/GiveIntroduction/InformWelcome
+stateElementsDict['inform_welcome']['Stack'] = '''/LetsGoPublic/GiveIntroduction/InformWelcome
   /LetsGoPublic/GiveIntroduction
   /LetsGoPublic'''
-stateElementsDict['inform_welcome']['informWelcomeAgenda'] = '''0:
+stateElementsDict['inform_welcome']['Agenda'] = '''0:
 1:O[repeat]V
 2:O[0_covered_route]S,O[0_discontinued_route]S,O[0_uncovered_route]S,O[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,O[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,O[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,O[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,O[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,O[2_departureplace.stop_name.covered_place.covered_neighborhood]S,O[2_departureplace.stop_name.covered_place.monument]S,O[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,O[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,O[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,O[3_arrivalplace.stop_name.covered_place.monument]S,O[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,O[4_busafterthatrequest]S,X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,O[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_one]V,X[dtmf_three]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[finalquit]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[quit]V,O[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,X[startover]V,X[stop_name.monument]S,X[stop_name.registered_stop]S,O[turn_timeout:timeout]V,O[yes]V,X[yes]V'''
-stateElementsDict['inform_welcome']['informWelcomeLineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
+stateElementsDict['inform_welcome']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
 
 stateElementsDict['inform_confirm_okay_route']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/query.arrival_place]/AcknowledgeConfirm'
 stateElementsDict['inform_confirm_okay_route']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/query.arrival_place]/AcknowledgeConfirm
@@ -309,7 +309,7 @@ utterElementsDict['inform_how_to_get_help']['Option'] = ''
 utterElementsDict['request_all']['DialogAct'] = 'request'
 utterElementsDict['request_all']['FloorState'] = 'user'
 utterElementsDict['request_all']['Object'] = 'how_may_i_help_you_directed'
-utterElementsDict['request_all']['Query'] = 'ExCount	0'
+utterElementsDict['request_all']['Query'] = 'ExCount	0\n'
 utterElementsDict['request_all']['Result'] = ''
 utterElementsDict['request_all']['Agent'] = ''
 utterElementsDict['request_all']['Version'] = ''
@@ -338,7 +338,7 @@ utterElementsDict['request_travel_time']['FloorState'] = 'user'
 utterElementsDict['request_travel_time']['Object'] = 'query.travel_time'
 utterElementsDict['request_travel_time']['Query'] = ''
 utterElementsDict['request_travel_time']['Result'] = ''
-utterElementsDict['request_travel_time']['Agent'] = 'agent	/LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime/RequestTravelTime'
+utterElementsDict['request_travel_time']['Agent'] = 'agent	/LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime/RequestTravelTime\n'
 utterElementsDict['request_travel_time']['Version'] = ''
 utterElementsDict['request_travel_time']['Option'] = ''
 
@@ -472,24 +472,24 @@ def MakeDialogState(stateType,turnNumber,notifyPrompts):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 
-##	appLogger.info('%s'%stateType)
+	appLogger.info('%s'%stateType)
 
 	content = dialogStateTemplate
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	elements = stateElementsDict[stateType]  
 	
 	content = content.replace('${turn_number}',str(turnNumber))
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	content = content.replace('${notify_prompts}',notifyPrompts)
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	content = content.replace('${dialog_state}',elements['DialogState'])
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	content = content.replace('${stack}',elements['Stack'])
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	content = content.replace('${agenda}',elements['Agenda'])
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 	content = content.replace('${input_line_config}',elements['LineConfig'])
-#	appLogger.info('%s'%content)
+	appLogger.info('%s'%content)
 
 	return content
 
@@ -553,6 +553,8 @@ def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogState
 #	appLogger.info('%s'%content)
 	content = content.replace('${object}',elements['Object'])
 #	appLogger.info('%s'%content)
+	if query == '' and elements['Query'] != '':
+		query = elements['Query']
 	content = content.replace('${query}',query)
 #	appLogger.info('%s'%content)
 	content = content.replace('${result}',result)
@@ -626,51 +628,6 @@ def MakeArrivalPlaceQuery(querySpec):
 	return message
 
 
-scheduleQuery = '{c gal_be.launch_query\n\
-:inframe "{\n\
-query {\n\
-type\t2\n\
-travel_time\t{\n\
-date\t{\n\
-month\t${month}\n\
-day\t${day}\n\
-year\t${year}\n\
-weekday\t${weekday}\n\
-}\n\
-\n\
-period_spec\t${period_spec}\n\
-time\t{\n\
-value\t${value}\n\
-now\t${now}\n\
-type\t${time_type}\n\
-}\n\
-\n\
-}\n\
-\n\
-departure_place\t{\n\
-name\t${departure_place_name}\n\
-type\t${departure_place_type}\n\
-}\n\
-\n\
-arrival_place\t{\n\
-name\t${arrival_place_name}\n\
-type\t${arrival_place_type}\n\
-}\n\
-\n\
-${route_number}\
-}\n\
-\n\
-${departure_stops}\n\
-\n\
-${arrival_stops}\n\
-\n\
-result\t{\n\
-}\n\
-\n\
-}\n\
-"\n\
-}'
-
 tempQuery = '''{c gal_be.launch_query
 :inframe "{
 query {
@@ -683,9 +640,79 @@ year	2011
 weekday	6
 }
 
+period_spec	now 
+time	{
+value	1305
+now	true
+type	departure
+}
+
+}
+
+departure_place	{
+name	CMU
+type	stop
+}
+
+arrival_place	{
+name	AIRPORT
+type	stop
+}
+
+route_number	28X
+}
+
+departure_stops	:3
+{
+{
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+id	2418
+}
+{
+id	2417
+name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+}
+{
+id	2442
+name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
+}
+}
+
+arrival_stops	:2
+{
+{
+name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
+id	5290
+}
+{
+id	3731
+name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
+}
+}
+
+result	{
+}
+
+}
+"
+}
+'''
+
+temp2Query = '''{c gal_be.launch_query
+:inframe "{
+query {
+type	2
+travel_time	{
+date	{
+month	12
+day	9
+year	2011
+weekday	5
+}
+
 period_spec	now
 time	{
-value	1047
+value	1421
 now	true
 type	departure
 }
@@ -701,6 +728,7 @@ name	AIRPORT
 type	stop
 }
 
+route_number	28X
 }
 
 departure_stops :3
@@ -739,74 +767,61 @@ result {
 }
 '''
 
-temp2Query = '''{c gal_be.launch_query
-:inframe "{
-query	{
-type	2
-travel_time	{
-date	{
-month	12
-day	10
-year	2011
-weekday	6
-}
+fullTimeSpec = 'travel_time\t{\n\
+date\t{\n\
+month\t${month}\n\
+day\t${day}\n\
+year\t${year}\n\
+weekday\t${weekday}\n\
+}\n\
+\n\
+period_spec\t${period_spec}\n\
+time\t{\n\
+value\t${value}\n\
+now\t${now}\n\
+type\t${time_type}\n\
+}\n\
+\n\
+}\n\
+'
 
-period_spec	now 
-time	{
-value	2317
-now	true
-type	departure
-}
+briefTimeSpec = 'travel_time\t{\n\
+time\t{\n\
+value\t${value}\n\
+type\t${time_type}\n\
+}\n\
+\n\
+}\n\
+'
 
-}
-
-departure_place	{
-name	CMU
-type	stop
-}
-
-arrival_place	{
-name	AIRPORT
-type	stop
-}
-
-}
-
-departure_stops	:3
-{
-{
-id	2418
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-}
-{
-id	2417
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-}
-{
-id	2442
-name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
-}
-}
-
-arrival_stops	:2
-{
-{
-id	5290
-name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
-}
-{
-id	3731
-name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
-}
-}
-
-result	{
-}
-
-}
-"
-}
-'''
+scheduleQuery = '{c gal_be.launch_query\n\
+:inframe "{\n\
+query {\n\
+type\t2\n\
+${time_spec}\n\
+departure_place\t{\n\
+name\t${departure_place_name}\n\
+type\t${departure_place_type}\n\
+}\n\
+\n\
+arrival_place\t{\n\
+name\t${arrival_place_name}\n\
+type\t${arrival_place_type}\n\
+}\n\
+\n\
+${route_number}\
+}\n\
+\n\
+${departure_stops}\n\
+\n\
+${arrival_stops}\n\
+\n\
+result\t{\n\
+}\n\
+\n\
+}\n\
+"\n\
+}'
 
 def MakeScheduleQuery(querySpec):
 	import logging
@@ -814,23 +829,29 @@ def MakeScheduleQuery(querySpec):
 	content = scheduleQuery
 	
 	appLogger.info('Make query for schedule')
-	
-	content = content.replace('${month}',querySpec['month'])
-	appLogger.info('1')
-	content = content.replace('${day}',querySpec['day'])
-	appLogger.info('2')
-	content = content.replace('${year}',querySpec['year'])
-	appLogger.info('3')
-	content = content.replace('${weekday}',querySpec['weekday'])
-	appLogger.info('4')
-	content = content.replace('${period_spec}',querySpec['period_spec'])
-	appLogger.info('5')
-	content = content.replace('${value}',querySpec['value'])
+
+	try:
+		timeSpec = fullTimeSpec
+		timeSpec = timeSpec.replace('${month}',querySpec['month'])
+		appLogger.info('1')
+		timeSpec = timeSpec.replace('${day}',querySpec['day'])
+		appLogger.info('2')
+		timeSpec = timeSpec.replace('${year}',querySpec['year'])
+		appLogger.info('3')
+		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
+		appLogger.info('4')
+		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
+		appLogger.info('5')
+		timeSpec = timeSpec.replace('${now}',querySpec['now'])
+		appLogger.info('7')
+	except:		
+		timeSpec = briefTimeSpec
+	timeSpec = timeSpec.replace('${value}',querySpec['value'])
 	appLogger.info('6')
-	content = content.replace('${now}',querySpec['now'])
-	appLogger.info('7')
-	content = content.replace('${time_type}',querySpec['time_type'])
+	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
 	appLogger.info('8')
+	content = content.replace('${time_spec}',timeSpec)
+	appLogger.info('88')
 	content = content.replace('${departure_place_name}',querySpec['departure_place'])
 	appLogger.info('9')
 	content = content.replace('${departure_place_type}',querySpec['departure_place_type'])
@@ -860,22 +881,7 @@ def MakeScheduleQuery(querySpec):
 
 querySection = '\nquery\t{\n\
 type\t2\n\
-travel_time\t{\n\
-date\t{\n\
-month\t${month}\n\
-day\t${day}\n\
-year\t${year}\n\
-weekday\t${weekday}\n\
-}\n\
-\n\
-period_spec\t${period_spec}\n\
-time\t{\n\
-value\t${value}\n\
-now\t${now}\n\
-type\t${time_type}\n\
-}\n\
-\n\
-}\n\
+${time_spec}\n\
 \n\
 departure_place\t{\n\
 name\t${departure_place_name}\n\
@@ -895,14 +901,36 @@ def MakeScheduleSection(querySpec,result):
 	appLogger = logging.getLogger('DialogThread')
 	query = querySection
 	
-	query = query.replace('${month}',querySpec['month'])
-	query = query.replace('${day}',querySpec['day'])
-	query = query.replace('${year}',querySpec['year'])
-	query = query.replace('${weekday}',querySpec['weekday'])
-	query = query.replace('${period_spec}',querySpec['period_spec'])
-	query = query.replace('${value}',querySpec['value'])
-	query = query.replace('${now}',querySpec['now'])
-	query = query.replace('${time_type}',querySpec['time_type'])
+	try:
+		timeSpec = fullTimeSpec
+		timeSpec = timeSpec.replace('${month}',querySpec['month'])
+		appLogger.info('1')
+		timeSpec = timeSpec.replace('${day}',querySpec['day'])
+		appLogger.info('2')
+		timeSpec = timeSpec.replace('${year}',querySpec['year'])
+		appLogger.info('3')
+		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
+		appLogger.info('4')
+		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
+		appLogger.info('5')
+		timeSpec = timeSpec.replace('${now}',querySpec['now'])
+		appLogger.info('7')
+	except:		
+		timeSpec = briefTimeSpec
+	timeSpec = timeSpec.replace('${value}',querySpec['value'])
+	appLogger.info('6')
+	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+	appLogger.info('8')
+	query = query.replace('${time_spec}',timeSpec)
+	appLogger.info('88')
+#	query = query.replace('${month}',querySpec['month'])
+#	query = query.replace('${day}',querySpec['day'])
+#	query = query.replace('${year}',querySpec['year'])
+#	query = query.replace('${weekday}',querySpec['weekday'])
+#	query = query.replace('${period_spec}',querySpec['period_spec'])
+#	query = query.replace('${value}',querySpec['value'])
+#	query = query.replace('${now}',querySpec['now'])
+#	query = query.replace('${time_type}',querySpec['time_type'])
 	query = query.replace('${departure_place_name}',querySpec['departure_place'])
 	query = query.replace('${departure_place_type}',querySpec['departure_place_type'])
 	query = query.replace('${arrival_place_name}',querySpec['arrival_place'])
