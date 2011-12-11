@@ -82,6 +82,7 @@ def DoDialogFlow(frame=None):
         elif message['type'] == 'WAITINPUT':
             return
         elif message['type'] == 'WAITINTERACTIONEVENT':
+            appLogger.info('Wait interaction event')
             return
         elif message['type'] == 'DIALOGFINISHED':
             return

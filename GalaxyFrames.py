@@ -472,24 +472,24 @@ def MakeDialogState(stateType,turnNumber,notifyPrompts):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 
-	appLogger.info('%s'%stateType)
+#	appLogger.info('%s'%stateType)
 
 	content = dialogStateTemplate
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	elements = stateElementsDict[stateType]  
 	
 	content = content.replace('${turn_number}',str(turnNumber))
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	content = content.replace('${notify_prompts}',notifyPrompts)
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	content = content.replace('${dialog_state}',elements['DialogState'])
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	content = content.replace('${stack}',elements['Stack'])
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	content = content.replace('${agenda}',elements['Agenda'])
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 	content = content.replace('${input_line_config}',elements['LineConfig'])
-	appLogger.info('%s'%content)
+#	appLogger.info('%s'%content)
 
 	return content
 
@@ -797,7 +797,7 @@ type\t${time_type}\n\
 scheduleQuery = '{c gal_be.launch_query\n\
 :inframe "{\n\
 query {\n\
-type\t2\n\
+type\t${type}\n\
 ${time_spec}\n\
 departure_place\t{\n\
 name\t${departure_place_name}\n\
@@ -817,13 +817,14 @@ ${departure_stops}\n\
 ${arrival_stops}\n\
 \n\
 result\t{\n\
+${result}\n\
 }\n\
 \n\
 }\n\
 "\n\
 }'
 
-def MakeScheduleQuery(querySpec):
+def MakeScheduleQuery(querySpec,result=None,next=None):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 	content = scheduleQuery
@@ -833,46 +834,64 @@ def MakeScheduleQuery(querySpec):
 	try:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
-		appLogger.info('1')
+#		appLogger.info('1')
 		timeSpec = timeSpec.replace('${day}',querySpec['day'])
-		appLogger.info('2')
+#		appLogger.info('2')
 		timeSpec = timeSpec.replace('${year}',querySpec['year'])
-		appLogger.info('3')
+#		appLogger.info('3')
 		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
-		appLogger.info('4')
+#		appLogger.info('4')
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-		appLogger.info('5')
+#		appLogger.info('5')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-		appLogger.info('7')
+#		appLogger.info('7')
 	except:		
 		timeSpec = briefTimeSpec
 	timeSpec = timeSpec.replace('${value}',querySpec['value'])
-	appLogger.info('6')
+#	appLogger.info('6')
 	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-	appLogger.info('8')
+#	appLogger.info('8')
+	if not next: type = '2'
+	elif next == 'NEXT BUS': type = '4'
+	elif next == 'PREVIOUS BUS': type = '5' 
+	content = content.replace('${type}',type)
+
 	content = content.replace('${time_spec}',timeSpec)
-	appLogger.info('88')
+#	appLogger.info('88')
 	content = content.replace('${departure_place_name}',querySpec['departure_place'])
-	appLogger.info('9')
+#	appLogger.info('9')
 	content = content.replace('${departure_place_type}',querySpec['departure_place_type'])
-	appLogger.info('10')
+#	appLogger.info('10')
 	content = content.replace('${arrival_place_name}',querySpec['arrival_place'])
-	appLogger.info('11')
+#	appLogger.info('11')
 	content = content.replace('${arrival_place_type}',querySpec['arrival_place_type'])
-	appLogger.info('12')
+#	appLogger.info('12')
 	if querySpec['route'] != '':
 		content = content.replace('${route_number}','route_number\t%s\n'%querySpec['route'])
 	else:
 		content = content.replace('${route_number}','')
-	appLogger.info('13')
-	querySpec['departure_stops'] = \
+#	appLogger.info('13')
+#	querySpec['departure_stops'] = \
+	departure_stops = \
 	'\n'.join([x.strip() for x in querySpec['departure_stops'].split('\n')[2:-3]]).replace('stops','departure_stops')
-	content = content.replace('${departure_stops}',querySpec['departure_stops'])
-	appLogger.info('14')
-	querySpec['arrival_stops'] = \
+	content = content.replace('${departure_stops}',departure_stops)
+#	content = content.replace('${departure_stops}',querySpec['departure_stops'])
+#	appLogger.info('14')
+#	querySpec['arrival_stops'] = \
+	arrival_stops = \
 	'\n'.join([x.strip() for x in querySpec['arrival_stops'].split('\n')[2:-3]]).replace('stops','arrival_stops')
-	content = content.replace('${arrival_stops}',querySpec['arrival_stops'])
+	content = content.replace('${arrival_stops}',arrival_stops)
+#	content = content.replace('${arrival_stops}',querySpec['arrival_stops'])
 
+#	appLogger.info('%s'%content)
+
+	if result:
+		content = content.replace('${result}','\n'.join([x.strip() for x in result.split('\n')[2:-3]]))
+	else:
+		content = content.replace('${result}','')
+
+	appLogger.info('%s'%content)
+		
 	appLogger.info('Done')
 	
 	message = {'type':'GALAXYCALL',
@@ -880,7 +899,7 @@ def MakeScheduleQuery(querySpec):
 	return message
 
 querySection = '\nquery\t{\n\
-type\t2\n\
+type\t${type}\n\
 ${time_spec}\n\
 \n\
 departure_place\t{\n\
@@ -896,33 +915,38 @@ type\t${arrival_place_type}\n\
 ${route_number}\
 }\n'
 
-def MakeScheduleSection(querySpec,result):
+def MakeScheduleSection(querySpec,result,next=None):
 	import logging
 	appLogger = logging.getLogger('DialogThread')
 	query = querySection
+
+	if not next: type = '2'
+	elif next == 'NEXT BUS': type = '4'
+	elif next == 'PREVIOUS BUS': type = '5' 
+	query = query.replace('${type}',type)
 	
 	try:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
-		appLogger.info('1')
+#		appLogger.info('1')
 		timeSpec = timeSpec.replace('${day}',querySpec['day'])
-		appLogger.info('2')
+#		appLogger.info('2')
 		timeSpec = timeSpec.replace('${year}',querySpec['year'])
-		appLogger.info('3')
+#		appLogger.info('3')
 		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
-		appLogger.info('4')
+#		appLogger.info('4')
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-		appLogger.info('5')
+#		appLogger.info('5')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-		appLogger.info('7')
+#		appLogger.info('7')
 	except:		
 		timeSpec = briefTimeSpec
 	timeSpec = timeSpec.replace('${value}',querySpec['value'])
-	appLogger.info('6')
+#	appLogger.info('6')
 	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-	appLogger.info('8')
+#	appLogger.info('8')
 	query = query.replace('${time_spec}',timeSpec)
-	appLogger.info('88')
+#	appLogger.info('88')
 #	query = query.replace('${month}',querySpec['month'])
 #	query = query.replace('${day}',querySpec['day'])
 #	query = query.replace('${year}',querySpec['year'])
@@ -931,16 +955,20 @@ def MakeScheduleSection(querySpec,result):
 #	query = query.replace('${value}',querySpec['value'])
 #	query = query.replace('${now}',querySpec['now'])
 #	query = query.replace('${time_type}',querySpec['time_type'])
+
 	query = query.replace('${departure_place_name}',querySpec['departure_place'])
 	query = query.replace('${departure_place_type}',querySpec['departure_place_type'])
 	query = query.replace('${arrival_place_name}',querySpec['arrival_place'])
 	query = query.replace('${arrival_place_type}',querySpec['arrival_place_type'])
+	appLogger.info('8')
 	if querySpec['route'] != '':
 		query = query.replace('${route_number}','route_number\t%s\n'%querySpec['route'])
 	else:
 		query = query.replace('${route_number}','')
+	appLogger.info('9')
 	
 	result = '\n'.join([x.strip() for x in result.split('\n')[1:-2]]).replace('new_result','result')
+	appLogger.info('10')
 	
 	return query,'\n'+result+'\n'
 
