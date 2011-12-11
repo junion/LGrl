@@ -579,7 +579,7 @@ class OpenDialogManager(DialogManager):
         self.confirmArrivalPlaceHighThreshold = self.config.getfloat(MY_ID,'confirmArrivalPlaceHighThreshold')
         self.confirmTravelTimeHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimeHighThreshold')
 
-    def Init(self):
+    def Init(self,userFirst=False):
         self.beliefState.Init()
         self.fieldCounts = dict([(field,0) for field in self.fields])
         self.fieldCounts['all'] = 0
