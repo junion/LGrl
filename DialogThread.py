@@ -228,7 +228,7 @@ class DialogThread(threading.Thread):
                 self.departurePlaceTypeDict[place] = 'neighborhood'
             else:
                 self.departurePlaceTypeDict[place] = 'stop'
-            if place not in self.departurePlaceTypeDict:
+            if place not in self.departurePlaceQuerySpecDict:
                 querySpec = {}
                 querySpec['departure_place'] = place
                 querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
@@ -241,7 +241,7 @@ class DialogThread(threading.Thread):
                 self.arrivalPlaceTypeDict[place] = 'neighborhood'
             else:                        
                 self.arrivalPlaceTypeDict[place] = 'stop'
-            if place not in self.arrivalPlaceTypeDict:
+            if place not in self.arrivalPlaceQuerySpecDict:
                 querySpec = {}
                 querySpec['arrival_place'] = place
                 querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
