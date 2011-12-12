@@ -177,6 +177,8 @@ class SBSarsaDialogManager(DialogManager):
         self.appLogger.info('SBSarsaDialogManager init done')
 
     def Init(self,userFirst=False):
+        from copy import deepcopy
+        
 #        self.userGoal = userGoal
         self.beliefState.Init()
         self.fieldCounts = dict([(field,0) for field in self.fields])
@@ -185,14 +187,16 @@ class SBSarsaDialogManager(DialogManager):
         self.sysActHistory = []
         sysAction,Qval = self._ChooseAction(userFirst=userFirst)
         self.prevSysAction = sysAction
+#        self.appLogger.info('prevSysAction %s'%str(self.prevSysAction))
         self.prevAsrResult = None
 #        self.dialogResult = False
 #        self.dialogReward = 0
-        return sysAction
+        return deepcopy(sysAction)
 
     def _LoadConfig(self):
         self.dialogStrategyLearning = self.config.getboolean(MY_ID,'dialogStrategyLearning')
-        self.fieldAcceptThreshold = self.config.getfloat(MY_ID,'fieldAcceptThreshold') 
+        self.fieldAcceptThreshold = self.config.getfloat(MY_ID,'fieldAcceptThreshold')
+        self.fieldRejectThreshold = self.config.getfloat(MY_ID,'fieldRejectThreshold')
         self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
         self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
         self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
@@ -270,6 +274,7 @@ class SBSarsaDialogManager(DialogManager):
             self.prevMarginals = deepcopy(self.beliefState.GetMarginals())
     #        reward = self._GetReward(self.beliefState,self.prevSysAction)
 #        self.dialogReward += reward
+#        self.appLogger.info('prevSysAction for update %s'%str(self.prevSysAction))
         self.beliefState.Update(asrResult,self.prevSysAction)
         self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
         sysAction,Qval = self._ChooseAction(asrResult)
@@ -277,6 +282,8 @@ class SBSarsaDialogManager(DialogManager):
             self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
                           self.prevSysAction,reward,Qval,self.prevAsrResult)
         self.prevSysAction = sysAction
+#        self.appLogger.info('new prevSysAction %s'%str(self.prevSysAction))
+
         if self.dialogStrategyLearning:
             self.prevAsrResult = asrResult
         # terminal case
@@ -287,7 +294,7 @@ class SBSarsaDialogManager(DialogManager):
 #                          self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
 #            if reward == self.taskSuccessReward:
 #                self.dialogResult = True
-        return sysAction
+        return deepcopy(sysAction)
 
 #    def _GetReward(self,beliefState,sysAction):
 #        if sysAction.type == 'inform':
@@ -480,10 +487,10 @@ class SBSarsaDialogManager(DialogManager):
 
         marginals = self.beliefState.GetMarginals()
         for field in self.fields: 
-            if len(marginals[field]) == 0:
+            if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
                 acts.remove('[ask] confirm %s'%field)
                 acts.remove('[ask] confirm_immediate %s'%field)
-                self.appLogger.info('Exclude confirm(_immediate) %s because of no value'%field)
+                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
             elif marginals[field][-1]['belief'] > self.fieldAcceptThreshold:
                 if field != 'route':
                     acts.remove('[ask] request %s'%field)
@@ -612,20 +619,24 @@ class OpenDialogManager(DialogManager):
         self.confirmTravelTimeHighThreshold = self.config.getfloat(MY_ID,'confirmTravelTimeHighThreshold')
 
     def Init(self,userFirst=False):
+        from copy import deepcopy
+
         self.beliefState.Init()
         self.fieldCounts = dict([(field,0) for field in self.fields])
         self.fieldCounts['all'] = 0
         self.routeConfirmCount = 0
         sysAction = self._ChooseAction()
         self.prevSysAction = sysAction
-        return sysAction
+        return deepcopy(sysAction)
 
     def TakeTurn(self,asrResult):
+        from copy import deepcopy
+
         self.beliefState.Update(asrResult,self.prevSysAction)
         self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
         sysAction = self._ChooseAction(asrResult)
         self.prevSysAction = sysAction
-        return sysAction
+        return deepcopy(sysAction)
 
     def _ChooseAction(self,asrResult=None):
         (travelSpec,belief) = self.beliefState.GetTopUniqueUserGoal()

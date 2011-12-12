@@ -846,6 +846,16 @@ type\t${time_type}\n\
 '
 
 briefTimeSpec = 'travel_time\t{\n\
+period_spec\t${period_spec}\n\
+time\t{\n\
+now\t${now}\n\
+type\t${time_type}\n\
+}\n\
+\n\
+}\n\
+'
+
+veryBriefTimeSpec = 'travel_time\t{\n\
 time\t{\n\
 value\t${value}\n\
 type\t${time_type}\n\
@@ -891,7 +901,7 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 	
 	appLogger.info('Make query for schedule')
 
-	try:
+	if 'day' in querySpec:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
 		appLogger.info('1')
@@ -905,12 +915,25 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 		appLogger.info('5')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
 		appLogger.info('7')
-	except:		
+		timeSpec = timeSpec.replace('${value}',querySpec['value'])
+		appLogger.info('6')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+	elif 'period_spec' in querySpec:
 		timeSpec = briefTimeSpec
-	timeSpec = timeSpec.replace('${value}',querySpec['value'])
-	appLogger.info('6')
-	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-	appLogger.info('8')
+		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
+		appLogger.info('5')
+		timeSpec = timeSpec.replace('${now}',querySpec['now'])
+		appLogger.info('7')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+	else:
+		timeSpec = veryBriefTimeSpec
+		timeSpec = timeSpec.replace('${value}',querySpec['value'])
+		appLogger.info('6')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+
 	appLogger.info('next %s'%next)
 	if not next: type = '2'
 	elif next == 'NEXT BUS': type = '4'
@@ -988,26 +1011,40 @@ def MakeScheduleSection(querySpec,result,next=None):
 	elif next == 'PREVIOUS BUS': type = '5' 
 	query = query.replace('${type}',type)
 	
-	try:
+
+	if 'day' in querySpec:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
-#		appLogger.info('1')
+		appLogger.info('1')
 		timeSpec = timeSpec.replace('${day}',querySpec['day'])
-#		appLogger.info('2')
+		appLogger.info('2')
 		timeSpec = timeSpec.replace('${year}',querySpec['year'])
-#		appLogger.info('3')
+		appLogger.info('3')
 		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
-#		appLogger.info('4')
+		appLogger.info('4')
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-#		appLogger.info('5')
+		appLogger.info('5')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-#		appLogger.info('7')
-	except:		
+		appLogger.info('7')
+		timeSpec = timeSpec.replace('${value}',querySpec['value'])
+		appLogger.info('6')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+	elif 'period_spec' in querySpec:
 		timeSpec = briefTimeSpec
-	timeSpec = timeSpec.replace('${value}',querySpec['value'])
-#	appLogger.info('6')
-	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-#	appLogger.info('8')
+		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
+		appLogger.info('5')
+		timeSpec = timeSpec.replace('${now}',querySpec['now'])
+		appLogger.info('7')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+	else:
+		timeSpec = veryBriefTimeSpec
+		timeSpec = timeSpec.replace('${value}',querySpec['value'])
+		appLogger.info('6')
+		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
+		appLogger.info('8')
+
 	query = query.replace('${time_spec}',timeSpec)
 #	appLogger.info('88')
 #	query = query.replace('${month}',querySpec['month'])

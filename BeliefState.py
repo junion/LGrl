@@ -423,7 +423,7 @@ class Partition(object):
         else:
             self.appLogger.info('Apply learned user model')
             if sysAction.type != 'ask':
-                raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
+                raise RuntimeError, 'Cannot handle sysAction %s'%str(sysAction)
             result = self.irrelevantUserActProb
             allFieldsMatchGoalFlag = True
             if sysAction.force == 'confirm':

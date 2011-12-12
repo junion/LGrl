@@ -59,39 +59,42 @@ def DoDialogFlow(frame=None):
     global outQueue
     global lastFrame
 
-    appLogger.info('DoDialogFlow')
-#    appLogger.info('lastFrame:\n %s'%str(lastFrame))
-    inQueue.put(frame)
-    appLogger.info('Message out')
+    try:
+        appLogger.info('DoDialogFlow')
+    #    appLogger.info('lastFrame:\n %s'%str(lastFrame))
+        inQueue.put(frame)
+        appLogger.info('Message out')
+    
+        while True:
+            message = outQueue.get()
+            appLogger.info('Message in')
+            outQueue.task_done()
+            if message['type'] == 'GALAXYCALL':
+                appLogger.info('GALAXYCALL')
+                appLogger.info('%s'%message['content'])
+                result = CallGalaxyModuleFunction(message['content'])
+                appLogger.info('Message sent')
+                inQueue.put(result)
+            elif message['type'] == 'GALAXYACTIONCALL':
+                appLogger.info('GALAXYACTIONCALL')
+                appLogger.info('%s'%message['content'])
+                SendActionThroughHub(message['content'])
+                appLogger.info('Message sent')
+                inQueue.put(None)
+            elif message['type'] == 'WAITINPUT':
+                return False
+            elif message['type'] == 'WAITINTERACTIONEVENT':
+                appLogger.info('Wait interaction event')
+                return False
+            elif message['type'] == 'DIALOGFINISHED':
+                appLogger.info('Dialog finished')
+                return True
+            elif message['type'] == 'ENDSESSION':
+                appLogger.info('End session')
+                return True
 
-    while True:
-        message = outQueue.get()
-        appLogger.info('Message in')
-        outQueue.task_done()
-        if message['type'] == 'GALAXYCALL':
-            appLogger.info('GALAXYCALL')
-            appLogger.info('%s'%message['content'])
-            result = CallGalaxyModuleFunction(message['content'])
-            appLogger.info('Message sent')
-            inQueue.put(result)
-        elif message['type'] == 'GALAXYACTIONCALL':
-            appLogger.info('GALAXYACTIONCALL')
-            appLogger.info('%s'%message['content'])
-            SendActionThroughHub(message['content'])
-            appLogger.info('Message sent')
-            inQueue.put(None)
-        elif message['type'] == 'WAITINPUT':
-            return False
-        elif message['type'] == 'WAITINTERACTIONEVENT':
-            appLogger.info('Wait interaction event')
-            return False
-        elif message['type'] == 'DIALOGFINISHED':
-            appLogger.info('Dialog finished')
-            return True
-        elif message['type'] == 'ENDSESSION':
-            appLogger.info('End session')
-            return True
-
+    except Exception as err:
+        appLogger.info('Exception %s'%err)
 
 def reinitialize(env,frame):
     global lastEnv
@@ -111,44 +114,48 @@ def begin_session(env,frame):
     global dialogThread
     global inQueue
     global outQueue
-    
-    if inSession:
-        end_session(env,frame)
-    
-    inSession = True
 
-    lastEnv = env
-    incomingFrame = frame
-    lastFrame = frame
+    try:    
+        if inSession:
+            end_session(env,frame)
+        
+        inSession = True
+    
+        lastEnv = env
+        incomingFrame = frame
+        lastFrame = frame
+    
+        appLogger.info('begin_session called.')
+    #    appLogger.info('frame:\n %s.'%str(frame))
+        try:
+            timeStamp = frame[':session_start_timestamp']
+            appLogger.info('Init timestamp: %s.'%str(timeStamp))
+        except KeyError:
+            appLogger.info("Can't find :session_start_timestamp")
+        try:
+            sessionID = frame[':sess_id']
+            appLogger.info('Init session ID: %s.'%str(sessionID))
+        except KeyError:
+            appLogger.info("Can't find :sess_id")
+     
+        inQueue = Queue.Queue()
+        outQueue = Queue.Queue()
+       
+    #    appLogger.info("Dialog thread creation")
+        dialogThread = DialogThread(str(sessionID),inQueue,outQueue)
+    #    appLogger.info("Done")
+        dialogThread.setDaemon(True)
+    #    appLogger.info("Daemonized")
+        dialogThread.start()
+    #    appLogger.info("Started")
+        
+        DoDialogFlow(frame)
+        
+        appLogger.info('DM processing finished.')
 
-    appLogger.info('begin_session called.')
-#    appLogger.info('frame:\n %s.'%str(frame))
-    try:
-        timeStamp = frame[':session_start_timestamp']
-        appLogger.info('Init timestamp: %s.'%str(timeStamp))
-    except KeyError:
-        appLogger.info("Can't find :session_start_timestamp")
-    try:
-        sessionID = frame[':sess_id']
-        appLogger.info('Init session ID: %s.'%str(sessionID))
-    except KeyError:
-        appLogger.info("Can't find :sess_id")
- 
-    inQueue = Queue.Queue()
-    outQueue = Queue.Queue()
-   
-#    appLogger.info("Dialog thread creation")
-    dialogThread = DialogThread(str(sessionID),inQueue,outQueue)
-#    appLogger.info("Done")
-    dialogThread.setDaemon(True)
-#    appLogger.info("Daemonized")
-    dialogThread.start()
-#    appLogger.info("Started")
-    
-    DoDialogFlow(frame)
-    
-    appLogger.info('DM processing finished.')
-    
+    except Exception as err:
+        appLogger.info('Exception %s'%err)
+        
     return frame
 
 def end_session(env,frame):
@@ -160,34 +167,38 @@ def end_session(env,frame):
     global inQueue
     global outQueue
 
-    if not inSession:
-        return frame
+    try:
+        if not inSession:
+            return frame
+        
+        lastEnv = env
+        lastFrame = frame
+        
+        lastFrame[':event_type'] = 'end_session'
+        lastFrame[':event_complete'] = 1
+        
+        properties = Galaxy.Frame(type = Galaxy.GAL_CLAUSE,name = "properties")
+        properties[':terminate_session'] = 'true'
+        
+        lastFrame[':properties'] = properties
+        
+        appLogger.info('end_session called; sending terminate to Core')
+        
+        DoDialogFlow(frame)
     
-    lastEnv = env
-    lastFrame = frame
+        appLogger.info('DM processing finished.')
     
-    lastFrame[':event_type'] = 'end_session'
-    lastFrame[':event_complete'] = 1
+        dialogThread.join()
+        appLogger.info('Dialog thread terminated.')
     
-    properties = Galaxy.Frame(type = Galaxy.GAL_CLAUSE,name = "properties")
-    properties[':terminate_session'] = 'true'
+        dialogThread = None
+        inQueue = None
+        outQueue = None
+        
+        inSession = False
     
-    lastFrame[':properties'] = properties
-    
-    appLogger.info('end_session called; sending terminate to Core')
-    
-    DoDialogFlow(frame)
-
-    appLogger.info('DM processing finished.')
-
-    dialogThread.join()
-    appLogger.info('Dialog thread terminated.')
-
-    dialogThread = None
-    inQueue = None
-    outQueue = None
-    
-    inSession = False
+    except Exception as err:
+        appLogger.info('Exception %s'%err)
     
     return frame
 
@@ -196,32 +207,28 @@ def handle_event(env,frame):
     global lastEnv
     global lastFrame
 
-    appLogger.info('handle_event')
-    appLogger.info('frame:\n%s'%frame.PPrint())
-   
-    if not inSession:
-        return frame
+    try:
+        appLogger.info('handle_event')
+        appLogger.info('frame:\n%s'%frame.PPrint())
+       
+        if not inSession:
+            return frame
+        
+        lastEnv = env
+        lastFrame = frame
+        
+        finished = DoDialogFlow(frame)
+        
+        appLogger.info('DM processing finished.')
     
-    lastEnv = env
-    lastFrame = frame
-    
-    finished = DoDialogFlow(frame)
-    
-    appLogger.info('DM processing finished.')
+        if finished:
+            message = '''{c main
+         :close_session ""}'''
+            SendActionThroughHub(message)
+            appLogger.info('close_session sent')
 
-    if finished:
-        message = '''{c main
-     :close_session ""}'''
-        SendActionThroughHub(message)
-        appLogger.info('close_session sent')
-#        dialogThread.join()
-#        appLogger.info('Dialog thread terminated.')
-#    
-#        dialogThread = None
-#        inQueue = None
-#        outQueue = None
-#        
-#        inSession = False
+    except Exception as err:
+        appLogger.info('Exception %s'%err)
     
     return frame
     
