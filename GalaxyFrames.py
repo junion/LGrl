@@ -2,9 +2,12 @@
 # Dialog State
 #===============================================================================
 stateElementsDict = {'initial':{},'request_all':{},'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
-					'request_next_query':{},'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
-					'inform_welcome':{},'inform_confirm_okay_route':{},'inform_confirm_okay_departure_place':{},'inform_confirm_okay_arrival_place':{},'inform_confirm_okay_travel_time':{},\
-					'inform_processing':{},'inform_success':{},'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{}}
+					'request_next_query':{},'request_next_query_error':{},'confirm_route':{},'confirm_departure_place':{},\
+					'confirm_arrival_place':{},'confirm_travel_time':{},\
+					'inform_welcome':{},'inform_confirm_okay_route':{},'inform_confirm_okay_departure_place':{},\
+					'inform_confirm_okay_arrival_place':{},'inform_confirm_okay_travel_time':{},\
+					'inform_processing':{},'inform_success':{},'inform_error':{},'inform_subsequent_processing':{},\
+					'inform_starting_new_query':{},'inform_uncovered_place':{},'inform_quit':{}}
 
 #===============================================================================
 # Initial State
@@ -294,13 +297,23 @@ stateElementsDict['inform_uncovered_place']['Agenda'] = '''0:
 4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['inform_uncovered_place']['LineConfig'] = 'set_dtmf_len = 0, set_lm = first_query'
 
+stateElementsDict['inform_quit']['DialogState'] = '/LetsGoPublic/GreetGoodbye'
+stateElementsDict['inform_quit']['Stack'] = '''/LetsGoPublic/GreetGoodbye
+  /LetsGoPublic'''
+stateElementsDict['inform_quit']['Agenda'] = '''0:
+1:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_one]V,X[dtmf_three]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[finalquit]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[quit]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,X[startover]V,X[stop_name.monument]S,X[stop_name.registered_stop]S,O[turn_timeout:timeout]V,O[yes]V,X[yes]V'''
+stateElementsDict['inform_quit']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
+
 
 #===============================================================================
 # Utterance
 #===============================================================================
-utterElementsDict = {'inform_welcome':{},'inform_how_to_get_help':{},'request_all':{},'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
-'request_next_query':{},'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
-'inform_welcome':{},'inform_confirm_okay':{},'inform_processing':{},'inform_success':{},'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{}}
+utterElementsDict = {'inform_welcome':{},'inform_how_to_get_help':{},'request_all':{},\
+					'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
+					'request_next_query':{},'request_next_query_error':{},\
+					'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
+					'inform_welcome':{},'inform_confirm_okay':{},'inform_processing':{},'inform_success':{},'inform_error':{},\
+					'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{},'inform_quit':{}}
 
 #===============================================================================
 # Initial
@@ -487,6 +500,15 @@ utterElementsDict['inform_uncovered_place']['Result'] = ''
 utterElementsDict['inform_uncovered_place']['Agent'] = ''
 utterElementsDict['inform_uncovered_place']['Version'] = ''
 utterElementsDict['inform_uncovered_place']['Option'] = ''
+
+utterElementsDict['inform_quit']['DialogAct'] = 'inform'
+utterElementsDict['inform_quit']['FloorState'] = 'free'
+utterElementsDict['inform_quit']['Object'] = 'goodbye'
+utterElementsDict['inform_quit']['Query'] = ''
+utterElementsDict['inform_quit']['Result'] = ''
+utterElementsDict['inform_quit']['Agent'] = ''
+utterElementsDict['inform_quit']['Version'] = ''
+utterElementsDict['inform_quit']['Option'] = ''
 
 
 #===============================================================================
@@ -872,56 +894,59 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 	try:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
-#		appLogger.info('1')
+		appLogger.info('1')
 		timeSpec = timeSpec.replace('${day}',querySpec['day'])
-#		appLogger.info('2')
+		appLogger.info('2')
 		timeSpec = timeSpec.replace('${year}',querySpec['year'])
-#		appLogger.info('3')
+		appLogger.info('3')
 		timeSpec = timeSpec.replace('${weekday}',querySpec['weekday'])
-#		appLogger.info('4')
+		appLogger.info('4')
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-#		appLogger.info('5')
+		appLogger.info('5')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-#		appLogger.info('7')
+		appLogger.info('7')
 	except:		
 		timeSpec = briefTimeSpec
 	timeSpec = timeSpec.replace('${value}',querySpec['value'])
-#	appLogger.info('6')
+	appLogger.info('6')
 	timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-#	appLogger.info('8')
+	appLogger.info('8')
+	appLogger.info('next %s'%next)
 	if not next: type = '2'
 	elif next == 'NEXT BUS': type = '4'
 	elif next == 'PREVIOUS BUS': type = '5' 
-	content = content.replace('${type}',type)
+	else: appLogger.info('next %s'%next)
 
+	content = content.replace('${type}',type)
+	appLogger.info('0')
 	content = content.replace('${time_spec}',timeSpec)
-#	appLogger.info('88')
+	appLogger.info('88')
 	content = content.replace('${departure_place_name}',querySpec['departure_place'])
-#	appLogger.info('9')
+	appLogger.info('9')
 	content = content.replace('${departure_place_type}',querySpec['departure_place_type'])
-#	appLogger.info('10')
+	appLogger.info('10')
 	content = content.replace('${arrival_place_name}',querySpec['arrival_place'])
-#	appLogger.info('11')
+	appLogger.info('11')
 	content = content.replace('${arrival_place_type}',querySpec['arrival_place_type'])
-#	appLogger.info('12')
+	appLogger.info('12')
 	if querySpec['route'] != '':
 		content = content.replace('${route_number}','route_number\t%s\n'%querySpec['route'])
 	else:
 		content = content.replace('${route_number}','')
-#	appLogger.info('13')
+	appLogger.info('13')
 #	querySpec['departure_stops'] = \
 	departure_stops = \
 	'\n'.join([x.strip() for x in querySpec['departure_stops'].split('\n')[2:-3]]).replace('stops','departure_stops')
 	content = content.replace('${departure_stops}',departure_stops)
 #	content = content.replace('${departure_stops}',querySpec['departure_stops'])
-#	appLogger.info('14')
+	appLogger.info('14')
 #	querySpec['arrival_stops'] = \
 	arrival_stops = \
 	'\n'.join([x.strip() for x in querySpec['arrival_stops'].split('\n')[2:-3]]).replace('stops','arrival_stops')
 	content = content.replace('${arrival_stops}',arrival_stops)
 #	content = content.replace('${arrival_stops}',querySpec['arrival_stops'])
 
-#	appLogger.info('%s'%content)
+	appLogger.info('15')
 
 	if result:
 		content = content.replace('${result}','\n'.join([x.strip() for x in result.split('\n')[2:-3]]))

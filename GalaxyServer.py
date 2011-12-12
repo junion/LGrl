@@ -13,13 +13,13 @@ from GlobalConfig import *
 import Galaxy,GalaxyIO
 from DialogThread import *
 
-sys.path.append("E:/Development/LGrl-G")
+sys.path.append("E:/Development/LGrl-O")
 
 InitConfig()
 config = GetConfig()
-config.read(['E:/Development/LGrl-G/LGrl.conf'])
+config.read(['E:/Development/LGrl-O/LGrl.conf'])
 
-logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
+logging.config.fileConfig('E:/Development/LGrl-O/logging.conf')
 appLogger = logging.getLogger('Galaxy')
 
 appLogger.info('GalaxyServer')
@@ -67,25 +67,30 @@ def DoDialogFlow(frame=None):
     while True:
         message = outQueue.get()
         appLogger.info('Message in')
-        appLogger.info('%s'%message['content'])
         outQueue.task_done()
         if message['type'] == 'GALAXYCALL':
             appLogger.info('GALAXYCALL')
+            appLogger.info('%s'%message['content'])
             result = CallGalaxyModuleFunction(message['content'])
             appLogger.info('Message sent')
             inQueue.put(result)
         elif message['type'] == 'GALAXYACTIONCALL':
             appLogger.info('GALAXYACTIONCALL')
+            appLogger.info('%s'%message['content'])
             SendActionThroughHub(message['content'])
             appLogger.info('Message sent')
             inQueue.put(None)
         elif message['type'] == 'WAITINPUT':
-            return
+            return False
         elif message['type'] == 'WAITINTERACTIONEVENT':
             appLogger.info('Wait interaction event')
-            return
+            return False
         elif message['type'] == 'DIALOGFINISHED':
-            return
+            appLogger.info('Dialog finished')
+            return True
+        elif message['type'] == 'ENDSESSION':
+            appLogger.info('End session')
+            return True
 
 
 def reinitialize(env,frame):
@@ -200,9 +205,23 @@ def handle_event(env,frame):
     lastEnv = env
     lastFrame = frame
     
-    DoDialogFlow(frame)
+    finished = DoDialogFlow(frame)
     
     appLogger.info('DM processing finished.')
+
+    if finished:
+        message = '''{c main
+     :close_session ""}'''
+        SendActionThroughHub(message)
+        appLogger.info('close_session sent')
+#        dialogThread.join()
+#        appLogger.info('Dialog thread terminated.')
+#    
+#        dialogThread = None
+#        inQueue = None
+#        outQueue = None
+#        
+#        inSession = False
     
     return frame
     

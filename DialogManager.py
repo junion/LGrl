@@ -75,15 +75,15 @@ class DialogManager(object):
     '''
     def __init__(self):
         self.appLogger = logging.getLogger('Learning')
+        self.appLogger.info('DialogManager init')
         self.config = GetConfig()
-#        self.appLogger.info('DialogManager init')
         self.beliefState = BeliefState()
 #        self.appLogger.info('DialogManager init2')
         self.db = GetDB()
 #        self.fields = self.db.GetFields()
 #        self.appLogger.info('DialogManager init3')
         self.prompts = LetsGoPrompts()
-#        self.appLogger.info('DialogManager init done')
+        self.appLogger.info('DialogManager init done')
 
 
     def Init(self):
@@ -133,7 +133,7 @@ class SBSarsaDialogManager(DialogManager):
     '''
     def __init__(self):
         DialogManager.__init__(self)
-#        self.appLogger.info('SBSarsaDialogManager init')
+        self.appLogger.info('SBSarsaDialogManager init')
         self.fields = ['route','departure_place','arrival_place','travel_time']
 #        self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
 #        self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
@@ -174,7 +174,7 @@ class SBSarsaDialogManager(DialogManager):
             self.Mu = pickle.load(open(os.path.join(modelPath,'Mu.model'),'r'))
             self.X = pickle.load(open(os.path.join(modelPath,'DataPoints.model'),'r'))
             self.sizeX = len(self.X)
-#        self.appLogger.info('SBSarsaDialogManager init done')
+        self.appLogger.info('SBSarsaDialogManager init done')
 
     def Init(self,userFirst=False):
 #        self.userGoal = userGoal
