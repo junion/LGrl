@@ -181,39 +181,41 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(1):
+    for testIndex in range(4):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            config.set('DialogManager','confidenceScoreCalibration','true')
-            config.set('BeliefState','useLearnedUserModel','true')
-            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
-#        elif testIndex == 1:
+            iter = [500]
+            errorRates = [-1]
 #            config.set('DialogManager','confidenceScoreCalibration','true')
 #            config.set('BeliefState','useLearnedUserModel','true')
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
 #            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
-#        elif testIndex == 2:
+        elif testIndex == 1:
+            iter = [500]
+            errorRates = [0]
+#            config.set('DialogManager','confidenceScoreCalibration','true')
+#            config.set('BeliefState','useLearnedUserModel','true')
+#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
+#            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
+        elif testIndex == 2:
+            iter = [500]
+            errorRates = [1]
 #            config.set('DialogManager','confidenceScoreCalibration','false')
 #            config.set('BeliefState','useLearnedUserModel','false')
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
 #            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
-#        elif testIndex == 2:
-#            config.set('DialogManager','confidenceScoreCalibration','false')
-#            config.set('BeliefState','useLearnedUserModel','true')
-#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
-#        elif testIndex == 3:
+        elif testIndex == 3:
+            iter = [500]
+            errorRates = [2]
 #            config.set('DialogManager','confidenceScoreCalibration','false')
 #            config.set('BeliefState','useLearnedUserModel','false')
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
             
-#        iter = [300,400,500]
 #        iter = [100,50,25]
-        iter = [200]
-#        errorRates = [0,1,2,0]
+#        iter = [200]
 #        errorRates = [0,1,2]
-        errorRates = [-1]
-        interval = 4
+#        errorRates = [-1]
+        interval = 10
 #        basisFunctionMax = [500]
         basisFunctionMax = ['500','500','500','500']
         totalDialogSuccessCount = 0
@@ -242,7 +244,7 @@ def main():
         dialogStrategyLearning = config.getboolean('DialogManager','dialogStrategyLearning')
 #        config.set('DialogManager','dialogStrategyLearning',dialogStrategyLearning)
         
-        if dialogStrategyLearning:
+        if not dialogStrategyLearning:
             config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[0])
         
         dialogManager = DialogManager()

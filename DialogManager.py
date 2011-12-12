@@ -182,6 +182,7 @@ class SBSarsaDialogManager(DialogManager):
         self.fieldCounts = dict([(field,0) for field in self.fields])
         self.fieldCounts['all'] = 0
         self.routeConfirmCount = 0
+        self.sysActHistory = []
         sysAction,Qval = self._ChooseAction(userFirst=userFirst)
         self.prevSysAction = sysAction
         self.prevAsrResult = None
@@ -191,6 +192,7 @@ class SBSarsaDialogManager(DialogManager):
 
     def _LoadConfig(self):
         self.dialogStrategyLearning = self.config.getboolean(MY_ID,'dialogStrategyLearning')
+        self.fieldAcceptThreshold = self.config.getfloat(MY_ID,'fieldAcceptThreshold') 
         self.rewardDiscountFactor = self.config.getfloat(MY_ID,'rewardDiscountFactor')
         self.taskSuccessReward = self.config.getfloat(MY_ID,'taskSuccessReward')
         self.taskFailureReward = self.config.getfloat(MY_ID,'taskFailureReward')
@@ -480,20 +482,46 @@ class SBSarsaDialogManager(DialogManager):
         for field in self.fields: 
             if len(marginals[field]) == 0:
                 acts.remove('[ask] confirm %s'%field)
-                self.appLogger.info('Exclude confirm %s because of no value'%field)
+                acts.remove('[ask] confirm_immediate %s'%field)
+                self.appLogger.info('Exclude confirm(_immediate) %s because of no value'%field)
+            elif marginals[field][-1]['belief'] > self.fieldAcceptThreshold:
+                if field != 'route':
+                    acts.remove('[ask] request %s'%field)
+                acts.remove('[ask] confirm %s'%field)
+                acts.remove('[ask] confirm_immediate %s'%field)
+                self.appLogger.info('Exclude request and confirm(_immediate) %s because of high belief'%field)
+                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
             else:
                 self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
 
         for field in self.fields:
             if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
-                acts.remove('[ask] confirm_immediate %s'%field)
-                self.appLogger.info('Exclude confirm_immediate %s because of ASR result'%field)
-                        
+                try:
+                    acts.remove('[ask] confirm_immediate %s'%field)
+                    self.appLogger.info('Exclude confirm_immediate %s because of no immediate value'%field)
+                except:
+                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+
+        if len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
+            try:
+                acts.remove(self.sysActHistory[-1])
+                self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
+                if self.sysActHistory[-1].find('confirm') > -1:
+                    acts.remove(self.sysActHistory[-1].replace('confirm','confirm_immediate'))
+                    self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
+            except:
+                self.appLogger.info('Exception while removing %s',self.sysActHistory[-1])
+ 
+        if len(acts) == 0:
+            acts = ['[ask] request departure_place',\
+                    '[ask] request arrival_place','[ask] request travel_time']
+            self.appLogger.info('Length of acts becomes zero')
+                                                    
         act = ''
         if userFirst:
             act = '[ask] request all' 
-            self.appLogger.info('Choose request all')
-        elif asrResult == None or self.GetBasisSize() == 0:
+            self.appLogger.info('Choose request all as an implicit start action')
+        elif self.dialogStrategyLearning and self.GetBasisSize() == 0:
             act = random.choice(acts[:4])
         elif self.dialogStrategyLearning and random.random() < 0.1:
             act = random.choice(acts)
@@ -522,10 +550,11 @@ class SBSarsaDialogManager(DialogManager):
         try:
             w_infer = np.zeros((self.GetBasisSize(),1))
             w_infer[self.Relevant] = self.Mu 
+            userAction = 'None' if not asrResult else str(asrResult.userActions[0]).split('=')[0]
             if act == '':
                 ys = np.array([])
                 for act in acts:
-                    X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
+                    X = [np.array(contX),userAction,act]
 #                    print 'choose X:%s'%str(X)
     #                print ys
     #                print np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).flatten()
@@ -535,10 +564,11 @@ class SBSarsaDialogManager(DialogManager):
                 act = acts[ys.argmax(0)]
                 Qval = ys.max(0)
             else:
-                X = [np.array(contX),str(asrResult.userActions[0]).split('=')[0],act]
+                X = [np.array(contX),userAction,act]
                 Qval = np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]
         except:
-            Qval = 0.0
+            self.appLogger.info('Cannot perform SBR inference')
+            Qval = -1.0
             
         self.appLogger.info('Act %s, Qval: %f'%(act,Qval))
         
@@ -561,6 +591,8 @@ class SBSarsaDialogManager(DialogManager):
                 surface = 'Is this right?'
                 value = asrResult.userActions[0].content[field]
                 sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+        
+        self.sysActHistory.append(str(sysAction).split('=')[0])
         return sysAction,Qval
 
 class OpenDialogManager(DialogManager):
