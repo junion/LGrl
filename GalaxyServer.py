@@ -33,8 +33,8 @@ properties = None
 metaInfo = []
 timeoutPeriod = 8
 
-inQueue = Queue.Queue()
-outQueue = Queue.Queue()
+inQueue = None
+outQueue = None
 
 def CallGalaxyModuleFunction(galaxyCall):
     global lastEnv
@@ -128,7 +128,10 @@ def begin_session(env,frame):
         appLogger.info('Init session ID: %s.'%str(sessionID))
     except KeyError:
         appLogger.info("Can't find :sess_id")
-    
+ 
+    inQueue = Queue.Queue()
+    outQueue = Queue.Queue()
+   
 #    appLogger.info("Dialog thread creation")
     dialogThread = DialogThread(str(sessionID),inQueue,outQueue)
 #    appLogger.info("Done")
@@ -148,6 +151,9 @@ def end_session(env,frame):
     global lastEnv
     global lastFrame
     global properties
+    global dialogThread
+    global inQueue
+    global outQueue
 
     if not inSession:
         return frame
@@ -166,6 +172,15 @@ def end_session(env,frame):
     appLogger.info('end_session called; sending terminate to Core')
     
     DoDialogFlow(frame)
+
+    appLogger.info('DM processing finished.')
+
+    dialogThread.join()
+    appLogger.info('Dialog thread terminated.')
+
+    dialogThread = None
+    inQueue = None
+    outQueue = None
     
     inSession = False
     

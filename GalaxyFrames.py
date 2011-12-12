@@ -78,6 +78,17 @@ stateElementsDict['request_next_query']['Agenda'] = '''0:O[4_busafterthatrequest
 3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['request_next_query']['LineConfig'] = 'set_dtmf_len = 1, set_lm = next_query'
 
+stateElementsDict['request_next_query_error']['DialogState'] = '/LetsGoPublic/PerformTask/GiveResults/RequestNextQueryError'
+stateElementsDict['request_next_query_error']['Stack'] = '''/LetsGoPublic/PerformTask/GiveResults/RequestNextQueryError
+  /LetsGoPublic/PerformTask/GiveResults
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['request_next_query_error']['Agenda'] = '''0:O[startover]V
+1:O[4_busafterthatrequest]V,O[4_busbeforethatrequest]V,O[finalquit]V,O[quit]V,O[repeat]V,O[startover]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['request_next_query_error']['LineConfig'] = 'set_dtmf_len = 1, set_lm = next_query'
+
 #===============================================================================
 # Confirm
 #===============================================================================
@@ -237,6 +248,17 @@ stateElementsDict['inform_success']['Agenda'] = '''0:
 3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['inform_success']['LineConfig'] = 'set_dtmf_len = 0, set_lm = next_query'
 
+stateElementsDict['inform_error']['DialogState'] = '/LetsGoPublic/PerformTask/GiveResults/InformError'
+stateElementsDict['inform_error']['Stack'] = '''/LetsGoPublic/PerformTask/GiveResults/InformError
+  /LetsGoPublic/PerformTask/GiveResults
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_error']['Agenda'] = '''0:
+1:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,O[finalquit]V,O[quit]V,O[repeat]V,O[startover]V,X[startover]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_error']['LineConfig'] = 'set_dtmf_len = 0, set_lm = next_query'
+
 stateElementsDict['inform_subsequent_processing']['DialogState'] = '/LetsGoPublic/PerformTask/ProcessQuery/InformSubsequentProcessing'
 stateElementsDict['inform_subsequent_processing']['Stack'] = '''/LetsGoPublic/PerformTask/ProcessQuery/InformSubsequentProcessing
   /LetsGoPublic/PerformTask/ProcessQuery
@@ -352,6 +374,15 @@ utterElementsDict['request_next_query']['Version'] = ''
 utterElementsDict['request_next_query']['Option'] = '''   :non-repeatable "true"
 '''
 
+utterElementsDict['request_next_query_error']['DialogAct'] = 'request'
+utterElementsDict['request_next_query_error']['FloorState'] = 'user'
+utterElementsDict['request_next_query_error']['Object'] = 'next_query'
+utterElementsDict['request_next_query_error']['Query'] = ''
+utterElementsDict['request_next_query_error']['Result'] = ''
+utterElementsDict['request_next_query_error']['Agent'] = ''
+utterElementsDict['request_next_query_error']['Version'] = ''
+utterElementsDict['request_next_query_error']['Option'] = ''
+
 #===============================================================================
 # Confirm 
 #===============================================================================
@@ -421,7 +452,14 @@ utterElementsDict['inform_success']['Agent'] = ''
 utterElementsDict['inform_success']['Version'] = ''
 utterElementsDict['inform_success']['Option'] = ''
 
-# inform_failure
+utterElementsDict['inform_error']['DialogAct'] = 'inform'
+utterElementsDict['inform_error']['FloorState'] = 'free'
+utterElementsDict['inform_error']['Object'] = 'error'
+utterElementsDict['inform_error']['Query'] = ''
+utterElementsDict['inform_error']['Result'] = ''
+utterElementsDict['inform_error']['Agent'] = ''
+utterElementsDict['inform_error']['Version'] = ''
+utterElementsDict['inform_error']['Option'] = ''
 
 utterElementsDict['inform_subsequent_processing']['DialogAct'] = 'inform'
 utterElementsDict['inform_subsequent_processing']['FloorState'] = 'free'

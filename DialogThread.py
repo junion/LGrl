@@ -11,7 +11,7 @@ from GlobalConfig import *
 from DialogManager import SBSarsaDialogManager as DialogManager
 #from DialogManager import OpenDialogManager as DialogManager
 from GalaxyFrames import *
-from DialogModules import UserAction,ASRResult
+from DialogModules import UserAction,ASRResult,SystemAction
     
 class DialogThread(threading.Thread):
     def __init__(self,sessionID,inQueue,outQueue):
@@ -28,7 +28,8 @@ class DialogThread(threading.Thread):
         self.dialogState = 'initial'
         self.floorStatus = 'system'
         self.notifyPrompts = []
-        self.systemAction = None
+#        self.systemAction = None
+        self.systemAction = SystemAction('initial')
         self.newDialogState = None
         self.inQueue = inQueue
         self.outQueue = outQueue
@@ -45,7 +46,8 @@ class DialogThread(threading.Thread):
         self.appLogger.info('Dialog thread %s created'%self.getName())
 
     def _GetNewDialogState(self):
-        if not self.systemAction:
+#        if not self.systemAction:
+        if self.systemAction.type == 'initial':
             self.newDialogState = 'inform_welcome'
         elif self.systemAction.type == 'ask' and self.systemAction.force == 'request':
             if self.systemAction.content == 'all':
@@ -74,12 +76,14 @@ class DialogThread(threading.Thread):
                 self.newDialogState = 'inform_processing'
             elif self.systemAction.force == 'success':
                 self.newDialogState = 'inform_success'
-            elif self.systemAction.force == 'fail':
-                self.newDialogState = 'inform_fail'
+            elif self.systemAction.force == 'error':
+                self.newDialogState = 'inform_error'
             elif self.systemAction.force == 'subsequent_processing':
                 self.newDialogState = 'inform_subsequent_processing'
             elif self.systemAction.force == 'starting_new_query':
                 self.newDialogState = 'inform_starting_new_query'
+            elif self.systemAction.force == 'quit':
+                self.newDialogState = 'inform_quit'
 
     def _BeginSessionHandler(self,frame):
         self.appLogger.info('begin_session')
@@ -110,9 +114,11 @@ class DialogThread(threading.Thread):
                     updateDeparturePlaceType = True
                     updateArrivalPlaceType = True
             else:
-                userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
+                userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True
-                updateArrivalPlaceType = True
+#                userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
+#                updateDeparturePlaceType = True
+#                updateArrivalPlaceType = True
         if frame[':properties'].has_key(':[2_departureplace.stop_name]'):
             hypothesis = frame[':properties'][':[2_departureplace.stop_name]']
             userAction.content.update({'departure_place':hypothesis})
@@ -273,8 +279,67 @@ class DialogThread(threading.Thread):
         self.inQueue.task_done()
         
     def _RequestBackendQuery(self,args):
-        newDialogState,query,result,version = args
-        message = MakeSystemUtterance(newDialogState,self.dialogState,self.turnNumber,\
+        # Backend lookup
+        self.querySpec,belief = self.dialogManager.beliefState.GetTopUniqueUserGoal()
+#                self.appLogger.info('query spec %s'%str(querySpec))
+        self.querySpec['departure_place_type'] = self.departurePlaceTypeDict[self.querySpec['departure_place']]
+        self.querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[self.querySpec['arrival_place']]
+#                self.appLogger.info('query spec %s'%str(querySpec))
+        self.querySpec.update(self.timeSpecDict[self.querySpec['travel_time']])
+#                self.appLogger.info('query spec %s'%str(querySpec))
+
+        message = MakeDeparturePlaceQuery(self.querySpec)
+        self.outQueue.put(message)
+        result = self.inQueue.get()
+        self.inQueue.task_done()
+        if result:
+            self.querySpec['departure_stops'] = result[':outframe']
+        else:
+            self.appLogger.info('Backend query for place failed')
+
+        message = MakeArrivalPlaceQuery(self.querySpec)
+        self.outQueue.put(message)
+        result = self.inQueue.get()
+        self.inQueue.task_done()
+        if result:
+            self.querySpec['arrival_stops'] = result[':outframe']
+        else:
+            self.appLogger.info('Backend query for place failed')
+
+        message = MakeScheduleQuery(self.querySpec)
+        self.outQueue.put(message)
+        self.result = self.inQueue.get()
+        self.inQueue.task_done()
+        if self.result:
+            self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
+        else:
+            self.appLogger.info('Backend query for schedule failed')
+
+    def _RequestSubsequentBackendQuery(self,args):
+        message = MakeScheduleQuery(self.querySpec,self.result[':outframe'],next)
+        self.outQueue.put(message)
+        self.rides = self.inQueue.get()
+        self.inQueue.task_done()
+        self._MergeResultRide()
+        if self.result:
+            self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
+        else:
+            self.appLogger.info('Backend query for schedule failed')
+
+    def _RequestInformResult(self):
+        # inform success or failure
+        query = result = version = ''
+        self.systemAction.type = 'inform'
+        if self.result[':outframe'].find('failed\t0') > -1: 
+            self.systemAction.force = 'success'
+        else:
+            self.systemAction.force = 'error'
+        self._GetNewDialogState()
+        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+        query,result = MakeScheduleSection(self.querySpec,self.result[':outframe'])
+#                self.appLogger.info('query: %s'%query)
+#                self.appLogger.info('result: %s'%result)
+        message = MakeSystemUtterance(self.newDialogState,self.dialogState,self.turnNumber,\
                                       ' '.join(self.notifyPrompts),self.dialogStateIndex,\
                                       self.sessionID,self.idSuffix,self.uttCount,query,result,version)
         self.notifyPrompts.append(str(self.uttCount))
@@ -283,7 +348,7 @@ class DialogThread(threading.Thread):
         self.outQueue.put(message)
         self.inQueue.get()
         self.inQueue.task_done()
-        
+                
     def _MergeResultRide(self):
         newResult = []
         newSection = False
@@ -311,7 +376,8 @@ class DialogThread(threading.Thread):
     
             elif eventType == 'system_utterance_end':
                 query = result = version = ''
-                if self.notifyPrompts == [] and not self.systemAction:
+#                if self.notifyPrompts == [] and not self.systemAction:
+                if self.notifyPrompts == [] and self.systemAction.type == 'initial':
                     self.systemAction = self.dialogManager.Init()
                     self._GetNewDialogState()
                     self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
@@ -319,14 +385,14 @@ class DialogThread(threading.Thread):
 
 #                elif self.notifyPrompts == [] and self.systemAction.type == 'inform' and \
 #                self.systemAction.force in ['success','fail']:
-                elif self.systemAction.type == 'inform' and self.systemAction.force in ['success','fail']:
+                elif self.systemAction.type == 'inform' and self.systemAction.force in ['success','error']:
                     # request next query
 #                    self.appLogger.info('1')
                     self.systemAction.type = 'ask'
 #                    self.appLogger.info('2')
                     self.systemAction.force = 'request'
 #                    self.appLogger.info('3')
-                    self.systemAction.content = 'next_query'
+                    self.systemAction.content = 'next_query' if self.systemAction.force == 'success' else 'next_query_error'
 #                    self.appLogger.info('4')
                     self._GetNewDialogState()
 #                    self.appLogger.info('5')
@@ -343,7 +409,8 @@ class DialogThread(threading.Thread):
                         self.appLogger.info('Discard %s!!!'%eventType)
                         raise RuntimeError,'Do task'
 
-                if not self.systemAction:
+#                if not self.systemAction:
+                if self.systemAction.type == 'initial':
                     self.systemAction = self.dialogManager.Init(True)
 
                 query = result = version = ''
@@ -360,32 +427,25 @@ class DialogThread(threading.Thread):
                         self.systemAction.force = 'subsequent_processing'
                         self._GetNewDialogState()
                         self.appLogger.info('New dialog state: %s'%self.newDialogState)
-#                        self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                        self._RequestSystemUtterance((self.newDialogState,query,result,version))
-
-                        message = MakeScheduleQuery(self.querySpec,self.result[':outframe'],next)
-                        self.outQueue.put(message)
-                        self.rides = self.inQueue.get()
-                        self.inQueue.task_done()
-                        self._MergeResultRide()
-                        if self.result:
-                            self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
-                        else:
-                            self.appLogger.info('Backend query for schedule failed')
-        
-                        # inform success or failure
-                        self.systemAction.force = 'success'
-                        self._GetNewDialogState()
-                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
-                        query,result = MakeScheduleSection(self.querySpec,self.result[':outframe'],next)
-                        self.appLogger.info('query: %s'%query)
-                        self.appLogger.info('result: %s'%result)
                         self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                        self.appLogger.info('done')
+#                        self._RequestSystemUtterance((self.newDialogState,query,result,version))
+                        self.taskQueue.append((False,self._RequestSubsequentBackendQuery,None))
+                        self.taskQueue.append((False,self._RequestInformResult,None))
                     elif next == 'QUIT':
                         self.systemAction.type = 'inform'
                         self.systemAction.force = 'quit'
-                    self.appLogger.info('raise')
+                        self._GetNewDialogState()
+                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                        self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    elif next == 'STARTOVER':
+                        self.systemAction.type = 'inform'
+                        self.systemAction.force = 'starting_new_query'
+                        self._GetNewDialogState()
+                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                        self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        self.systemAction = self.dialogManager.Init()
+                        self._GetNewDialogState()
+                        self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                     raise RuntimeError,'Do task'
                 
                 self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
@@ -428,54 +488,10 @@ class DialogThread(threading.Thread):
                     self.systemAction.force = 'processing'
                     self._GetNewDialogState()
                     self.appLogger.info('New dialog state: %s'%self.newDialogState)
-#                    self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                    self._RequestSystemUtterance((self.newDialogState,query,result,version))
-    
-                    # Backend lookup
-                    self.querySpec,belief = self.dialogManager.beliefState.GetTopUniqueUserGoal()
-    #                self.appLogger.info('query spec %s'%str(querySpec))
-                    self.querySpec['departure_place_type'] = self.departurePlaceTypeDict[self.querySpec['departure_place']]
-                    self.querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[self.querySpec['arrival_place']]
-    #                self.appLogger.info('query spec %s'%str(querySpec))
-                    self.querySpec.update(self.timeSpecDict[self.querySpec['travel_time']])
-    #                self.appLogger.info('query spec %s'%str(querySpec))
-    
-                    message = MakeDeparturePlaceQuery(self.querySpec)
-                    self.outQueue.put(message)
-                    result = self.inQueue.get()
-                    self.inQueue.task_done()
-                    if result:
-                        self.querySpec['departure_stops'] = result[':outframe']
-                    else:
-                        self.appLogger.info('Backend query for place failed')
-    
-                    message = MakeArrivalPlaceQuery(self.querySpec)
-                    self.outQueue.put(message)
-                    result = self.inQueue.get()
-                    self.inQueue.task_done()
-                    if result:
-                        self.querySpec['arrival_stops'] = result[':outframe']
-                    else:
-                        self.appLogger.info('Backend query for place failed')
-    
-                    message = MakeScheduleQuery(self.querySpec)
-                    self.outQueue.put(message)
-                    self.result = self.inQueue.get()
-                    self.inQueue.task_done()
-                    if self.result:
-                        self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
-                    else:
-                        self.appLogger.info('Backend query for schedule failed')
-    
-                    # inform success or failure
-                    self.systemAction.force = 'success'
-                    self._GetNewDialogState()
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
-                    query,result = MakeScheduleSection(self.querySpec,self.result[':outframe'])
-    #                self.appLogger.info('query: %s'%query)
-    #                self.appLogger.info('result: %s'%result)
                     self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                    
+#                    self._RequestSystemUtterance((self.newDialogState,query,result,version))
+                    self.taskQueue.append((False,self._RequestBackendQuery,None))
+                    self.taskQueue.append((False,self._RequestInformResult,None))
         except RuntimeError,e:
             self.appLogger.info(e)    
             
@@ -514,8 +530,13 @@ class DialogThread(threading.Thread):
             elif frame.name == 'end_session':
                 eventType = 'end_session'
                 self._EndSessionHandler(frame)
-                
+                break
+            
             self._DialogProcessing(eventType)
+
+            if self.systemAction.type == 'inform' and self.systemAction.force == 'quit':
+                self.appLogger.info('Terminate for %s'%str(self.systemAction))
+                break    
                 
             message = {'type':'WAITINTERACTIONEVENT'}
             self.outQueue.put(message)

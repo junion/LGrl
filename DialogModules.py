@@ -189,7 +189,7 @@ class SystemAction:
         systemAction.grammar.
         '''
         self.config = GetConfig()
-        assert (type in ['ask','inform','hangup']),'Unknown SystemAction type: %s' % (type)
+        assert (type in ['ask','inform','initial']),'Unknown SystemAction type: %s' % (type)
         assert (force in [None,'request','confirm']),'Unknown SystemAction force: %s' % (force)
         self.type = type
         self.force = force
@@ -220,7 +220,7 @@ class SystemAction:
         elif (self.type == 'inform'):
             content = '' #','.join(['%s=%s' % (field,self.content[field]) for field in self.content])
             force = None#travel spec(%s)' % (content)
-        elif (self.type == 'hangup'):
+        elif (self.type == 'initial'):
             force = None
         else:
             raise RuntimeError,'Dont recognize type %s' % (self.type)
