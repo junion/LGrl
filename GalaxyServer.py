@@ -4,7 +4,7 @@
 # under the conditions described in the file LICENSE in the root
 # directory of the Galaxy Communicator system.
 
-import sys,exceptions
+import sys,exceptions,traceback
 import logging.config
 import logging
 import threading
@@ -93,8 +93,9 @@ def DoDialogFlow(frame=None):
                 appLogger.info('End session')
                 return True
 
-    except Exception as err:
-        appLogger.info('Exception %s'%err)
+    except Exception:
+        appLogger.info(traceback.format_exc())
+        exit()
 
 def reinitialize(env,frame):
     global lastEnv
@@ -153,8 +154,9 @@ def begin_session(env,frame):
         
         appLogger.info('DM processing finished.')
 
-    except Exception as err:
-        appLogger.info('Exception %s'%err)
+    except Exception:
+        appLogger.info(traceback.format_exc())
+        exit()
         
     return frame
 
@@ -197,8 +199,9 @@ def end_session(env,frame):
         
         inSession = False
     
-    except Exception as err:
-        appLogger.info('Exception %s'%err)
+    except Exception:
+        appLogger.info(traceback.format_exc())
+        exit()
     
     return frame
 
@@ -227,8 +230,9 @@ def handle_event(env,frame):
             SendActionThroughHub(message)
             appLogger.info('close_session sent')
 
-    except Exception as err:
-        appLogger.info('Exception %s'%err)
+    except Exception:
+        appLogger.info(traceback.format_exc())
+        exit()
     
     return frame
     
