@@ -1,60 +1,5 @@
 '''
-Two simple dialog managers.
 
-This modules contains two simple dialog managers:
-
-  RigidDialogManager: Asks for each field, one a time, regardless of
-  input received so far.  This is useful for running simulations where
-  it is necessary that all dialogs follow the same flow.
-
-  DirectedDialogManager: This dialog manager asks for each field one
-  at a time.  If it receives no evidence for a field, it stops and asks
-  the field again.  As soon as there is sufficient belief in a single
-  listing, it transfers the call.  If it asks for all of the slots and
-  it has not obtained sufficient belief in a single listing, it proceeds
-  by asking for the field with the lowest marginal belief.
-
-  OpenDialogManager: This dialog manager starts by asking "Which listing?"
-  If it has low belief in all the slots, it asks the same qustion again.
-  If it has high belief in one field but low belief in others, it asks
-  specifically for the low belief slots.
-
-A dialog manager implements 2 methods:
-
-  Init(): called to begin a new dialog.  Returns the first system
-  action (the system always provides the first action).
-
-  TakeTurn(asrResult): called after the user has taken a turn.  Returns
-  the next system action.
-
-For the demonstration, dialog managers also implement GetDisplayJSON(),
-which returns JSON used to display dialog state on the demonstration
-webpage.
-
-This module requires that global logging, configuration, and database have been
-initialized.  See main README file.
-
-Configuration options:
-
-  [DialogManager]
-  useAllGrammar: if 'true', always uses the 'all' grammar which recognizes
-  any field (and any combination of fields).  If 'false', then for field-specific
-  questions (such as "First name?"), uses field-specific grammars, which only
-  recognize elements of that field.  Used by all dialog managers.
-
-  acceptThreshold: if belief in the top unique (i.e., count=1) partition is
-  higher than this value, the call is transferred.  Otherwise, the system continues
-  to ask questions.  Used by DirectedDialogManager and OpenDialogManager.
-
-  openQuestionThreshold: if the maximum marginal belief in any field is below this
-  value, the system asks the open question.  Otherwise, it asks slot-specific
-  questions.  Only used by the OpenDialogManager.
-
-Part of the AT&T Statistical Dialog Toolkit (ASDT).
-
-Jason D. Williams
-jdw@research.att.com
-www.research.att.com/people/Williams_Jason_D
 '''
 
 import os
@@ -91,41 +36,6 @@ class DialogManager(object):
 
     def TakeTurn(self,asrResult):
         pass
-
-    def GetDisplayJSON(self):
-        '''
-        Returns JSON for displaying the current belief state in the
-        web-based demo.
-        '''
-        result = {
-          'joint' : [],
-          'marginal': [],
-        }
-        totalBelief = 0.0
-        for (i,partitionEntry) in enumerate(reversed(self.beliefState.partitionDistribution.partitionEntryList)):
-            textArray = []
-            for field in self.fields:
-                if (partitionEntry.partition.fields[field].type == 'equals'):
-                    textArray.append(partitionEntry.partition.fields[field].equals)
-                else:
-                    textArray.append('*')
-            textArray.append('(%d)' % partitionEntry.partition.count)
-            text = ' '.join(textArray)
-            belief = partitionEntry.belief
-            totalBelief += belief
-            json = {'text': text, 'prob': belief,}
-            result['joint'].append(json)
-        marginals = self.beliefState.GetMarginals()
-        for field in self.db.GetFields():
-            if (len(marginals[field]) == 0):
-                bestValue = '[empty]'
-                bestBelief = 0.0
-            else:
-                bestValue = marginals[field][-1]['equals']
-                bestBelief = marginals[field][-1]['belief']
-            json = {'text': '%s: %s' % (field,bestValue), 'prob': bestBelief}
-            result['marginal'].append(json)
-        return result
 
 class SBSarsaDialogManager(DialogManager):
     '''
@@ -205,6 +115,8 @@ class SBSarsaDialogManager(DialogManager):
         self.basisFunction = self.config.get(MY_ID,'basisFunction')
         self.basisWidth = self.config.getfloat(MY_ID,'basisWidth')
         self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
+        self.preferNaturalSequence = self.config.getboolean(MY_ID,'preferNaturalSequence')
+        self.useDirectedOpenQuestion = self.config.getboolean(MY_ID,'useDirectedOpenQuestion')
          
     def ReloadConfig(self):
         self._LoadConfig()
@@ -463,12 +375,6 @@ class SBSarsaDialogManager(DialogManager):
         import random
         
         # action list
-#        acts = ['[ask] request all','[ask] request route','[ask] request departure_place',\
-#                '[ask] request arrival_place','[ask] request travel_time',\
-#                '[ask] confirm route','[ask] confirm departure_place',\
-#                '[ask] confirm arrival_place','[ask] confirm travel_time',\
-#                '[inform]']
-
         acts = ['[ask] request all','[ask] request departure_place',\
                 '[ask] request arrival_place','[ask] request travel_time',\
                 '[ask] confirm route','[ask] confirm departure_place',\
@@ -477,14 +383,26 @@ class SBSarsaDialogManager(DialogManager):
                 '[ask] confirm_immediate arrival_place','[ask] confirm_immediate travel_time',\
                 '[inform]']
 
-        if self.beliefState.GetTopUserGoalBelief() != 1.0:
+        if self.useDirectedOpenQuestion:
             acts.remove('[ask] request all')
-            self.appLogger.info('Request all is allowed only as an initial act')
+            self.appLogger.info('Exclude request all because of directed open question option')
+        elif self.beliefState.GetTopUserGoalBelief() != 1.0:
+            acts.remove('[ask] request all')
+            self.appLogger.info('Exclude request all because it is allowed only as an initial act')
 
         if self.beliefState.GetTopUniqueMandatoryUserGoal() == 0.0:
             acts.remove('[inform]')
             self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
 
+        if self.preferNaturalSequence:
+            if self.fieldCounts['departure_place'] == 0:
+                acts.remove('[ask] request arrival_place')
+                acts.remove('[ask] request travel_time')
+                self.appLogger.info('Exclude request (arrival_place/travel_time) for a natural sequence') 
+            elif self.fieldCounts['arrival_place'] == 0:
+                acts.remove('[ask] request travel_time')
+                self.appLogger.info('Exclude request travel_time for a natural sequence') 
+        
         marginals = self.beliefState.GetMarginals()
         for field in self.fields: 
             if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
@@ -559,6 +477,7 @@ class SBSarsaDialogManager(DialogManager):
             w_infer[self.Relevant] = self.Mu 
             userAction = 'None' if not asrResult else str(asrResult.userActions[0]).split('=')[0]
             if act == '':
+                strQvals = 'Q-values: [ '
                 ys = np.array([])
                 for act in acts:
                     X = [np.array(contX),userAction,act]
@@ -566,8 +485,9 @@ class SBSarsaDialogManager(DialogManager):
     #                print ys
     #                print np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).flatten()
                     ys = np.concatenate((ys,np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer).ravel()))
-                    
-                self.appLogger.info('Qvals: %s'%str(ys))
+                    strQvals += '%s:%g '%(act,ys[-1])
+                strQvals += ']'
+                self.appLogger.info(strQvals)
                 act = acts[ys.argmax(0)]
                 Qval = ys.max(0)
             else:
@@ -577,7 +497,7 @@ class SBSarsaDialogManager(DialogManager):
             self.appLogger.info('Cannot perform SBR inference')
             Qval = -1.0
             
-        self.appLogger.info('Act %s, Qval: %f'%(act,Qval))
+        self.appLogger.info('Act %s, Qval: %g'%(act,Qval))
         
         if act == '[inform]':
 #            belief = self.beliefState.GetTopUserGoalBelief()
@@ -594,10 +514,12 @@ class SBSarsaDialogManager(DialogManager):
                 surface = 'Is this right?'
                 value = '' if len(marginals[field]) == 0 else marginals[field][-1]['equals']
                 sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+                self.fieldCounts[field] += 1
             elif force == 'confirm_immediate':
                 surface = 'Is this right?'
                 value = asrResult.userActions[0].content[field]
                 sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+                self.fieldCounts[field] += 1
         
         self.sysActHistory.append(str(sysAction).split('=')[0])
         return sysAction,Qval

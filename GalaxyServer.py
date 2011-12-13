@@ -42,7 +42,7 @@ def CallGalaxyModuleFunction(galaxyCall):
     frameToHub = Galaxy.Frame(str=galaxyCall)
     try:
         frameFromHub = lastEnv.DispatchFrame(frameToHub)
-        appLogger.info('frameFromHub:\n %s'%str(frameFromHub)) 
+        appLogger.info('frameFromHub:\n %s'%frameFromHub.PPrint()) 
         return frameFromHub
     except GalaxyIO.DispatchError:
         appLogger.info('dispatch error')

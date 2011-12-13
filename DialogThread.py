@@ -15,6 +15,8 @@ from DialogManager import SBSarsaDialogManager as DialogManager
 from GalaxyFrames import *
 from DialogModules import UserAction,ASRResult,SystemAction
 
+MY_ID = 'DialogThread'
+
 class GotoException(Exception):
     pass
     
@@ -25,9 +27,12 @@ class DialogThread(threading.Thread):
     def __init__(self,sessionID,inQueue,outQueue):
         threading.Thread.__init__(self)
 
+        self.config = GetConfig()
         logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
-        self.appLogger = logging.getLogger('DialogThread')
-#        self.appLogger.info('DialogThread init')
+        self.appLogger = logging.getLogger(MY_ID)
+
+        self.useDirectedOpenQuestion = self.config.getboolean(MY_ID,'useDirectedOpenQuestion')
+        
         self.sessionID = sessionID
         self.turnNumber = 0
         self.idSuffix = 0
@@ -36,7 +41,6 @@ class DialogThread(threading.Thread):
         self.dialogState = 'initial'
         self.floorStatus = 'system'
         self.notifyPrompts = []
-#        self.systemAction = None
         self.systemAction = SystemAction('initial')
         self.newDialogState = None
         self.inQueue = inQueue
@@ -49,12 +53,11 @@ class DialogThread(threading.Thread):
         self.timeSpecDict = {}
         self.asrResult = None
         self.taskQueue = []
-        self.waitQueue = []
         self.querySpec = None
         self.result = None
         self.rides = None
         self.dialogManager = DialogManager()
-
+        
         self.appLogger.info('Dialog thread %s created'%self.getName())
 
     def _GetNewDialogState(self):
@@ -125,6 +128,9 @@ class DialogThread(threading.Thread):
                 elif self.systemAction.content == 'arrival_place':
                     userAction.content.update({'arrival_place':hypothesis})
                     updateArrivalPlaceType = True
+                elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
+                    userAction.content.update({'departure_place':hypothesis})
+                    updateDeparturePlaceType = True
                 else:
                     userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
                     updateDeparturePlaceType = True
@@ -611,6 +617,7 @@ class DialogThread(threading.Thread):
         except GotoException:
             self.appLogger.info(traceback.format_exc())
 
+        self.appLogger.info('Tasks in wait:')
         self.appLogger.info('\n'.join([str(x) for x in self.taskQueue]))
         while self.notifyPrompts == [] and self.taskQueue != []:
             (interruptible,execution,function,args) = self.taskQueue.pop(0)
@@ -621,15 +628,19 @@ class DialogThread(threading.Thread):
             function(args)
             if not execution:
                 break
-#            self.waitQueue.append((interruptible,function,args))
         
     def run(self):
         try:
             while True:
                 skipDialogProcessing = False
+                self.appLogger.info('Events in wait:')
+                self.appLogger.info('\n'.join([str(x[0]) for x in self.waitEvent]))
                 if self.notifyPrompts == [] and not self.waitEvent == []:
-                    self.appLogger.info('Take wait event')
-                    frame = self.waitEvent.pop(0)
+                    self.appLogger.info('Take event in wait')
+                    event = self.waitEvent.pop(0)
+                    if event[0] in ['turn_timeout','user_utterance_end'] and len(self.waitEvent) > 0:
+                        continue
+                    frame = event[1]
                 else:
                     self.appLogger.info('Wait event')
                     frame = deepcopy(self.inQueue.get())
@@ -643,7 +654,7 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('event_type: %s'%eventType)
                     if eventType == 'user_utterance_end':
                         if len(self.notifyPrompts) > 0:
-                            self.waitEvent.append(frame)
+                            self.waitEvent.append(('user_utterance_end',frame))
                             skipDialogProcessing = True
                         else:
                             self._UserUtteranceEndHandler(frame)
@@ -657,7 +668,7 @@ class DialogThread(threading.Thread):
                         self._DialogStateChangeHandler(frame)
                     elif eventType == 'turn_timeout':
                         if len(self.notifyPrompts) > 0:
-                            self.waitEvent.append(frame)
+                            self.waitEvent.append(('turn_timeout',frame))
                             skipDialogProcessing = True
                         else:
                             self._TurnTimeoutHandler(frame)
@@ -666,7 +677,7 @@ class DialogThread(threading.Thread):
                 elif frame.name == 'end_session':
                     eventType = 'end_session'
                     if len(self.notifyPrompts) > 0:
-                        self.waitEvent.append(frame)
+                        self.waitEvent.append(('end_session',frame))
                         skipDialogProcessing = True
                     else:
                         self._EndSessionHandler(frame)
@@ -683,7 +694,8 @@ class DialogThread(threading.Thread):
                     message = {'type':'WAITINTERACTIONEVENT'}
                     self.outQueue.put(message)
         except Exception:
-            self.appLogger.info(self.taskQueue)
+            self.appLogger.info('Tasks in wait:')
+            self.appLogger.info('\n'.join([str(x) for x in self.taskQueue]))
             self.appLogger.info(traceback.format_exc())
             exit()
             
