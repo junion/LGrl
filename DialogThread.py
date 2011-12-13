@@ -491,6 +491,19 @@ class DialogThread(threading.Thread):
                 query = result = version = ''
                 
                 # Rule-parts
+                if self.asrResult.userActions[0].type != 'non-understanding' and \
+                'next' in self.asrResult.userActions[0].content and \
+                self.asrResult.userActions[0].content['next'] == 'STARTOVER':
+                    self.systemAction.type = 'inform'
+                    self.systemAction.force = 'starting_new_query'
+                    self._GetNewDialogState()
+                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                    self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    self.systemAction = self.dialogManager.Init()
+                    self._GetNewDialogState()
+                    self.taskQueue.append((False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    raise GotoException('Do task')
+
                 if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
                     if self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
                     self.asrResult.userActions[0].content['confirm'] == 'YES':

@@ -78,6 +78,7 @@ class Partition(object):
         self.config = GetConfig()
         self.useLearnedUserModel = self.config.getboolean(MY_ID,'useLearnedUserModel')
         self.confirmUnlikelyDiscountFactor = self.config.getfloat(MY_ID,'confirmUnlikelyDiscountFactor')
+        self.ignoreNonunderstandingFactor = self.config.getboolean(MY_ID,'ignoreNonunderstandingFactor')
         self.num_route = self.config.getint(MY_ID,'numberOfRoute')
         self.num_place = self.config.getint(MY_ID,'numberOfPlace')
         self.num_time = self.config.getint(MY_ID,'numberOfTime')
@@ -447,6 +448,8 @@ class Partition(object):
                             val = userAction.content[ua_field]
                             if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
                                 allFieldsMatchGoalFlag = False
+                elif self.ignoreNonunderstandingFactor:
+                    allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
                     if userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES':
                         result = self.userModel['C-o'][self._getClosestUserAct(userAction)]
@@ -461,6 +464,8 @@ class Partition(object):
                             val = userAction.content[ua_field]
                             if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
                                 allFieldsMatchGoalFlag = False
+                elif self.ignoreNonunderstandingFactor:
+                    allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
                     if askedField == 'route':
 #                        print self.userModel['R-bn']

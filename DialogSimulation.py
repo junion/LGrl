@@ -181,35 +181,30 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(4):
+    for testIndex in range(2):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
             iter = [500]
             errorRates = [-1]
-#            config.set('DialogManager','confidenceScoreCalibration','true')
-#            config.set('BeliefState','useLearnedUserModel','true')
-#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
-#            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
+            config.set('BeliefState','ignoreNonunderstandingFactor','true')
         elif testIndex == 1:
             iter = [500]
             errorRates = [0]
-#            config.set('DialogManager','confidenceScoreCalibration','true')
-#            config.set('BeliefState','useLearnedUserModel','true')
-#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
-#            config.set('PartitionDistribution','offListBeliefUpdateMethod','unlikelihood')
-        elif testIndex == 2:
-            iter = [500]
-            errorRates = [1]
-#            config.set('DialogManager','confidenceScoreCalibration','false')
-#            config.set('BeliefState','useLearnedUserModel','false')
+            config.set('BeliefState','ignoreNonunderstandingFactor','true')
+#        elif testIndex == 2:
+#            iter = [500]
+#            errorRates = [-1]
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
-#            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
-        elif testIndex == 3:
-            iter = [500]
-            errorRates = [2]
-#            config.set('DialogManager','confidenceScoreCalibration','false')
-#            config.set('BeliefState','useLearnedUserModel','false')
+#            config.set('DialogManager','basisWidth','0.25')
+#        elif testIndex == 3:
+#            iter = [500]
+#            errorRates = [-1]
 #            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
+#            config.set('BeliefState','ignoreNonunderstandingFactor','true')
+#        elif testIndex == 4:
+#            iter = [500]
+#            errorRates = [0]
+#            config.set('BeliefState','ignoreNonunderstandingFactor','false')
             
 #        iter = [100,50,25]
 #        iter = [200]
