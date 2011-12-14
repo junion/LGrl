@@ -4,10 +4,14 @@
 stateElementsDict = {'initial':{},'request_all':{},'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
 					'request_next_query':{},'request_next_query_error':{},'confirm_route':{},'confirm_departure_place':{},\
 					'confirm_arrival_place':{},'confirm_travel_time':{},\
+					'confirm_uncovered_place':{},'confirm_uncovered_route':{},'confirm_discontinued_route':{},\
 					'inform_welcome':{},'inform_confirm_okay_route':{},'inform_confirm_okay_departure_place':{},\
 					'inform_confirm_okay_arrival_place':{},'inform_confirm_okay_travel_time':{},\
+					'inform_confirm_okay_uncovered_place':{},'inform_confirm_okay_uncovered_route':{},\
+					'inform_confirm_okay_discontinued_route':{},\
 					'inform_processing':{},'inform_success':{},'inform_error':{},'inform_subsequent_processing':{},\
-					'inform_starting_new_query':{},'inform_uncovered_place':{},'inform_quit':{}}
+					'inform_starting_new_query':{},'inform_uncovered_place':{},\
+					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{}}
 
 #===============================================================================
 # Initial State
@@ -161,6 +165,51 @@ stateElementsDict['confirm_travel_time']['Agenda'] = '''0:O[dtmf_one]V,O[dtmf_th
 6:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['confirm_travel_time']['LineConfig'] = 'set_dtmf_len = 1, set_lm = yes_no'
 
+stateElementsDict['confirm_uncovered_place']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/uncovered_place]/RequestConfirm'
+stateElementsDict['confirm_uncovered_place']['Stack'] = '''//_ExplicitConfirm[/LetsGoPublic/uncovered_place]/RequestConfirm
+  /_ExplicitConfirm[/LetsGoPublic/uncovered_place]
+  /LetsGoPublic/PerformTask/GetQuerySpecs/AskHowMayIHelpYou
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['confirm_uncovered_place']['Agenda'] = '''0:O[dtmf_one]V,O[dtmf_three]V,O[no]V,O[yes]V
+1:
+2:
+3:O[0_covered_route]S,X[0_covered_route]S,O[0_discontinued_route]S,X[0_discontinued_route]S,O[0_uncovered_route]S,X[0_uncovered_route]S,O[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,O[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,O[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,O[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,O[1_singleplace.stop_name.uncovered_place]S,O[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,O[2_departureplace.stop_name.covered_place.covered_neighborhood]S,O[2_departureplace.stop_name.covered_place.monument]S,O[2_departureplace.stop_name.covered_place.registered_stop]S,O[2_departureplace.stop_name.uncovered_place]S,O[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,O[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,O[3_arrivalplace.stop_name.covered_place.monument]S,O[3_arrivalplace.stop_name.covered_place.registered_stop]S,O[3_arrivalplace.stop_name.uncovered_place]S,O[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,O[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+4:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+5:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['confirm_uncovered_place']['LineConfig'] = 'set_dtmf_len = 1, set_lm = yes_no'
+
+stateElementsDict['confirm_uncovered_route']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/uncovered_route]/RequestConfirm'
+stateElementsDict['confirm_uncovered_route']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/uncovered_route]/RequestConfirm
+  /_ExplicitConfirm[/LetsGoPublic/uncovered_route]
+  /LetsGoPublic/PerformTask/GetQuerySpecs/AskHowMayIHelpYou
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['confirm_uncovered_route']['Agenda'] = '''0:O[dtmf_one]V,O[dtmf_three]V,O[no]V,O[yes]V
+1:
+2:
+3:O[0_covered_route]S,X[0_covered_route]S,O[0_discontinued_route]S,X[0_discontinued_route]S,O[0_uncovered_route]S,X[0_uncovered_route]S,O[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,O[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,O[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,O[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,O[1_singleplace.stop_name.uncovered_place]S,O[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,O[2_departureplace.stop_name.covered_place.covered_neighborhood]S,O[2_departureplace.stop_name.covered_place.monument]S,O[2_departureplace.stop_name.covered_place.registered_stop]S,O[2_departureplace.stop_name.uncovered_place]S,O[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,O[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,O[3_arrivalplace.stop_name.covered_place.monument]S,O[3_arrivalplace.stop_name.covered_place.registered_stop]S,O[3_arrivalplace.stop_name.uncovered_place]S,O[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,O[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+4:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+5:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['confirm_uncovered_route']['LineConfig'] = 'set_dtmf_len = 1, set_lm = yes_no'
+
+stateElementsDict['confirm_discontinued_route']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/discontinued_route]/RequestConfirm'
+stateElementsDict['confirm_discontinued_route']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/discontinued_route]/RequestConfirm
+  /_ExplicitConfirm[/LetsGoPublic/discontinued_route]
+  /LetsGoPublic/PerformTask/GetQuerySpecs/AskHowMayIHelpYou
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['confirm_discontinued_route']['Agenda'] = '''0:O[dtmf_one]V,O[dtmf_three]V,O[no]V,O[yes]V
+1:
+2:
+3:O[0_covered_route]S,X[0_covered_route]S,O[0_discontinued_route]S,X[0_discontinued_route]S,O[0_uncovered_route]S,X[0_uncovered_route]S,O[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,O[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,O[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,O[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,O[1_singleplace.stop_name.uncovered_place]S,O[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,O[2_departureplace.stop_name.covered_place.covered_neighborhood]S,O[2_departureplace.stop_name.covered_place.monument]S,O[2_departureplace.stop_name.covered_place.registered_stop]S,O[2_departureplace.stop_name.uncovered_place]S,O[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,O[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,O[3_arrivalplace.stop_name.covered_place.monument]S,O[3_arrivalplace.stop_name.covered_place.registered_stop]S,O[3_arrivalplace.stop_name.uncovered_place]S,O[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,O[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+4:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+5:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['confirm_discontinued_route']['LineConfig'] = 'set_dtmf_len = 1, set_lm = yes_no'
+
 #===============================================================================
 # Inform
 #===============================================================================
@@ -228,6 +277,45 @@ stateElementsDict['inform_confirm_okay_travel_time']['Agenda'] = '''0:
 2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,O[finalquit]V,O[quit]V,O[repeat]V,X[startover]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
 3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['inform_confirm_okay_travel_time']['LineConfig'] = ''
+
+stateElementsDict['inform_confirm_okay_uncovered_place']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/uncovered_place]/AcknowledgeConfirm'
+stateElementsDict['inform_confirm_okay_uncovered_place']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/uncovered_place]/AcknowledgeConfirm
+  /_ExplicitConfirm[/LetsGoPublic/uncovered_place]
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_confirm_okay_uncovered_place']['Agenda'] = '''0:
+1:X[dtmf_one]V,X[dtmf_three]V,X[no]V,X[yes]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_confirm_okay_uncovered_place']['LineConfig'] = ''
+
+stateElementsDict['inform_confirm_okay_uncovered_route']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/uncovered_route]/AcknowledgeConfirm'
+stateElementsDict['inform_confirm_okay_uncovered_route']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/uncovered_route]/AcknowledgeConfirm
+  /_ExplicitConfirm[/LetsGoPublic/uncovered_route]
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_confirm_okay_uncovered_route']['Agenda'] = '''0:
+1:X[dtmf_one]V,X[dtmf_three]V,X[no]V,X[yes]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_confirm_okay_uncovered_route']['LineConfig'] = ''
+
+stateElementsDict['inform_confirm_okay_discontinued_route']['DialogState'] = '/_ExplicitConfirm[/LetsGoPublic/discontinued_route]/AcknowledgeConfirm'
+stateElementsDict['inform_confirm_okay_discontinued_route']['Stack'] = '''/_ExplicitConfirm[/LetsGoPublic/discontinued_route]/AcknowledgeConfirm
+  /_ExplicitConfirm[/LetsGoPublic/discontinued_route]
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_confirm_okay_discontinued_route']['Agenda'] = '''0:
+1:X[dtmf_one]V,X[dtmf_three]V,X[no]V,X[yes]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_confirm_okay_discontinued_route']['LineConfig'] = ''
 
 stateElementsDict['inform_processing']['DialogState'] = '/LetsGoPublic/PerformTask/ProcessQuery/InformFirstProcessing'
 stateElementsDict['inform_processing']['Stack'] = '''/LetsGoPublic/PerformTask/ProcessQuery/InformFirstProcessing
@@ -297,6 +385,30 @@ stateElementsDict['inform_uncovered_place']['Agenda'] = '''0:
 4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['inform_uncovered_place']['LineConfig'] = 'set_dtmf_len = 0, set_lm = first_query'
 
+stateElementsDict['inform_uncovered_route']['DialogState'] = '/LetsGoPublic/PerformTask/GetQuerySpecs/GetRoute/InformUncoveredRoute'
+stateElementsDict['inform_uncovered_route']['Stack'] = '''/LetsGoPublic/PerformTask/GetQuerySpecs/GetRoute/InformUncoveredRoute
+  /_ExplicitConfirm[/LetsGoPublic/discontinued_route]
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_uncovered_route']['Agenda'] = '''0:
+1:X[dtmf_one]V,X[dtmf_three]V,X[no]V,X[yes]V
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_uncovered_route']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
+
+stateElementsDict['inform_discontinued_route']['DialogState'] = '/LetsGoPublic/PerformTask/GetQuerySpecs/GetRoute/InformDiscontinuedRoute'
+stateElementsDict['inform_discontinued_route']['Stack'] = '''/LetsGoPublic/PerformTask/GetQuerySpecs/GetRoute/InformDiscontinuedRoute
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['inform_discontinued_route']['Agenda'] = '''0:
+1:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+2:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+3:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['inform_discontinued_route']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
+
 stateElementsDict['inform_quit']['DialogState'] = '/LetsGoPublic/GreetGoodbye'
 stateElementsDict['inform_quit']['Stack'] = '''/LetsGoPublic/GreetGoodbye
   /LetsGoPublic'''
@@ -312,8 +424,10 @@ utterElementsDict = {'inform_welcome':{},'inform_how_to_get_help':{},'request_al
 					'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
 					'request_next_query':{},'request_next_query_error':{},\
 					'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
+					'confirm_uncovered_place':{},'confirm_uncovered_route':{},'confirm_discontinued_route':{},\
 					'inform_welcome':{},'inform_confirm_okay':{},'inform_processing':{},'inform_success':{},'inform_error':{},\
-					'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{},'inform_quit':{}}
+					'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{},\
+					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{}}
 
 #===============================================================================
 # Initial
@@ -389,7 +503,7 @@ utterElementsDict['request_next_query']['Option'] = '''   :non-repeatable "true"
 
 utterElementsDict['request_next_query_error']['DialogAct'] = 'request'
 utterElementsDict['request_next_query_error']['FloorState'] = 'user'
-utterElementsDict['request_next_query_error']['Object'] = 'next_query'
+utterElementsDict['request_next_query_error']['Object'] = 'next_query_error'
 utterElementsDict['request_next_query_error']['Query'] = ''
 utterElementsDict['request_next_query_error']['Result'] = ''
 utterElementsDict['request_next_query_error']['Agent'] = ''
@@ -434,6 +548,33 @@ utterElementsDict['confirm_travel_time']['Result'] = ''
 utterElementsDict['confirm_travel_time']['Agent'] = ''
 utterElementsDict['confirm_travel_time']['Version'] = ''
 utterElementsDict['confirm_travel_time']['Option'] = ''
+
+utterElementsDict['confirm_uncovered_place']['DialogAct'] = 'explicit_confirm'
+utterElementsDict['confirm_uncovered_place']['FloorState'] = 'user'
+utterElementsDict['confirm_uncovered_place']['Object'] = '/LetsGoPublic/uncovered_place'
+utterElementsDict['confirm_uncovered_place']['Query'] = ''
+utterElementsDict['confirm_uncovered_place']['Result'] = ''
+utterElementsDict['confirm_uncovered_place']['Agent'] = ''
+utterElementsDict['confirm_uncovered_place']['Version'] = ''
+utterElementsDict['confirm_uncovered_place']['Option'] = ''
+
+utterElementsDict['confirm_uncovered_route']['DialogAct'] = 'explicit_confirm'
+utterElementsDict['confirm_uncovered_route']['FloorState'] = 'user'
+utterElementsDict['confirm_uncovered_route']['Object'] = '/LetsGoPublic/uncovered_route'
+utterElementsDict['confirm_uncovered_route']['Query'] = ''
+utterElementsDict['confirm_uncovered_route']['Result'] = ''
+utterElementsDict['confirm_uncovered_route']['Agent'] = ''
+utterElementsDict['confirm_uncovered_route']['Version'] = ''
+utterElementsDict['confirm_uncovered_route']['Option'] = ''
+
+utterElementsDict['confirm_discontinued_route']['DialogAct'] = 'explicit_confirm'
+utterElementsDict['confirm_discontinued_route']['FloorState'] = 'user'
+utterElementsDict['confirm_discontinued_route']['Object'] = '/LetsGoPublic/discontinued_route'
+utterElementsDict['confirm_discontinued_route']['Query'] = ''
+utterElementsDict['confirm_discontinued_route']['Result'] = ''
+utterElementsDict['confirm_discontinued_route']['Agent'] = ''
+utterElementsDict['confirm_discontinued_route']['Version'] = ''
+utterElementsDict['confirm_discontinued_route']['Option'] = ''
 
 #===============================================================================
 # Inform
@@ -500,6 +641,24 @@ utterElementsDict['inform_uncovered_place']['Result'] = ''
 utterElementsDict['inform_uncovered_place']['Agent'] = ''
 utterElementsDict['inform_uncovered_place']['Version'] = ''
 utterElementsDict['inform_uncovered_place']['Option'] = ''
+
+utterElementsDict['inform_uncovered_route']['DialogAct'] = 'inform'
+utterElementsDict['inform_uncovered_route']['FloorState'] = 'free'
+utterElementsDict['inform_uncovered_route']['Object'] = 'uncovered_route'
+utterElementsDict['inform_uncovered_route']['Query'] = ''
+utterElementsDict['inform_uncovered_route']['Result'] = ''
+utterElementsDict['inform_uncovered_route']['Agent'] = ''
+utterElementsDict['inform_uncovered_route']['Version'] = ''
+utterElementsDict['inform_uncovered_route']['Option'] = ''
+
+utterElementsDict['inform_discontinued_route']['DialogAct'] = 'inform'
+utterElementsDict['inform_discontinued_route']['FloorState'] = 'free'
+utterElementsDict['inform_discontinued_route']['Object'] = 'discontinued_route'
+utterElementsDict['inform_discontinued_route']['Query'] = ''
+utterElementsDict['inform_discontinued_route']['Result'] = ''
+utterElementsDict['inform_discontinued_route']['Agent'] = ''
+utterElementsDict['inform_discontinued_route']['Version'] = ''
+utterElementsDict['inform_discontinued_route']['Option'] = ''
 
 utterElementsDict['inform_quit']['DialogAct'] = 'inform'
 utterElementsDict['inform_quit']['FloorState'] = 'free'
@@ -688,144 +847,144 @@ def MakeArrivalPlaceQuery(querySpec):
 	return message
 
 
-tempQuery = '''{c gal_be.launch_query
-:inframe "{
-query {
-type	2
-travel_time	{
-date	{
-month	12
-day	10
-year	2011
-weekday	6
-}
+#tempQuery = '''{c gal_be.launch_query
+#:inframe "{
+#query {
+#type	2
+#travel_time	{
+#date	{
+#month	12
+#day	10
+#year	2011
+#weekday	6
+#}
+#
+#period_spec	now 
+#time	{
+#value	1305
+#now	true
+#type	departure
+#}
+#
+#}
+#
+#departure_place	{
+#name	CMU
+#type	stop
+#}
+#
+#arrival_place	{
+#name	AIRPORT
+#type	stop
+#}
+#
+#route_number	28X
+#}
+#
+#departure_stops	:3
+#{
+#{
+#name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+#id	2418
+#}
+#{
+#id	2417
+#name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+#}
+#{
+#id	2442
+#name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
+#}
+#}
+#
+#arrival_stops	:2
+#{
+#{
+#name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
+#id	5290
+#}
+#{
+#id	3731
+#name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
+#}
+#}
+#
+#result	{
+#}
+#
+#}
+#"
+#}
+#'''
 
-period_spec	now 
-time	{
-value	1305
-now	true
-type	departure
-}
-
-}
-
-departure_place	{
-name	CMU
-type	stop
-}
-
-arrival_place	{
-name	AIRPORT
-type	stop
-}
-
-route_number	28X
-}
-
-departure_stops	:3
-{
-{
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-id	2418
-}
-{
-id	2417
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-}
-{
-id	2442
-name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
-}
-}
-
-arrival_stops	:2
-{
-{
-name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
-id	5290
-}
-{
-id	3731
-name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
-}
-}
-
-result	{
-}
-
-}
-"
-}
-'''
-
-temp2Query = '''{c gal_be.launch_query
-:inframe "{
-query {
-type	2
-travel_time	{
-date	{
-month	12
-day	9
-year	2011
-weekday	5
-}
-
-period_spec	now
-time	{
-value	1421
-now	true
-type	departure
-}
-
-}
-departure_place	{
-name	CMU
-type	stop
-}
-
-arrival_place	{
-name	AIRPORT
-type	stop
-}
-
-route_number	28X
-}
-
-departure_stops :3
-{
-{
-id	2418
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-}
-{
-id	2417
-name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
-}
-{
-id	2442
-name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
-}
-}
-
-arrival_stops :2
-{
-{
-id	5290
-name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
-}
-{
-id	3731
-name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
-}
-}
-
-result {
-}
-
-}
-"
-}
-'''
+#temp2Query = '''{c gal_be.launch_query
+#:inframe "{
+#query {
+#type	2
+#travel_time	{
+#date	{
+#month	12
+#day	9
+#year	2011
+#weekday	5
+#}
+#
+#period_spec	now
+#time	{
+#value	1421
+#now	true
+#type	departure
+#}
+#
+#}
+#departure_place	{
+#name	CMU
+#type	stop
+#}
+#
+#arrival_place	{
+#name	AIRPORT
+#type	stop
+#}
+#
+#route_number	28X
+#}
+#
+#departure_stops :3
+#{
+#{
+#id	2418
+#name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+#}
+#{
+#id	2417
+#name	FORBES AVENUE AT MOREWOOD AVENUE  CARNEGIE MELL
+#}
+#{
+#id	2442
+#name	FORBES AVENUE OPPOSITE MOREWOOD  CARNEGIE MELLON
+#}
+#}
+#
+#arrival_stops :2
+#{
+#{
+#id	5290
+#name	PITTSBURGH INTERNATIONAL AIRPORT LOWER LEVE
+#}
+#{
+#id	3731
+#name	LEBANON CHURCH ROAD AT COUNTY AIRPORT ENTRANCE
+#}
+#}
+#
+#result {
+#}
+#
+#}
+#"
+#}
+#'''
 
 fullTimeSpec = 'travel_time\t{\n\
 date\t{\n\

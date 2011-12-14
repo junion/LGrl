@@ -4,7 +4,7 @@
 # under the conditions described in the file LICENSE in the root
 # directory of the Galaxy Communicator system.
 
-import sys,exceptions,traceback
+import os,sys,exceptions,traceback
 import logging.config
 import logging
 import threading
@@ -13,17 +13,12 @@ from GlobalConfig import *
 import Galaxy,GalaxyIO
 from DialogThread import *
 
-sys.path.append("E:/Development/LGrl-O")
-
 InitConfig()
 config = GetConfig()
-config.read(['E:/Development/LGrl-O/LGrl.conf'])
+config.read(['LGrl.conf'])
+sys.path.append(config.get('Global','PROJECT_HOME'))
 
-logging.config.fileConfig('E:/Development/LGrl-O/logging.conf')
-appLogger = logging.getLogger('Galaxy')
-
-appLogger.info('GalaxyServer')
-
+appLogger = None
 dialogThread = None
 inSession = False
 sessionID = None
@@ -104,10 +99,11 @@ def reinitialize(env,frame):
     lastEnv = env
     incomingFrame = frame
 
-    appLogger.info('reinitialize called. Hub connection completed.')
+#    appLogger.info('reinitialize called. Hub connection completed.')
     return frame
 
 def begin_session(env,frame):
+    global appLogger
     global inSession
     global lastEnv
     global incomingFrame
@@ -125,9 +121,20 @@ def begin_session(env,frame):
         lastEnv = env
         incomingFrame = frame
         lastFrame = frame
+
+        try:
+            logPrefix = frame[':hub_log_prefix'] + '-dialog.log'
+            logDir = frame[':hub_logdir']
+        except KeyError:
+            print "Can't find log information"
+        else:
+            logging.basicConfig(filename=os.path.join(logDir,logPrefix),filemode='w',\
+                                format='%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s',\
+                                level=logging.DEBUG)
+            appLogger = logging.getLogger('Galaxy')
     
         appLogger.info('begin_session called.')
-    #    appLogger.info('frame:\n %s.'%str(frame))
+        appLogger.info('frame:\n %s'%frame.PPrint())
         try:
             timeStamp = frame[':session_start_timestamp']
             appLogger.info('Init timestamp: %s.'%str(timeStamp))
@@ -155,6 +162,7 @@ def begin_session(env,frame):
         appLogger.info('DM processing finished.')
 
     except Exception:
+        print traceback.format_exc()
         appLogger.info(traceback.format_exc())
         exit()
         

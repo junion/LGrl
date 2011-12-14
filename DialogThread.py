@@ -28,7 +28,6 @@ class DialogThread(threading.Thread):
         threading.Thread.__init__(self)
 
         self.config = GetConfig()
-        logging.config.fileConfig('E:/Development/LGrl-G/logging.conf')
         self.appLogger = logging.getLogger(MY_ID)
 
         self.useDirectedOpenQuestion = self.config.getboolean(MY_ID,'useDirectedOpenQuestion')
@@ -42,10 +41,12 @@ class DialogThread(threading.Thread):
         self.floorStatus = 'system'
         self.notifyPrompts = []
         self.systemAction = SystemAction('initial')
+        self.systemActionToRepeat = None
         self.newDialogState = None
         self.inQueue = inQueue
         self.outQueue = outQueue
         self.waitEvent = []
+        self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
         self.departurePlaceTypeDict = {}
         self.arrivalPlaceTypeDict = {}
         self.departurePlaceQuerySpecDict = {}
@@ -88,9 +89,28 @@ class DialogThread(threading.Thread):
                 self.newDialogState = 'confirm_arrival_place'
             elif 'travel_time' in self.systemAction.content:
                 self.newDialogState = 'confirm_travel_time'
+            elif 'uncovered_place' in self.systemAction.content:
+                self.newDialogState = 'confirm_uncovered_place'
+            elif 'uncovered_route' in self.systemAction.content:
+                self.newDialogState = 'confirm_uncovered_route'
+            elif 'discontinued_route' in self.systemAction.content:
+                self.newDialogState = 'confirm_discontinued_route'
         elif self.systemAction.type == 'inform':
             if self.systemAction.force == 'confirm_okay':
-                self.newDialogState = 'inform_confirm_okay'
+                if self.newDialogState == 'confirm_route':
+                    self.newDialogState = 'inform_confirm_okay_route'
+                elif self.newDialogState == 'confirm_departure_place':
+                    self.newDialogState = 'inform_confirm_okay_departure_place'
+                elif self.newDialogState == 'confirm_arrival_place':
+                    self.newDialogState = 'inform_confirm_okay_arrival_place'
+                elif self.newDialogState == 'confirm_travel_time':
+                    self.newDialogState = 'inform_confirm_okay_travel_time'
+                elif self.newDialogState == 'confirm_uncovered_place':
+                    self.newDialogState = 'inform_confirm_okay_uncovered_place'
+                elif self.newDialogState == 'confirm_uncovered_route':
+                    self.newDialogState = 'inform_confirm_okay_uncovered_route'
+                elif self.newDialogState == 'confirm_discontinued_route':
+                    self.newDialogState = 'inform_confirm_okay_discontinued_route'
             elif self.systemAction.force == 'processing':
                 self.newDialogState = 'inform_processing'
             elif self.systemAction.force == 'success':
@@ -103,6 +123,13 @@ class DialogThread(threading.Thread):
                 self.newDialogState = 'inform_starting_new_query'
             elif self.systemAction.force == 'quit':
                 self.newDialogState = 'inform_quit'
+            elif self.systemAction.force == 'uncovered_place':
+                self.newDialogState = 'inform_uncovered_place'
+            elif self.systemAction.force == 'uncovered_route':
+                self.newDialogState = 'inform_uncovered_route'
+            elif self.systemAction.force == 'discontinued_route':
+                self.newDialogState = 'inform_discontinued_route'
+        self.appLogger.info('New dialog state: %s'%self.newDialogState)
 
     def _BeginSessionHandler(self,frame):
         self.appLogger.info('begin_session')
@@ -118,6 +145,7 @@ class DialogThread(threading.Thread):
         self.appLogger.info('hypothesis: %s'%frame[':properties'][':hypothesis'])
         self.appLogger.info('confidence: %s'%frame[':properties'][':confidence'])
 
+        # DTMF
         if frame[':properties'].has_key(':[dtmf_key.dtmf_zero]') or \
         frame[':properties'].has_key(':[generic.help.general_help]'):
             userAction.content.update({'help':'help'})
@@ -131,10 +159,18 @@ class DialogThread(threading.Thread):
             userAction.content.update({'next':'SUCCESS'})
         if frame[':properties'].has_key(':[dtmf_key.dtmf_six]'):
             userAction.content.update({'next':'FAIL'})
-                    
+
+        # Place                    
+        if frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']})
+        if frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']})
+        if frame[':properties'].has_key(':[2_arrivalplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[2_arrivalplace.stop_name.uncovered_place]']})
+            
         updateDeparturePlaceType = updateArrivalPlaceType = False
-        if frame[':properties'].has_key(':[1_singleplace.stop_name]'):
-            hypothesis = frame[':properties'][':[1_singleplace.stop_name]']
+        if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[1_singleplace.stop_name.covered_place]']
             if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
                 if self.systemAction.content == 'departure_place':
                     userAction.content.update({'departure_place':hypothesis})
@@ -152,17 +188,54 @@ class DialogThread(threading.Thread):
             else:
                 userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True
-#                userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
-#                updateDeparturePlaceType = True
-#                updateArrivalPlaceType = True
-        if frame[':properties'].has_key(':[2_departureplace.stop_name]'):
-            hypothesis = frame[':properties'][':[2_departureplace.stop_name]']
+        if frame[':properties'].has_key(':[2_departureplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[2_departureplace.stop_name.covered_place]']
             userAction.content.update({'departure_place':hypothesis})
             updateDeparturePlaceType = True
-        if frame[':properties'].has_key(':[3_arrivalplace.stop_name]'):
-            hypothesis = frame[':properties'][':[3_arrivalplace.stop_name]']
+        if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[3_arrivalplace.stop_name.covered_place]']
             userAction.content.update({'arrival_place':hypothesis})
             updateArrivalPlaceType = True
+        parse = frame[':properties'][':parse_str']
+        if updateDeparturePlaceType:
+            place = userAction.content['departure_place']
+            self.appLogger.info('%d'%parse.find(place))
+            subParse = parse[parse.find(place)-20:parse.find(place)]
+            self.appLogger.info('place %s, subParse %s'%(place,subParse))
+            if subParse.find('neighborhood') > -1:
+                self.departurePlaceTypeDict[place] = 'neighborhood'
+            else:
+                self.departurePlaceTypeDict[place] = 'stop'
+            if place not in self.departurePlaceQuerySpecDict:
+                querySpec = {}
+                querySpec['departure_place'] = place
+                querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
+#                self._RequestDeparturePlaceQuery(querySpec)
+                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
+        if updateArrivalPlaceType:
+            place = userAction.content['arrival_place']
+            subParse = parse[parse.find(place)-20:parse.find(place)]
+            self.appLogger.info('place %s, subParse %s'%(place,subParse))
+            if subParse.find('neighborhood') > -1:
+                self.arrivalPlaceTypeDict[place] = 'neighborhood'
+            else:                        
+                self.arrivalPlaceTypeDict[place] = 'stop'
+            if place not in self.arrivalPlaceQuerySpecDict:
+                querySpec = {}
+                querySpec['arrival_place'] = place
+                querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
+#                self._RequestArrivalPlaceQuery(querySpec)
+                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
+
+        # Route
+        if frame[':properties'].has_key(':[0_busnumber.route.0_uncovered_route]'):
+            userAction.content.update({'uncovered_route':frame[':properties'][':[0_busnumber.route.0_uncovered_route]']})
+        if frame[':properties'].has_key(':[0_busnumber.route.0_discontinued_route]'):
+            userAction.content.update({'discontinued_route':frame[':properties'][':[0_busnumber.route.0_discontinued_route]']})
+        if frame[':properties'].has_key(':[0_busnumber.0_covered_route]'):
+            userAction.content.update({'route':frame[':properties'][':[0_busnumber.0_covered_route]']})
+
+        # Time
         if frame[':properties'].has_key(':[4_datetime]'):
             message = MakeParseDateTimeMessage(frame[':properties'][':gal_slotsframe'])
             self.outQueue.put(message)
@@ -227,56 +300,21 @@ class DialogThread(threading.Thread):
                 dateTime['now'] = 'true'
                 self.timeSpecDict.update({'NOW':dateTime})
                 userAction.content.update({'travel_time':'NOW'})
-        if frame[':properties'].has_key(':[0_busnumber.route]'):
-            userAction.content.update({'route':frame[':properties'][':[0_busnumber.route]']})
+        if frame[':properties'].has_key(':[4_busbeforethatrequest]'):
+            self.appLogger.info('%s'%frame[':properties'][':[4_busbeforethatrequest]'])
+            userAction.content.update({'next':'PREVIOUS BUS'})
+
+        # Generic
         if frame[':properties'].has_key(':[generic.yes]'):
             userAction.content.update({'confirm':'YES'})
         if frame[':properties'].has_key(':[generic.no]'):
             userAction.content.update({'confirm':'NO'})
-        if frame[':properties'].has_key(':[4_busbeforethatrequest]'):
-            self.appLogger.info('%s'%frame[':properties'][':[4_busbeforethatrequest]'])
-            userAction.content.update({'next':'PREVIOUS BUS'})
         if frame[':properties'].has_key(':[generic.quit]'):
             self.appLogger.info('Good bye')
             userAction.content.update({'next':'QUIT'})
         if frame[':properties'].has_key(':[generic.startover]'):
             self.appLogger.info('Start over')
             userAction.content.update({'next':'STARTOVER'})
-
-#        self.appLogger.info('6')
-
-        parse = frame[':properties'][':parse_str']
-        if updateDeparturePlaceType:
-            place = userAction.content['departure_place']
-            self.appLogger.info('%d'%parse.find(place))
-            subParse = parse[parse.find(place)-20:parse.find(place)]
-            self.appLogger.info('place %s, subParse %s'%(place,subParse))
-            if subParse.find('neighborhood') > -1:
-                self.departurePlaceTypeDict[place] = 'neighborhood'
-            else:
-                self.departurePlaceTypeDict[place] = 'stop'
-            if place not in self.departurePlaceQuerySpecDict:
-                querySpec = {}
-                querySpec['departure_place'] = place
-                querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
-#                self._RequestDeparturePlaceQuery(querySpec)
-                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
-        if updateArrivalPlaceType:
-            place = userAction.content['arrival_place']
-            subParse = parse[parse.find(place)-20:parse.find(place)]
-            self.appLogger.info('place %s, subParse %s'%(place,subParse))
-            if subParse.find('neighborhood') > -1:
-                self.arrivalPlaceTypeDict[place] = 'neighborhood'
-            else:                        
-                self.arrivalPlaceTypeDict[place] = 'stop'
-            if place not in self.arrivalPlaceQuerySpecDict:
-                querySpec = {}
-                querySpec['arrival_place'] = place
-                querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
-#                self._RequestArrivalPlaceQuery(querySpec)
-                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
-
-#        self.appLogger.info('7')
 
         self.appLogger.info('userAction: %s'%str(userAction))
 
@@ -434,7 +472,7 @@ class DialogThread(threading.Thread):
             self.systemAction.force = 'error'
             self.appLogger.info('error')
         self._GetNewDialogState()
-        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#        self.appLogger.info('New dialog state: %s'%self.newDialogState)
         query,result = MakeScheduleSection(self.querySpec,self.result[':outframe'],args)
         self.appLogger.info('query: %s'%query)
         self.appLogger.info('result: %s'%result)
@@ -496,7 +534,7 @@ class DialogThread(threading.Thread):
 #                    self.appLogger.info('4')
                     self._GetNewDialogState()
 #                    self.appLogger.info('5')
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
 #                    self.appLogger.info('6')
 #                self.appLogger.info('7')
@@ -534,23 +572,51 @@ class DialogThread(threading.Thread):
                     self.systemAction.type = 'inform'
                     self.systemAction.force = 'starting_new_query'
                     self._GetNewDialogState()
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                     self.systemAction = self.dialogManager.Init()
                     self._GetNewDialogState()
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                     raise GotoException('Do task')
 
-                if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
-                    if self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
-                    self.asrResult.userActions[0].content['confirm'] == 'YES':
-                        self.systemAction.type = 'inform'
-                        self.systemAction.force = 'confirm_okay'
-                        self._GetNewDialogState()
-                        self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                if self.asrResult.userActions[0].type != 'non-understanding' and \
+                'uncovered_place' in self.asrResult.userActions[0].content:
+#                    self.systemActionToRepeat = deepcopy(self.systemAction)
+                    self.systemAction.type = 'ask'
+                    self.systemAction.force = 'confirm'
+                    self.systemAction.content = {'uncovered_place':self.asrResult.userActions[0].content['uncovered_place']}
+                    query = 'uncovered_place\t{\nname\t%s\ntype\tstop\n}\n'%self.systemAction.content['uncovered_place']
+                    self._GetNewDialogState()
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                    self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    raise GotoException('Do task')
+
+                if self.asrResult.userActions[0].type != 'non-understanding' and \
+                'uncovered_route' in self.asrResult.userActions[0].content:
+#                    self.systemActionToRepeat = deepcopy(self.systemAction)
+                    self.systemAction.type = 'ask'
+                    self.systemAction.force = 'confirm'
+                    self.systemAction.content = {'uncovered_route':self.asrResult.userActions[0].content['uncovered_route']}
+                    query = 'uncovered_route\t%s\n'%self.systemAction.content['uncovered_route']
+                    self._GetNewDialogState()
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                    self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    raise GotoException('Do task')
+
+                if self.asrResult.userActions[0].type != 'non-understanding' and \
+                'discontinued_route' in self.asrResult.userActions[0].content:
+#                    self.systemActionToRepeat = deepcopy(self.systemAction)
+                    self.systemAction.type = 'ask'
+                    self.systemAction.force = 'confirm'
+                    self.systemAction.content = {'discontinued_route':self.asrResult.userActions[0].content['discontinued_route']}
+                    query = 'discontinued_route\t%s\n'%self.systemAction.content['discontinued_route']
+                    self._GetNewDialogState()
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                    self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    raise GotoException('Do task')
 
                 elif self.systemAction.type == 'ask' and self.systemAction.force == 'request' and \
-                self.systemAction.content == 'next_query':
+                self.systemAction.content in ['next_query','next_query_error']:
                     if self.asrResult.userActions[0].type == 'non-understanding' or \
                     'next' not in self.asrResult.userActions[0].content:
                         self.appLogger.info('discard')
@@ -560,7 +626,7 @@ class DialogThread(threading.Thread):
                         self.systemAction.type = 'inform'
                         self.systemAction.force = 'subsequent_processing'
                         self._GetNewDialogState()
-                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
                         self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
 #                        self._RequestSystemUtterance((self.newDialogState,query,result,version))
                         self.taskQueue.append((False,True,self._RequestSubsequentBackendQuery,(next)))
@@ -569,7 +635,7 @@ class DialogThread(threading.Thread):
                         self.systemAction.type = 'inform'
                         self.systemAction.force = 'quit'
                         self._GetNewDialogState()
-                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
                         self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                     elif next in ['SUCCESS','FAIL']:
                         if next == 'SUCCESS':
@@ -580,7 +646,7 @@ class DialogThread(threading.Thread):
                         self.systemAction.type = 'ask'
                         self.systemAction.force = 'request'
                         self._GetNewDialogState()
-                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
                         self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
 #                    elif next == 'STARTOVER':
 #                        self.systemAction.type = 'inform'
@@ -597,6 +663,38 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('discard')
                     raise GotoException('Do task')
 
+                if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
+                    if self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
+                    self.asrResult.userActions[0].content['confirm'] == 'YES':
+                        self.systemAction.type = 'inform'
+                        self.systemAction.force = 'confirm_okay'
+                        self._GetNewDialogState()
+                        self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        if self.newDialogState == 'inform_confirm_okay_uncovered_place':
+                            self.systemAction.type = 'inform'
+                            self.systemAction.force = 'uncovered_place'
+                            self._GetNewDialogState()
+                            self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                            self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                        elif self.newDialogState == 'inform_confirm_okay_uncovered_route':
+                            self.systemAction.type = 'inform'
+                            self.systemAction.force = 'uncovered_route'
+                            self._GetNewDialogState()
+                            self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                            self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                        elif self.newDialogState == 'inform_confirm_okay_discontinued_route':
+                            self.systemAction.type = 'inform'
+                            self.systemAction.force = 'discontinued_route'
+                            self._GetNewDialogState()
+                            self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                            self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                    elif self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
+                    self.asrResult.userActions[0].content['confirm'] == 'NO':
+                        if self.newDialogState == 'inform_confirm_okay_uncovered_place' or\
+                        self.newDialogState == 'inform_confirm_okay_uncovered_route' or\
+                        self.newDialogState == 'inform_confirm_okay_discontinued_route':
+                            self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                    
                 # RL-DM parts
                 self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
                 self.appLogger.info('System action: %s'%str(self.systemAction))
@@ -606,7 +704,7 @@ class DialogThread(threading.Thread):
     
                 if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
                     self._GetNewDialogState()
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                    
                 elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
@@ -633,7 +731,7 @@ class DialogThread(threading.Thread):
                     elif 'route' in self.systemAction.content:
                         query = 'query.route_number\t%s\n'%self.systemAction.content['route']
                     self._GetNewDialogState()
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
     
                 elif self.systemAction.type == 'inform':
@@ -641,7 +739,7 @@ class DialogThread(threading.Thread):
                     # inform processing
                     self.systemAction.force = 'processing'
                     self._GetNewDialogState()
-                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+#                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
 #                    self._RequestSystemUtterance((self.newDialogState,query,result,version))
                     self.taskQueue.append((False,True,self._RequestBackendQuery,None))
@@ -682,8 +780,17 @@ class DialogThread(threading.Thread):
                     frame = event[1]
                 else:
                     self.appLogger.info('Wait event')
-                    frame = deepcopy(self.inQueue.get())
-                    self.inQueue.task_done()
+                    try:
+                        frame = deepcopy(self.inQueue.get(timeout=self.eventWaitTimeout))
+                        self.inQueue.task_done()
+#                    except Queue.Empty:
+                    except:
+                        self.appLogger.info('Warning: event timeout, empty notifyPrompts')
+                        self.notifyPrompts = []
+                        continue
+                if frame == None:
+                    self.appLogger.info('Warning: null frame')
+                    continue
 #                self.appLogger.info('Frame:\n%s'%frame.PPrint())
                 if frame.name == 'begin_session':
                     eventType = 'begin_session'
@@ -693,7 +800,8 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('event_type: %s'%eventType)
                     if eventType == 'user_utterance_end':
                         if len(self.notifyPrompts) > 0:
-                            self.waitEvent.append(('user_utterance_end',frame))
+                            if frame[':properties'][':total_num_parses'] != '0':
+                                self.waitEvent.append(('user_utterance_end',frame))
                             skipDialogProcessing = True
                         else:
                             self._UserUtteranceEndHandler(frame)
