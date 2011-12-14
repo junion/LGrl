@@ -174,6 +174,8 @@ def main():
     InitConfig()
     config = GetConfig()
     config.read(['LGrl.conf'])
+    config.set('Global','modelPath','.')
+    config.set('DialogManager','dialogStrategyLearning','true')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -181,26 +183,31 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(2):
+    for testIndex in range(3):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
             iter = [500]
             errorRates = [-1]
-            config.set('BeliefState','ignoreNonunderstandingFactor','true')
+            config.set('DialogManager','preferNaturalSequence','false')
         elif testIndex == 1:
             iter = [500]
-            errorRates = [0]
-            config.set('BeliefState','ignoreNonunderstandingFactor','true')
-#        elif testIndex == 2:
-#            iter = [500]
-#            errorRates = [-1]
-#            config.set('BeliefState','confirmUnlikelyDiscountFactor','0.1')
-#            config.set('DialogManager','basisWidth','0.25')
-#        elif testIndex == 3:
-#            iter = [500]
-#            errorRates = [-1]
-#            config.set('BeliefState','confirmUnlikelyDiscountFactor','1.0')
-#            config.set('BeliefState','ignoreNonunderstandingFactor','true')
+            errorRates = [-1]
+            config.set('DialogManager','preferNaturalSequence','true')
+            config.set('DialogManager','useDirectedOpenQuestion','false')
+        elif testIndex == 2:
+            iter = [500]
+            errorRates = [-1]
+            config.set('DialogManager','useDirectedOpenQuestion','true')
+            config.set('DialogManager','confidenceScoreCalibration','false')
+            config.set('BeliefState','useLearnedUserModel','false')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+#            config.set('DialogManager','basisWidth','0.2')
+        elif testIndex == 3:
+            iter = [500]
+            errorRates = [-1]
+            config.set('DialogManager','confidenceScoreCalibration','false')
+            config.set('BeliefState','useLearnedUserModel','false')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
 #        elif testIndex == 4:
 #            iter = [500]
 #            errorRates = [0]

@@ -394,16 +394,20 @@ class SBSarsaDialogManager(DialogManager):
             acts.remove('[inform]')
             self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
 
+        marginals = self.beliefState.GetMarginals()
         if self.preferNaturalSequence:
             if self.fieldCounts['departure_place'] == 0:
-                acts.remove('[ask] request arrival_place')
-                acts.remove('[ask] request travel_time')
-                self.appLogger.info('Exclude request (arrival_place/travel_time) for a natural sequence') 
+                if len(marginals['arrival_place']) == 0:
+                    acts.remove('[ask] request arrival_place')
+                    self.appLogger.info('Exclude request arrival_place for a natural sequence') 
+                if len(marginals['travel_time']) == 0:
+                    acts.remove('[ask] request travel_time')
+                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
             elif self.fieldCounts['arrival_place'] == 0:
-                acts.remove('[ask] request travel_time')
-                self.appLogger.info('Exclude request travel_time for a natural sequence') 
+                if len(marginals['travel_time']) == 0:
+                    acts.remove('[ask] request travel_time')
+                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
         
-        marginals = self.beliefState.GetMarginals()
         for field in self.fields: 
             if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
                 acts.remove('[ask] confirm %s'%field)
