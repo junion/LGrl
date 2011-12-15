@@ -20,7 +20,7 @@ www.research.att.com/people/Williams_Jason_D
 '''
 
 # Extend sys.path to include src directory
-import os,sys
+import os,sys,shutil
 import datetime as dt
 #sys.path.append(os.path.join(os.path.dirname(__file__),'../../src'))
 
@@ -127,7 +127,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
         dialogReward += reward
         nextSystemAction = dialogManager.TakeTurn(userAction,reward)
         
-        appLogger.info('** PartitionDistribution: **\n%s' % (dialogManager.beliefState))
+#        appLogger.info('** PartitionDistribution: **\n%s' % (dialogManager.beliefState))
         
         updateTime = dialogManager.beliefState.partitionDistribution.stats.clocks['mainUpdate']
         
@@ -175,7 +175,7 @@ def main():
     config = GetConfig()
     config.read(['LGrl.conf'])
     config.set('Global','modelPath','.')
-    config.set('DialogManager','dialogStrategyLearning','true')
+    config.set('DialogManager','dialogStrategyLearning','false')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -183,35 +183,31 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(3):
+    for testIndex in range(2):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
             iter = [500]
             errorRates = [-1]
-            config.set('DialogManager','preferNaturalSequence','false')
         elif testIndex == 1:
             iter = [500]
             errorRates = [-1]
-            config.set('DialogManager','preferNaturalSequence','true')
-            config.set('DialogManager','useDirectedOpenQuestion','false')
-        elif testIndex == 2:
-            iter = [500]
-            errorRates = [-1]
-            config.set('DialogManager','useDirectedOpenQuestion','true')
-            config.set('DialogManager','confidenceScoreCalibration','false')
-            config.set('BeliefState','useLearnedUserModel','false')
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
-#            config.set('DialogManager','basisWidth','0.2')
-        elif testIndex == 3:
-            iter = [500]
-            errorRates = [-1]
-            config.set('DialogManager','confidenceScoreCalibration','false')
-            config.set('BeliefState','useLearnedUserModel','false')
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+            config.set('DialogManager','preferNaturalSequence','false')
+#        elif testIndex == 2:
+#            iter = [500]
+#            errorRates = [-1]
+#            config.set('DialogManager','preferNaturalSequence','true')
+#            config.set('DialogManager','useDirectedOpenQuestion','false')
+#        elif testIndex == 3:
+#            iter = [500]
+#            errorRates = [-1]
+#            config.set('DialogManager','useDirectedOpenQuestion','true')
+#            config.set('DialogManager','confidenceScoreCalibration','false')
+#            config.set('BeliefState','useLearnedUserModel','false')
+#            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
 #        elif testIndex == 4:
 #            iter = [500]
-#            errorRates = [0]
-#            config.set('BeliefState','ignoreNonunderstandingFactor','false')
+#            errorRates = [-1]
+#            config.set('DialogManager','preferNaturalSequence','false')
             
 #        iter = [100,50,25]
 #        iter = [200]
@@ -248,6 +244,15 @@ def main():
         
         if not dialogStrategyLearning:
             config.set('SparseBayes','CONTROL_BasisFunctionMax',basisFunctionMax[0])
+            try:
+                os.remove('DataPoints.model')
+                os.remove('Mu.model')
+                os.remove('Relevant.model')
+            except:
+                pass
+            shutil.copy('DataPoints-%d.model'%testIndex,'DataPoints.model')
+            shutil.copy('Mu-%d.model'%testIndex,'Mu.model')
+            shutil.copy('Relevant-%d.model'%testIndex,'Relevant.model')
         
         dialogManager = DialogManager()
         userSimulation = UserSimulation()
@@ -340,7 +345,8 @@ def main():
                 dialogNum += 1
             
         endTime = dt.datetime.now()
-        dialogManager.StoreModel('%d'%testIndex)
+        if dialogStrategyLearning:
+            dialogManager.StoreModel('%d'%testIndex)
         
         appLogger.info('Interval average dialog length: %s'%str(intervalAvgDialogLength))
         appLogger.info('Cumulative average dialog length: %s'%str(totalAvgDialogLength))
