@@ -34,35 +34,79 @@ from DB import InitDB
 from DialogManager import SBSarsaDialogManager as DialogManager
 
 def GetReward(rewards,userGoal,beliefState,sysAction):
-    if sysAction.type == 'inform':
-        field = beliefState.GetTopUserGoal()
-        if userGoal['Bus number'] == '' and field['route'].type == 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Bus number'] != '' and field['route'].type != 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Bus number'] != '' and userGoal['Bus number'] != field['route'].equals:
-            return rewards['taskFailureReward']
-        if userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Departure place'] != '' and userGoal['Departure place'] != field['departure_place'].equals:
-            return rewards['taskFailureReward']
-        if userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Arrival place'] != '' and userGoal['Arrival place'] != field['arrival_place'].equals:
-            return rewards['taskFailureReward']
-        if userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
-            return rewards['taskFailureReward']
-        if userGoal['Travel time'] != '' and userGoal['Travel time'] != field['travel_time'].equals:
-            return rewards['taskFailureReward']
-        return rewards['taskSuccessReward']
-    else:
-        return rewards['taskProceedReward']
+#    if sysAction.type == 'inform':
+#        field = beliefState.GetTopUserGoal()
+#        if userGoal['Bus number'] == '' and field['route'].type == 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Bus number'] != '' and field['route'].type != 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Bus number'] != '' and userGoal['Bus number'] != field['route'].equals:
+#            return rewards['taskFailureReward']
+#        if userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Departure place'] != '' and userGoal['Departure place'] != field['departure_place'].equals:
+#            return rewards['taskFailureReward']
+#        if userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Arrival place'] != '' and userGoal['Arrival place'] != field['arrival_place'].equals:
+#            return rewards['taskFailureReward']
+#        if userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
+#            return rewards['taskFailureReward']
+#        if userGoal['Travel time'] != '' and userGoal['Travel time'] != field['travel_time'].equals:
+#            return rewards['taskFailureReward']
+#        return rewards['taskSuccessReward']
+#    else:
+#        return rewards['taskProceedReward']
+    reward = rewards['taskProceedReward']
+    fieldMatch = {'departure_place':True,'arrival_place':True,'travel_time':True,'route':True}
+    field = beliefState.GetTopUserGoal()
+    if userGoal['Bus number'] == '' and field['route'].type == 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['route'] = False
+    elif userGoal['Bus number'] != '' and field['route'].type != 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['route'] = False
+    elif userGoal['Bus number'] != '' and userGoal['Bus number'] != field['route'].equals:
+#        reward = rewards['taskFailureReward']
+        fieldMatch['route'] = False
+    elif userGoal['Departure place'] == '' and field['departure_place'].type == 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['departure_place'] = False
+    elif userGoal['Departure place'] != '' and field['departure_place'].type != 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['departure_place'] = False
+    elif userGoal['Departure place'] != '' and userGoal['Departure place'] != field['departure_place'].equals:
+#        reward = rewards['taskFailureReward']
+        fieldMatch['departure_place'] = False
+    elif userGoal['Arrival place'] == '' and field['arrival_place'].type == 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['arrival_place'] = False
+    elif userGoal['Arrival place'] != '' and field['arrival_place'].type != 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['arrival_place'] = False
+    elif userGoal['Arrival place'] != '' and userGoal['Arrival place'] != field['arrival_place'].equals:
+#        reward = rewards['taskFailureReward']
+        fieldMatch['arrival_place'] = False
+    elif userGoal['Travel time'] == '' and field['travel_time'].type == 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['travel_time'] = False
+    elif userGoal['Travel time'] != '' and field['travel_time'].type != 'equals':
+#        reward = rewards['taskFailureReward']
+        fieldMatch['travel_time'] = False
+    elif userGoal['Travel time'] != '' and userGoal['Travel time'] != field['travel_time'].equals:
+#        reward = rewards['taskFailureReward']
+        fieldMatch['travel_time'] = False
+    elif sysAction.type == 'inform':
+        reward = rewards['taskSuccessReward']
+#    else:
+#        reward = rewards['taskProceedReward']
+    return reward,fieldMatch
 
 def GetSubSuccess(userGoal,beliefState,sysAction):
     if sysAction.type == 'inform':
@@ -123,7 +167,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
 #        asrResult = asrSimulation.SimASR(systemAction.grammar,userAction)
 #        appLogger.info('** ASR Result: **\n%s' % (asrResult))
         
-        reward = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
+        reward,fieldMatch = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
         dialogReward += reward
         nextSystemAction = dialogManager.TakeTurn(userAction,reward)
         
@@ -144,10 +188,10 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
         if i >= 50:#rewards['taskSuccessReward']:
             break
         i += 1
-    reward = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
+    reward,fieldMatch = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
     dialogReward += reward
     dialogManager.TakeTurn(None,reward)
-    if (systemAction.type == 'inform') and reward == rewards['taskSuccessReward']:
+    if systemAction.type == 'inform' and reward == rewards['taskSuccessReward']:
         dialogSuccess = True
     dialogSubSuccess = GetSubSuccess(userSimulation.goal,dialogManager.beliefState,systemAction)
     appLogger.info('\n------ Turn %d ------' % (i+1))
@@ -165,7 +209,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
            'userGoal': userSimulation.goal,
            'turns' : turns,
 #           'result': dialogManager.DialogResult()
-           'result': (dialogSuccess,dialogReward),
+           'result': (dialogSuccess,dialogReward,fieldMatch),
            'subSuccess': dialogSubSuccess
            }
     return log
@@ -183,13 +227,13 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(2):
+    for testIndex in range(1,2):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [500]
+            iter = [1000]
             errorRates = [-1]
         elif testIndex == 1:
-            iter = [500]
+            iter = [200]
             errorRates = [-1]
             config.set('DialogManager','preferNaturalSequence','false')
 #        elif testIndex == 2:
@@ -197,13 +241,14 @@ def main():
 #            errorRates = [-1]
 #            config.set('DialogManager','preferNaturalSequence','true')
 #            config.set('DialogManager','useDirectedOpenQuestion','false')
-#        elif testIndex == 3:
-#            iter = [500]
-#            errorRates = [-1]
-#            config.set('DialogManager','useDirectedOpenQuestion','true')
-#            config.set('DialogManager','confidenceScoreCalibration','false')
-#            config.set('BeliefState','useLearnedUserModel','false')
-#            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+        elif testIndex == 2:
+            iter = [500]
+            errorRates = [-1]
+            config.set('DialogManager','preferNaturalSequence','true')
+            config.set('DialogManager','useDirectedOpenQuestion','true')
+            config.set('DialogManager','confidenceScoreCalibration','false')
+            config.set('BeliefState','useLearnedUserModel','false')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
 #        elif testIndex == 4:
 #            iter = [500]
 #            errorRates = [-1]
@@ -213,7 +258,7 @@ def main():
 #        iter = [200]
 #        errorRates = [0,1,2]
 #        errorRates = [-1]
-        interval = 10
+        interval = 4
 #        basisFunctionMax = [500]
         basisFunctionMax = ['500','500','500','500']
         totalDialogSuccessCount = 0
@@ -233,6 +278,18 @@ def main():
         totalAvgDialogLength = []
         intervalAvgDialogLength = []
         intervalElapsedTime = []
+        totalIncorrectRouteCount = 0
+        intervalIncorrectRouteCount = 0
+        intervalIncorrectRouteCounts = []
+        totalIncorrectDeparturePlaceCount = 0
+        intervalIncorrectDeparturePlaceCount = 0
+        intervalIncorrectDeparturePlaceCounts = []
+        totalIncorrectArrivalPlaceCount = 0
+        intervalIncorrectArrivalPlaceCount = 0
+        intervalIncorrectArrivalPlaceCounts = []
+        totalIncorrectTravelTimeCount = 0
+        intervalIncorrectTravelTimeCount = 0
+        intervalIncorrectTravelTimeCounts = []
         
         startTime = dt.datetime.now()
         intervalStartTime = dt.datetime.now()
@@ -298,6 +355,18 @@ def main():
                 if log['subSuccess']: 
                     totalDialogSubSuccessCount += 1
                     intervalDialogSubSuccessCount += 1
+                if not log['result'][2]['route']:
+                    totalIncorrectRouteCount += 1
+                    intervalIncorrectRouteCount += 1
+                if not log['result'][2]['departure_place']:
+                    totalIncorrectDeparturePlaceCount += 1
+                    intervalIncorrectDeparturePlaceCount += 1
+                if not log['result'][2]['arrival_place']:
+                    totalIncorrectArrivalPlaceCount += 1
+                    intervalIncorrectArrivalPlaceCount += 1
+                if not log['result'][2]['travel_time']:
+                    totalIncorrectTravelTimeCount += 1
+                    intervalIncorrectTravelTimeCount += 1
 #                if (i+1) % (iter[errorRate]/interval) == 0:
                 if (dialogNum+1) % (maxDialogNum/interval) == 0:
                     intervalElapsedTime.append(str(dt.datetime.now() - intervalStartTime))
@@ -338,6 +407,23 @@ def main():
 #                    totalDialogSubSuccessRate.append(float(totalDialogSubSuccessCount)/(i+1))
                     totalDialogSubSuccessRate.append(float(totalDialogSubSuccessCount)/(dialogNum+1))
                     appLogger.info('Cumulative dialog success rate in ignorance of route: %f'%totalDialogSubSuccessRate[-1])
+
+                    intervalIncorrectRouteCounts.append(intervalIncorrectRouteCount)
+                    intervalIncorrectRouteCount = 0
+                    appLogger.info('Interval number of incorrect route: %d'%intervalIncorrectRouteCounts[-1])
+                    
+                    intervalIncorrectDeparturePlaceCounts.append(intervalIncorrectDeparturePlaceCount)
+                    intervalIncorrectDeparturePlaceCount = 0
+                    appLogger.info('Interval number of incorrect departure place: %d'%intervalIncorrectDeparturePlaceCounts[-1])
+                    
+                    intervalIncorrectArrivalPlaceCounts.append(intervalIncorrectArrivalPlaceCount)
+                    intervalIncorrectArrivalPlaceCount = 0
+                    appLogger.info('Interval number of incorrect arrival place: %d'%intervalIncorrectArrivalPlaceCounts[-1])
+                    
+                    intervalIncorrectTravelTimeCounts.append(intervalIncorrectTravelTimeCount)
+                    intervalIncorrectTravelTimeCount = 0
+                    appLogger.info('Interval number of incorrect travel time: %d'%intervalIncorrectTravelTimeCounts[-1])
+                    
                     intervalStartTime = dt.datetime.now()
                     
     #            if (i+1) % (iter/1) == 0:
@@ -362,6 +448,18 @@ def main():
         appLogger.info('Cumulative dialog success rates in ignorance of route: %s'%str(totalDialogSubSuccessRate))
         appLogger.info('Total dialog success count in ignorance of route: %d'%totalDialogSubSuccessCount)
     
+        appLogger.info('Interval number of incorrect route: %s'%str(intervalIncorrectRouteCounts))
+        appLogger.info('Total number of incorrect route: %d'%totalIncorrectRouteCount)
+
+        appLogger.info('Interval number of incorrect departure place: %s'%str(intervalIncorrectDeparturePlaceCounts))
+        appLogger.info('Total number of incorrect departure place: %d'%totalIncorrectDeparturePlaceCount)
+
+        appLogger.info('Interval number of incorrect arrival place: %s'%str(intervalIncorrectArrivalPlaceCounts))
+        appLogger.info('Total number of incorrect arrival place: %d'%totalIncorrectArrivalPlaceCount)
+
+        appLogger.info('Interval number of incorrect travel time: %s'%str(intervalIncorrectTravelTimeCounts))
+        appLogger.info('Total number of incorrect travel time: %d'%totalIncorrectTravelTimeCount)
+
         appLogger.info('Interval elapsed times: %s'%str(intervalElapsedTime))
         appLogger.info('Start time: %s'%startTime.isoformat(' '))
         appLogger.info('End time: %s'%endTime.isoformat(' '))
