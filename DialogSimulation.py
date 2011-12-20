@@ -233,7 +233,7 @@ def main():
             iter = [1000]
             errorRates = [-1]
         elif testIndex == 1:
-            iter = [200]
+            iter = [1000]
             errorRates = [-1]
             config.set('DialogManager','preferNaturalSequence','false')
 #        elif testIndex == 2:

@@ -8,6 +8,8 @@ class UserSimulation(object):
     def __init__(self):
         self.config = GetConfig()
         assert (not self.config==None), 'Config file required'
+        assert (self.config.has_option('LGus','LOGIN_PAGE')),'LGus section missing field LOGIN_PAGE'
+        self.login_page = self.config.get('LGus','LOGIN_PAGE')
         assert (self.config.has_option('LGus','URL')),'LGus section missing field URL'
         self.url = self.config.get('LGus','URL')
         assert (self.config.has_option('LGus','ID')),'LGus section missing field ID'
@@ -16,7 +18,7 @@ class UserSimulation(object):
         self.id['password'] = self.config.get('LGus','PASSWD')
         try:
             data = urllib.urlencode(self.id)
-            req = urllib2.Request(self.url, data)
+            req = urllib2.Request(self.login_page, data)
             cj = cookielib.CookieJar()
             self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
             response = self.opener.open(req)
@@ -36,7 +38,7 @@ class UserSimulation(object):
                   'X-Requested-With':'XMLHttpRequest',\
                   'Accept':'application/json'}
 
-        req = urllib2.Request('http://128.2.210.190:9090/services/rest/usr_sim', data, header)
+        req = urllib2.Request('http://%s/services/rest/usr_sim'%self.url, data, header)
         response = self.opener.open(req)
         return response.read()
 
