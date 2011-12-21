@@ -2,7 +2,7 @@
 
 '''
 
-import os
+import os,traceback
 import logging
 from GlobalConfig import GetConfig
 from BeliefState import BeliefState
@@ -498,6 +498,7 @@ class SBSarsaDialogManager(DialogManager):
                 X = [np.array(contX),userAction,act]
                 Qval = np.dot(self._basis_vector(self.GetBasisPoints(),X).T,w_infer)[0,0]
         except:
+            self.appLogger.info(traceback.format_exc())
             self.appLogger.info('Cannot perform SBR inference')
             Qval = -1.0
             

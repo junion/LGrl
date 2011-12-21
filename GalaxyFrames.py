@@ -765,35 +765,36 @@ def MakeSystemUtterance(utterType,stateType,turnNumber,notifyPrompts,dialogState
 	if utterType.startswith('inform_confirm_okay'):
 		utterType = 'inform_confirm_okay'
 	elements = utterElementsDict[utterType]  
+	appLogger.info('0')
 	
 	content = content.replace('${dialog_act}',elements['DialogAct'])
-#	appLogger.info('%s'%content)
+	appLogger.info('1')
 	content = content.replace('${final_floor_status}',elements['FloorState'])
-#	appLogger.info('%s'%content)
+	appLogger.info('2')
 	content = content.replace('${object}',elements['Object'])
-#	appLogger.info('%s'%content)
+	appLogger.info('3')
 	if query == '' and elements['Query'] != '':
 		query = elements['Query']
 	content = content.replace('${query}',query)
-#	appLogger.info('%s'%content)
+	appLogger.info('4')
 	content = content.replace('${result}',result)
-#	appLogger.info('%s'%content)
+	appLogger.info('5')
 	content = content.replace('${agent}',elements['Agent'])
-#	appLogger.info('%s'%content)
+	appLogger.info('6')
 	content = content.replace('${version}',version)
-#	appLogger.info('%s'%content)
+	appLogger.info('7')
 	content = content.replace('${option}',elements['Option'])
-#	appLogger.info('%s'%content)
+	appLogger.info('8')
 	content = content.replace('${dialog_state}',MakeDialogState(stateType,turnNumber,notifyPrompts))
-#	appLogger.info('%s'%content)
+	appLogger.info('9')
 	content = content.replace('${dialog_state_index}',str(dialogStateIndex))
-#	appLogger.info('%s'%content)
+	appLogger.info('10')
 	content = content.replace('${sess_id}',sessionID)
-#	appLogger.info('%s'%content)
+	appLogger.info('11')
 	content = content.replace('${id_suffix}','%03d'%idSuffix)
-#	appLogger.info('%s'%content)
+	appLogger.info('12')
 	content = content.replace('${utt_count}',str(uttCount))
-#	appLogger.info('%s'%content)
+	appLogger.info('13')
 
 	message = {'type':'GALAXYACTIONCALL',
 			   'content':content}
@@ -1058,6 +1059,7 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 	appLogger = logging.getLogger('DialogThread')
 	content = scheduleQuery
 	
+#	appLogger.info('Make query for schedule: %s',str(querySpec))
 	appLogger.info('Make query for schedule')
 
 	if 'day' in querySpec:
@@ -1078,20 +1080,20 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 		appLogger.info('6')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
 		appLogger.info('8')
-	elif 'period_spec' in querySpec:
+	elif 'now' in querySpec:
 		timeSpec = briefTimeSpec
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-		appLogger.info('5')
+		appLogger.info('9')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-		appLogger.info('7')
+		appLogger.info('10')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-		appLogger.info('8')
+		appLogger.info('11')
 	else:
 		timeSpec = veryBriefTimeSpec
 		timeSpec = timeSpec.replace('${value}',querySpec['value'])
-		appLogger.info('6')
+		appLogger.info('12')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-		appLogger.info('8')
+		appLogger.info('13')
 
 	appLogger.info('next %s'%next)
 	if not next: type = '2'
@@ -1189,20 +1191,20 @@ def MakeScheduleSection(querySpec,result,next=None):
 		appLogger.info('6')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
 		appLogger.info('8')
-	elif 'period_spec' in querySpec:
+	elif 'now' in querySpec:
 		timeSpec = briefTimeSpec
 		timeSpec = timeSpec.replace('${period_spec}',querySpec['period_spec'])
-		appLogger.info('5')
+		appLogger.info('9')
 		timeSpec = timeSpec.replace('${now}',querySpec['now'])
-		appLogger.info('7')
+		appLogger.info('10')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-		appLogger.info('8')
+		appLogger.info('11')
 	else:
 		timeSpec = veryBriefTimeSpec
 		timeSpec = timeSpec.replace('${value}',querySpec['value'])
-		appLogger.info('6')
+		appLogger.info('12')
 		timeSpec = timeSpec.replace('${time_type}',querySpec['time_type'])
-		appLogger.info('8')
+		appLogger.info('13')
 
 	query = query.replace('${time_spec}',timeSpec)
 #	appLogger.info('88')

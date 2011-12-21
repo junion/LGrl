@@ -12,6 +12,7 @@ import Queue
 from GlobalConfig import *
 import Galaxy,GalaxyIO
 from DialogThread import *
+from EmailLogging import *
 
 InitConfig()
 config = GetConfig()
@@ -90,7 +91,8 @@ def DoDialogFlow(frame=None):
 
     except Exception:
         appLogger.info(traceback.format_exc())
-        exit()
+        appLogger.error(traceback.format_exc())
+#        exit()
 
 def reinitialize(env,frame):
     global lastEnv
@@ -113,6 +115,7 @@ def begin_session(env,frame):
     global outQueue
 
     try:    
+        
         if inSession:
             end_session(env,frame)
         
@@ -128,10 +131,23 @@ def begin_session(env,frame):
         except KeyError:
             print "Can't find log information"
         else:
-            logging.basicConfig(filename=os.path.join(logDir,logPrefix),filemode='w',\
-                                format='%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s',\
-                                level=logging.DEBUG)
-            appLogger = logging.getLogger('Galaxy')
+            print os.path.join(logDir,logPrefix)
+#            logging.shutdown()
+            appLogger = logging.getLogger()
+            appLogger.setLevel(logging.DEBUG)
+            file_handler = logging.FileHandler(os.path.join(logDir,logPrefix))
+            file_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter("%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s")
+            file_handler.setFormatter(formatter)
+            appLogger.addHandler(file_handler)
+            gm = TlsSMTPHandler(("smtp.gmail.com", 587), 'letsgoreport@gmail.com', ['letsgoreport@gmail.com'],\
+                                 'New Report!', ('letsgoreport@gmail.com', 'letsgo!@#'))
+            gm.setLevel(logging.ERROR)
+            appLogger.addHandler(gm)
+#            logging.basicConfig(filename=os.path.join(logDir,logPrefix),filemode='w',\
+#                                format='%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s',\
+#                                level=logging.DEBUG)
+#            appLogger = logging.getLogger('Galaxy')
     
         appLogger.info('begin_session called.')
         appLogger.info('frame:\n %s'%frame.PPrint())
@@ -150,7 +166,7 @@ def begin_session(env,frame):
         outQueue = Queue.Queue()
        
     #    appLogger.info("Dialog thread creation")
-        dialogThread = DialogThread(str(sessionID),inQueue,outQueue)
+        dialogThread = DialogThread(str(sessionID),logDir,inQueue,outQueue)
     #    appLogger.info("Done")
         dialogThread.setDaemon(True)
     #    appLogger.info("Daemonized")
@@ -164,7 +180,8 @@ def begin_session(env,frame):
     except Exception:
         print traceback.format_exc()
         appLogger.info(traceback.format_exc())
-        exit()
+        appLogger.error(traceback.format_exc())
+#        exit()
         
     return frame
 
@@ -206,10 +223,15 @@ def end_session(env,frame):
         outQueue = None
         
         inSession = False
-    
+
+#        logging.shutdown()
+        appLogger.handlers[0].stream.close()
+        appLogger.removeHandler(appLogger.handlers[0])
+
     except Exception:
         appLogger.info(traceback.format_exc())
-        exit()
+        appLogger.error(traceback.format_exc())
+#        exit()
     
     return frame
 
@@ -240,7 +262,8 @@ def handle_event(env,frame):
 
     except Exception:
         appLogger.info(traceback.format_exc())
-        exit()
+        appLogger.error(traceback.format_exc())
+#        exit()
     
     return frame
     
