@@ -2,8 +2,8 @@
 # Dialog State
 #===============================================================================
 stateElementsDict = {'initial':{},'request_all':{},'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
-					'request_next_query':{},'request_next_query_error':{},'confirm_route':{},'confirm_departure_place':{},\
-					'confirm_arrival_place':{},'confirm_travel_time':{},\
+					'request_exact_travel_time':{},'request_next_query':{},'request_next_query_error':{},\
+					'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
 					'confirm_uncovered_place':{},'confirm_uncovered_route':{},'confirm_discontinued_route':{},\
 					'inform_welcome':{},'inform_confirm_okay_route':{},'inform_confirm_okay_departure_place':{},\
 					'inform_confirm_okay_arrival_place':{},'inform_confirm_okay_travel_time':{},\
@@ -73,6 +73,19 @@ stateElementsDict['request_travel_time']['Agenda'] = '''0:O[4_busafterthatreques
 3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
 4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
 stateElementsDict['request_travel_time']['LineConfig'] = 'set_dtmf_len = 1, set_lm = time'
+
+stateElementsDict['request_exact_travel_time']['DialogState'] = '/LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime/RequestExactTravelTime'
+stateElementsDict['request_exact_travel_time']['Stack'] = '''/LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime/RequestExactTravelTime
+  /LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime
+  /LetsGoPublic/PerformTask/GetQuerySpecs
+  /LetsGoPublic/PerformTask
+  /LetsGoPublic'''
+stateElementsDict['request_exact_travel_time']['Agenda'] = '''0:O[4_busafterthatrequest]S,O[date_time]S
+1:X[4_busafterthatrequest]S,X[date_time]S
+2:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_three]V,X[stop_name.monument]S,X[stop_name.registered_stop]S
+3:X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[finalquit]V,X[quit]V,X[repeat]V,X[startover]V
+4:X[dtmf_one]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,O[turn_timeout:timeout]V,X[turn_timeout:timeout]V,X[yes]V,X[yes]V'''
+stateElementsDict['request_exact_travel_time']['LineConfig'] = 'set_dtmf_len = 1, set_lm = time'
 
 stateElementsDict['request_next_query']['DialogState'] = '/LetsGoPublic/PerformTask/GiveResults/RequestNextQuery'
 stateElementsDict['request_next_query']['Stack'] = '''/LetsGoPublic/PerformTask/GiveResults/RequestNextQuery
@@ -421,7 +434,7 @@ stateElementsDict['inform_quit']['LineConfig'] = 'set_dtmf_len = 1, set_lm = fir
 # Utterance
 #===============================================================================
 utterElementsDict = {'inform_welcome':{},'inform_how_to_get_help':{},'request_all':{},\
-					'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},\
+					'request_departure_place':{},'request_arrival_place':{},'request_travel_time':{},'request_exact_travel_time':{},\
 					'request_next_query':{},'request_next_query_error':{},\
 					'confirm_route':{},'confirm_departure_place':{},'confirm_arrival_place':{},'confirm_travel_time':{},\
 					'confirm_uncovered_place':{},'confirm_uncovered_route':{},'confirm_discontinued_route':{},\
@@ -490,6 +503,15 @@ utterElementsDict['request_travel_time']['Result'] = ''
 utterElementsDict['request_travel_time']['Agent'] = 'agent	/LetsGoPublic/PerformTask/GetQuerySpecs/GetTravelTime/RequestTravelTime\n'
 utterElementsDict['request_travel_time']['Version'] = ''
 utterElementsDict['request_travel_time']['Option'] = ''
+
+utterElementsDict['request_exact_travel_time']['DialogAct'] = 'request'
+utterElementsDict['request_exact_travel_time']['FloorState'] = 'user'
+utterElementsDict['request_exact_travel_time']['Object'] = 'exact_travel_time'
+utterElementsDict['request_exact_travel_time']['Query'] = ''
+utterElementsDict['request_exact_travel_time']['Result'] = ''
+utterElementsDict['request_exact_travel_time']['Agent'] = ''
+utterElementsDict['request_exact_travel_time']['Version'] = ''
+utterElementsDict['request_exact_travel_time']['Option'] = ''
 
 utterElementsDict['request_next_query']['DialogAct'] = 'request'
 utterElementsDict['request_next_query']['FloorState'] = 'user'
@@ -604,7 +626,8 @@ utterElementsDict['inform_success']['Query'] = ''
 utterElementsDict['inform_success']['Result'] = ''
 utterElementsDict['inform_success']['Agent'] = ''
 utterElementsDict['inform_success']['Version'] = ''
-utterElementsDict['inform_success']['Option'] = ''
+utterElementsDict['inform_success']['Option'] = '''   :non-interruptable "true"
+'''
 
 utterElementsDict['inform_error']['DialogAct'] = 'inform'
 utterElementsDict['inform_error']['FloorState'] = 'free'

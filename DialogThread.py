@@ -24,7 +24,7 @@ class SkipDialogProcessing(Exception):
     pass
     
 class DialogThread(threading.Thread):
-    def __init__(self,sessionID,logDir,inQueue,outQueue):
+    def __init__(self,sessionID,logDir,inQueue,outQueue,resultQueue):
         threading.Thread.__init__(self)
 
         self.config = GetConfig()
@@ -45,6 +45,7 @@ class DialogThread(threading.Thread):
         self.newDialogState = None
         self.inQueue = inQueue
         self.outQueue = outQueue
+        self.resultQueue = resultQueue
         self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
@@ -92,6 +93,8 @@ class DialogThread(threading.Thread):
                 self.newDialogState = 'request_arrival_place'
             elif self.systemAction.content == 'travel_time':
                 self.newDialogState = 'request_travel_time'
+            elif self.systemAction.content == 'exact_travel_time':
+                self.newDialogState = 'request_exact_travel_time'
             elif self.systemAction.content == 'next_query':
                 self.newDialogState = 'request_next_query'
             elif self.systemAction.content == 'next_query_error':
@@ -255,8 +258,10 @@ class DialogThread(threading.Thread):
         if frame[':properties'].has_key(':[4_datetime]'):
             message = MakeParseDateTimeMessage(frame[':properties'][':gal_slotsframe'])
             self.outQueue.put(message)
-            result = self.inQueue.get()
-            self.inQueue.task_done()
+#            result = self.inQueue.get()
+#            self.inQueue.task_done()
+            result = self.resultQueue.get()
+            self.resultQueue.task_done()
             self.appLogger.info('Timeinfo: %s'%result.PPrint())
             dateTime = {}
             if result[':valid_date'] == 'true':
@@ -296,14 +301,17 @@ class DialogThread(threading.Thread):
                     dateTime['time_type'] = 'arrival'
                 else:
                     dateTime['time_type'] = 'departure'
-#            self.appLogger.info('3')
-            if result[':timeperiod_spec'] != '':
-                dateTime['period_spec'] = result[':timeperiod_spec']
-#            self.appLogger.info('4')
-            self.timeSpecDict.update({dateTime['value']:deepcopy(dateTime)})
-            self.appLogger.info('dateTime: %s'%str(dateTime))
-            userAction.content.update({'travel_time':dateTime['value']})
-#            self.appLogger.info('5')
+    #            self.appLogger.info('3')
+                if result[':timeperiod_spec'] != '':
+                    dateTime['period_spec'] = result[':timeperiod_spec']
+    #            self.appLogger.info('4')
+                self.timeSpecDict.update({dateTime['value']:deepcopy(dateTime)})
+                self.appLogger.info('dateTime: %s'%str(dateTime))
+                userAction.content.update({'travel_time':dateTime['value']})
+    #            self.appLogger.info('5')
+            else:
+                self.appLogger.info('No exact date time')
+                userAction.content.update({'travel_time':'NEED EXACT TIME'})
         if frame[':properties'].has_key(':[4_busafterthatrequest]'):
             self.appLogger.info('%s'%frame[':properties'][':[4_busafterthatrequest]'])
             if self.systemAction.type == 'ask' and self.systemAction.force == 'request' and \
@@ -373,8 +381,10 @@ class DialogThread(threading.Thread):
         message = MakeDialogStateMessage(self.dialogState,self.turnNumber,\
                                       ' '.join(self.notifyPrompts))
         self.outQueue.put(message)
-        self.inQueue.get()
-        self.inQueue.task_done()
+#        self.inQueue.get()
+#        self.inQueue.task_done()
+        self.resultQueue.get()
+        self.resultQueue.task_done()
 
     def _TurnTimeoutHandler(self,frame):
         self.appLogger.info('turn_timeout')
@@ -398,16 +408,20 @@ class DialogThread(threading.Thread):
         self.idSuffix += 1
         self.uttCount += 1
         self.outQueue.put(message)
-        self.inQueue.get()
-        self.inQueue.task_done()
+#        self.inQueue.get()
+#        self.inQueue.task_done()
+        self.resultQueue.get()
+        self.resultQueue.task_done()
 
     def _RequestDeparturePlaceQuery(self,args):
         # Backend lookup
         querySpec = args
         message = MakeDeparturePlaceQuery(querySpec)
         self.outQueue.put(message)
-        result = self.inQueue.get()
-        self.inQueue.task_done()
+#        result = self.inQueue.get()
+#        self.inQueue.task_done()
+        result = self.resultQueue.get()
+        self.resultQueue.task_done()
         if result:
             self.departurePlaceQuerySpecDict[querySpec['departure_place']] = result[':outframe']
         else:
@@ -417,8 +431,10 @@ class DialogThread(threading.Thread):
         querySpec = args
         message = MakeArrivalPlaceQuery(querySpec)
         self.outQueue.put(message)
-        result = self.inQueue.get()
-        self.inQueue.task_done()
+#        result = self.inQueue.get()
+#        self.inQueue.task_done()
+        result = self.resultQueue.get()
+        self.resultQueue.task_done()
         if result:
             self.arrivalPlaceQuerySpecDict[querySpec['arrival_place']] = result[':outframe']
         else:
@@ -457,8 +473,10 @@ class DialogThread(threading.Thread):
 
         message = MakeScheduleQuery(self.querySpec)
         self.outQueue.put(message)
-        self.result = self.inQueue.get()
-        self.inQueue.task_done()
+#        self.result = self.inQueue.get()
+#        self.inQueue.task_done()
+        self.result = self.resultQueue.get()
+        self.resultQueue.task_done()
         if self.result:
             self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
         else:
@@ -468,8 +486,10 @@ class DialogThread(threading.Thread):
 #        next = args if args else None
         message = MakeScheduleQuery(self.querySpec,self.result[':outframe'],args)
         self.outQueue.put(message)
-        self.rides = self.inQueue.get()
-        self.inQueue.task_done()
+#        self.rides = self.inQueue.get()
+#        self.inQueue.task_done()
+        self.rides = self.resultQueue.get()
+        self.resultQueue.task_done()
         self._MergeResultRide()
         if self.result:
             self.appLogger.info('Bus schedule: %s'%self.result.PPrint())
@@ -501,8 +521,10 @@ class DialogThread(threading.Thread):
         self.idSuffix += 1
         self.uttCount += 1
         self.outQueue.put(message)
-        self.inQueue.get()
-        self.inQueue.task_done()
+#        self.inQueue.get()
+#        self.inQueue.task_done()
+        self.resultQueue.get()
+        self.resultQueue.task_done()
                 
     def _MergeResultRide(self):
         newResult = []
@@ -561,7 +583,7 @@ class DialogThread(threading.Thread):
                 self.appLogger.info('%s'%eventType)
                 for i,(interruptible,execution,function,args) in enumerate(self.taskQueue):
                     if interruptible and eventType == 'user_utterance_end': 
-                        self.appLogger.info('interruptible: %s'%str(interruptible))
+                        self.appLogger.info('Discard interruptible event')
                         self.appLogger.info('execution: %s'%str(execution))
                         self.appLogger.info('function: %s'%str(function))
                         self.appLogger.info('args: %s'%str(args))
@@ -603,12 +625,20 @@ class DialogThread(threading.Thread):
                     if self.asrResult.userActions[0].type == 'non-understanding' or \
                     'next' not in self.asrResult.userActions[0].content:
 #                        self.appLogger.info('discard')
-                        self.systemAction.content = 'next_query'
-                        self.systemAction.type = 'ask'
-                        self.systemAction.force = 'request'
-                        self._GetNewDialogState()
-#                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
-                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,'version\twhat_can_i_say\n')))
+                        if self.systemAction.content == 'next_query':
+                            self.systemAction.content = 'next_query'
+                            self.systemAction.type = 'ask'
+                            self.systemAction.force = 'request'
+                            self._GetNewDialogState()
+    #                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                            self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,'version\twhat_can_i_say\n')))
+                        else:
+                            self.systemAction.content = 'next_query_error'
+                            self.systemAction.type = 'ask'
+                            self.systemAction.force = 'request'
+                            self._GetNewDialogState()
+    #                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                            self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                         raise GotoException('Do task')
                     next = self.asrResult.userActions[0].content['next']
                     if  next in ['NEXT BUS','PREVIOUS BUS']:
@@ -685,6 +715,16 @@ class DialogThread(threading.Thread):
                         query = 'discontinued_route\t%s\n'%self.systemAction.content['discontinued_route']
                         self._GetNewDialogState()
     #                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        raise GotoException('Do task')
+
+                    if self.asrResult.userActions[0].type != 'non-understanding' and \
+                    'travel_time' in self.asrResult.userActions[0].content and \
+                    self.asrResult.userActions[0].content['travel_time'] == 'NEED EXACT TIME':
+                        self.systemAction.type = 'ask'
+                        self.systemAction.force = 'request'
+                        self.systemAction.content = 'exact_travel_time'
+                        self._GetNewDialogState()
                         self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                         raise GotoException('Do task')
     
@@ -778,20 +818,22 @@ class DialogThread(threading.Thread):
             self.appLogger.info(traceback.format_exc())
 
         self.appLogger.info('Tasks in wait:')
-        self.appLogger.info('\n'.join([str(x) for x in self.taskQueue]))
+        self.appLogger.info('->\n'.join([str(x) for x in self.taskQueue]))
         while self.notifyPrompts == [] and self.taskQueue != []:
             (interruptible,execution,function,args) = self.taskQueue.pop(0)
-            self.appLogger.info('interruptible: %s'%str(interruptible))
-            self.appLogger.info('execution: %s'%str(execution))
-            self.appLogger.info('function: %s'%str(function))
-            self.appLogger.info('args: %s'%str(args))
             if not interruptible or self.waitEvent == []:
+                self.waitEvent = filter(lambda x: x[0] == 'end_session',self.waitEvent)
+                self.appLogger.info('Execute a task:')
+                self.appLogger.info('interruptible: %s'%str(interruptible))
+                self.appLogger.info('execution: %s'%str(execution))
+                self.appLogger.info('function: %s'%str(function))
+                self.appLogger.info('args: %s'%str(args))
                 function(args)
                 if not execution:
                     break
         
     def run(self):
-            dialogSuccess = False
+            dialogSuccess = ''
             while True:
                 try:
                     skipDialogProcessing = False
@@ -849,6 +891,7 @@ class DialogThread(threading.Thread):
                             self._DialogStateChangeHandler(frame)
                         elif eventType == 'turn_timeout':
                             if len(self.notifyPrompts) > 0:
+                                self.appLogger.info('Append turn timeout to wait event queue')
                                 self.waitEvent.append(('turn_timeout',frame))
                                 skipDialogProcessing = True
                             else:
@@ -858,11 +901,14 @@ class DialogThread(threading.Thread):
                     elif frame.name == 'end_session':
                         eventType = 'end_session'
                         if len(self.notifyPrompts) > 0:
+                            self.appLogger.info('Append end session to wait event queue')
                             self.waitEvent.append(('end_session',frame))
                             skipDialogProcessing = True
                         else:
-                            if dialogSuccess:
-                                self.appLogger.critical('Dialog %s: Success'%self.logDir)
+                            if dialogSuccess == 'inform_success':
+                                self.appLogger.critical('Dialog %s: Inform success'%self.logDir)
+                            elif dialogSuccess == 'inform_error':
+                                self.appLogger.critical('Dialog %s: Inform error'%self.logDir)
                             else:
                                 self.appLogger.critical('Dialog %s: Fail'%self.logDir)
                             self._EndSessionHandler(frame)
@@ -872,19 +918,26 @@ class DialogThread(threading.Thread):
                     if not skipDialogProcessing:
                         self._DialogProcessing(eventType)
                         if self.newDialogState == 'inform_success':
-                            dialogSuccess = True
+                            dialogSuccess = 'inform_success'
+                        if self.newDialogState == 'inform_error':
+                            dialogSuccess = 'inform_error'
                         if self.notifyPrompts == [] and self.dialogState == 'inform_quit':
                             self.appLogger.info('Terminate for %s'%self.dialogState)
                             message = {'type':'DIALOGFINISHED'}
                             self.outQueue.put(message)
+                    if not self.notifyPrompts == [] and len(self.waitEvent) > 1:
+                        self.appLogger.info('Broadcasting dialog state to get events')
+                        self._DialogStateChangeHandler(None)
                     if not self.notifyPrompts == [] or self.waitEvent == []:
+                        self.appLogger.info('Indicate waiting for interaction events')
                         message = {'type':'WAITINTERACTIONEVENT'}
                         self.outQueue.put(message)
                 except Exception:
-                    self.appLogger.info('Tasks in wait:')
-                    self.appLogger.info('\n'.join([str(x) for x in self.taskQueue]))
+                    self.appLogger.info('Try to recover from crash:')
                     self.appLogger.info(traceback.format_exc())
                     self.appLogger.error(traceback.format_exc())
+                    self.appLogger.info('Tasks in wait:')
+                    self.appLogger.info('->\n'.join([str(x) for x in self.taskQueue]))
                     self._InitDataForNewQuery()
                     self.systemAction = self.dialogManager.Init()
                     self._GetNewDialogState()

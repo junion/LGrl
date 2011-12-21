@@ -31,6 +31,7 @@ timeoutPeriod = 8
 
 inQueue = None
 outQueue = None
+resultQueue = None
 
 def CallGalaxyModuleFunction(galaxyCall):
     global lastEnv
@@ -53,40 +54,53 @@ def SendActionThroughHub(galaxyCall):
 def DoDialogFlow(frame=None):
     global inQueue
     global outQueue
+    global resultQueue
     global lastFrame
 
     try:
         appLogger.info('DoDialogFlow')
     #    appLogger.info('lastFrame:\n %s'%str(lastFrame))
         inQueue.put(frame)
-        appLogger.info('Message out')
+        appLogger.info('Sent a frame to dialog thread')
     
         while True:
+            appLogger.info('Waiting for a message in')
             message = outQueue.get()
-            appLogger.info('Message in')
+            appLogger.info('Got a message')
             outQueue.task_done()
             if message['type'] == 'GALAXYCALL':
                 appLogger.info('GALAXYCALL')
                 appLogger.info('%s'%message['content'])
                 result = CallGalaxyModuleFunction(message['content'])
-                appLogger.info('Message sent')
-                inQueue.put(result)
+                appLogger.info('GALAXYCALL completed')
+#                inQueue.put(result)
+                resultQueue.put(result)
+                appLogger.info('Returned the result')
+#                outQueue.task_done()
             elif message['type'] == 'GALAXYACTIONCALL':
                 appLogger.info('GALAXYACTIONCALL')
                 appLogger.info('%s'%message['content'])
                 SendActionThroughHub(message['content'])
-                appLogger.info('Message sent')
-                inQueue.put(None)
+                appLogger.info('GALAXYACTIONCALL completed')
+#                inQueue.put(None)
+                resultQueue.put(None)
+                appLogger.info('Returned the result')
+#                outQueue.task_done()
             elif message['type'] == 'WAITINPUT':
+                appLogger.info('Wait input')
+#                outQueue.task_done()
                 return False
             elif message['type'] == 'WAITINTERACTIONEVENT':
                 appLogger.info('Wait interaction event')
+#                outQueue.task_done()
                 return False
             elif message['type'] == 'DIALOGFINISHED':
                 appLogger.info('Dialog finished')
+#                outQueue.task_done()
                 return True
             elif message['type'] == 'ENDSESSION':
                 appLogger.info('End session')
+#                outQueue.task_done()
                 return True
 
     except Exception:
@@ -113,6 +127,7 @@ def begin_session(env,frame):
     global dialogThread
     global inQueue
     global outQueue
+    global resultQueue
 
     try:    
         
@@ -164,9 +179,10 @@ def begin_session(env,frame):
      
         inQueue = Queue.Queue()
         outQueue = Queue.Queue()
+        resultQueue = Queue.Queue()
        
     #    appLogger.info("Dialog thread creation")
-        dialogThread = DialogThread(str(sessionID),logDir,inQueue,outQueue)
+        dialogThread = DialogThread(str(sessionID),logDir,inQueue,outQueue,resultQueue)
     #    appLogger.info("Done")
         dialogThread.setDaemon(True)
     #    appLogger.info("Daemonized")
@@ -193,6 +209,7 @@ def end_session(env,frame):
     global dialogThread
     global inQueue
     global outQueue
+    global resultQueue
 
     try:
         if not inSession:
@@ -221,6 +238,7 @@ def end_session(env,frame):
         dialogThread = None
         inQueue = None
         outQueue = None
+        resultQueue = None
         
         inSession = False
 
