@@ -24,7 +24,7 @@ from GlobalConfig import GetConfig
 from DB import GetDB
 from Utils import Combination, ConfigSectionToDict
 #from WatsonFeatures import ExtractFeatures
-from statlib.stats import lbetai
+#from statlib.stats import lbetai
 import math
 import logging
 
@@ -274,113 +274,113 @@ class ASRResult:
         self.correctPosition = None
         self.watsonResult = None
 
-    @classmethod
-    def FromWatson(cls,watsonResult,grammar):
-        '''
-        Constructor for creating an ASRResult object from a real speech recognition
-        output.
-
-        watsonResult is JSON in the form:
-
-        {
-          'nbest': [
-            { ... },
-            { ... },
-            ...
-          ],
-          'nlu-sisr' : [
-            { 'interp' : {
-                'first' : 'JASON',
-                'last' : 'WILLIAMS'
-                ...
-               },
-            },
-            { 'interp' : {
-                'first' : 'JAMISON',
-                'last' : 'WILLIAMS'
-                ...
-               },
-            },
-            ...
-          ],
-        }
-
-        and grammar is a Grammar object.
-
-        Based on the features in the recognition result, probabilities are estimated
-        for each of the N-Best list entries.
-        '''
-        self = cls()
-        self.grammar = grammar
-        self.isTerminal = False
-        self.userActions = []
-        self.probs = []
-        self.watsonResult = watsonResult
-        db = GetDB()
-        self.fields = ['route','departure_place','arrival_place','travel_time']#db.GetFields()
-        self.fields.append('confirm')
-        if ('nlu-sisr' in watsonResult):
-            for result in watsonResult['nlu-sisr']:
-                content = {}
-                if ('interp' in result):
-                    for field in self.fields:
-                        if (field in result['interp']):
-                            content[field] = result['interp'][field]
-                if (len(content)>0):
-                    self.userActions.append(UserAction('ig',content))
-        if (len(self.userActions) == 0):
-            return self
-        fullGrammarName = self.grammar.GetFullName()
-        fullSectionName = '%s_%s' % (self.MY_ID,fullGrammarName)
-        wildcardSectionName = '%s_*' % (self.MY_ID)
-        if (self.config.has_section(fullSectionName)):
-            sectionName = fullSectionName
-        elif (self.config.has_section(wildcardSectionName)):
-            sectionName = wildcardSectionName
-        else:
-            raise RuntimeError,'Configuration file has neither %s nor %s defined' % (fullSectionName,wildcardSectionName)
-        self.params = ConfigSectionToDict(self.config,sectionName)
-        self.applogger.debug('Params = %s' % (self.params))
-        turn = { 'recoResults': watsonResult, }
-        self.features = [1]
-#        asrFeatures = ExtractFeatures(turn)
-        asrFeatures = {}
-        if (None in asrFeatures):
-            self.userActions = []
-            return
-        self.features.extend(asrFeatures)
-        partial = {}
-        if (len(self.userActions) == 1):
-            types = ['correct','offList']
-        else:
-            types = ['correct','onList','offList']
-        for type in types:
-            exponent = 0.0
-            for (i,feature) in enumerate(self.features):
-                exponent += feature * self.params['regression'][type][str(i)]
-            partial[type] = math.exp(exponent)
-        rawProbs = {}
-        sum = 0.0
-        for type in types:
-            sum += partial[type]
-        for type in types:
-            rawProbs[type] = partial[type] / sum
-        self.probs = [ rawProbs['correct'] ]
-        N = len(self.userActions)
-        alpha = self.params['onListFraction']['alpha']
-        beta = self.params['onListFraction']['beta']
-        for n in range(1,len(self.userActions)):
-            bucketLeftEdge = 1.0*(n-1)/N
-            bucketRightEdge = 1.0*n/N
-            betaRight = lbetai(alpha,beta,bucketRightEdge) / lbetai(alpha,beta,1.0)
-            betaLeft = lbetai(alpha,beta,bucketLeftEdge) / lbetai(alpha,beta,1.0)
-            betaPart = betaRight - betaLeft
-            self.probs.append( 1.0 * rawProbs['onList'] * betaPart )
-        self.probTotal = 0.0
-        for prob in self.probs:
-            self.probTotal += prob
-        assert (self.probTotal <= 1.0),'Total probability exceeds 1.0: %f' % (self.probTotal)
-        return self
+#    @classmethod
+#    def FromWatson(cls,watsonResult,grammar):
+#        '''
+#        Constructor for creating an ASRResult object from a real speech recognition
+#        output.
+#
+#        watsonResult is JSON in the form:
+#
+#        {
+#          'nbest': [
+#            { ... },
+#            { ... },
+#            ...
+#          ],
+#          'nlu-sisr' : [
+#            { 'interp' : {
+#                'first' : 'JASON',
+#                'last' : 'WILLIAMS'
+#                ...
+#               },
+#            },
+#            { 'interp' : {
+#                'first' : 'JAMISON',
+#                'last' : 'WILLIAMS'
+#                ...
+#               },
+#            },
+#            ...
+#          ],
+#        }
+#
+#        and grammar is a Grammar object.
+#
+#        Based on the features in the recognition result, probabilities are estimated
+#        for each of the N-Best list entries.
+#        '''
+#        self = cls()
+#        self.grammar = grammar
+#        self.isTerminal = False
+#        self.userActions = []
+#        self.probs = []
+#        self.watsonResult = watsonResult
+#        db = GetDB()
+#        self.fields = ['route','departure_place','arrival_place','travel_time']#db.GetFields()
+#        self.fields.append('confirm')
+#        if ('nlu-sisr' in watsonResult):
+#            for result in watsonResult['nlu-sisr']:
+#                content = {}
+#                if ('interp' in result):
+#                    for field in self.fields:
+#                        if (field in result['interp']):
+#                            content[field] = result['interp'][field]
+#                if (len(content)>0):
+#                    self.userActions.append(UserAction('ig',content))
+#        if (len(self.userActions) == 0):
+#            return self
+#        fullGrammarName = self.grammar.GetFullName()
+#        fullSectionName = '%s_%s' % (self.MY_ID,fullGrammarName)
+#        wildcardSectionName = '%s_*' % (self.MY_ID)
+#        if (self.config.has_section(fullSectionName)):
+#            sectionName = fullSectionName
+#        elif (self.config.has_section(wildcardSectionName)):
+#            sectionName = wildcardSectionName
+#        else:
+#            raise RuntimeError,'Configuration file has neither %s nor %s defined' % (fullSectionName,wildcardSectionName)
+#        self.params = ConfigSectionToDict(self.config,sectionName)
+#        self.applogger.debug('Params = %s' % (self.params))
+#        turn = { 'recoResults': watsonResult, }
+#        self.features = [1]
+##        asrFeatures = ExtractFeatures(turn)
+#        asrFeatures = {}
+#        if (None in asrFeatures):
+#            self.userActions = []
+#            return
+#        self.features.extend(asrFeatures)
+#        partial = {}
+#        if (len(self.userActions) == 1):
+#            types = ['correct','offList']
+#        else:
+#            types = ['correct','onList','offList']
+#        for type in types:
+#            exponent = 0.0
+#            for (i,feature) in enumerate(self.features):
+#                exponent += feature * self.params['regression'][type][str(i)]
+#            partial[type] = math.exp(exponent)
+#        rawProbs = {}
+#        sum = 0.0
+#        for type in types:
+#            sum += partial[type]
+#        for type in types:
+#            rawProbs[type] = partial[type] / sum
+#        self.probs = [ rawProbs['correct'] ]
+#        N = len(self.userActions)
+#        alpha = self.params['onListFraction']['alpha']
+#        beta = self.params['onListFraction']['beta']
+#        for n in range(1,len(self.userActions)):
+#            bucketLeftEdge = 1.0*(n-1)/N
+#            bucketRightEdge = 1.0*n/N
+#            betaRight = lbetai(alpha,beta,bucketRightEdge) / lbetai(alpha,beta,1.0)
+#            betaLeft = lbetai(alpha,beta,bucketLeftEdge) / lbetai(alpha,beta,1.0)
+#            betaPart = betaRight - betaLeft
+#            self.probs.append( 1.0 * rawProbs['onList'] * betaPart )
+#        self.probTotal = 0.0
+#        for prob in self.probs:
+#            self.probTotal += prob
+#        assert (self.probTotal <= 1.0),'Total probability exceeds 1.0: %f' % (self.probTotal)
+#        return self
 
     @classmethod
     def FromHelios(cls,userActions,probs,isTerminal=False,correctPosition=None):
