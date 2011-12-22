@@ -32,10 +32,11 @@ class TlsSMTPHandler(logging.handlers.SMTPHandler):
                 smtp.login(self.username, self.password)
             smtp.sendmail(self.fromaddr, self.toaddrs, msg)
             smtp.quit()
-        except (KeyboardInterrupt, SystemExit):
-            raise
+#        except (KeyboardInterrupt, SystemExit):
+#            raise
         except:
-            self.handleError(record)
+            pass
+#            self.handleError(record)
  
 #logger = logging.getLogger()
 # 

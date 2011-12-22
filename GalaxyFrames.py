@@ -11,7 +11,7 @@ stateElementsDict = {'initial':{},'request_all':{},'request_departure_place':{},
 					'inform_confirm_okay_discontinued_route':{},\
 					'inform_processing':{},'inform_success':{},'inform_error':{},'inform_subsequent_processing':{},\
 					'inform_starting_new_query':{},'inform_uncovered_place':{},\
-					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{}}
+					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{},'inform_generic_tips':{}}
 
 #===============================================================================
 # Initial State
@@ -429,6 +429,13 @@ stateElementsDict['inform_quit']['Agenda'] = '''0:
 1:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_one]V,X[dtmf_three]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[finalquit]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[quit]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,X[startover]V,X[stop_name.monument]S,X[stop_name.registered_stop]S,O[turn_timeout:timeout]V,O[yes]V,X[yes]V'''
 stateElementsDict['inform_quit']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
 
+stateElementsDict['inform_generic_tips']['DialogState'] = '/LetsGoPublic/InformGenericTips'
+stateElementsDict['inform_generic_tips']['Stack'] = '''/LetsGoPublic/InformGenericTips
+  /LetsGoPublic'''
+stateElementsDict['inform_generic_tips']['Agenda'] = '''0:
+1:X[0_covered_route]S,X[0_discontinued_route]S,X[0_uncovered_route]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.ambiguous_covered_place]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.covered_neighborhood]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.monument]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.covered_place.registered_stop]S,X[1_singleplace.stop_name.uncovered_place]S,X[2_departureplace.stop_name.covered_place.ambiguous_covered_place]S,X[2_departureplace.stop_name.covered_place.covered_neighborhood]S,X[2_departureplace.stop_name.covered_place.monument]S,X[2_departureplace.stop_name.covered_place.registered_stop]S,X[2_departureplace.stop_name.uncovered_place]S,X[3_arrivalplace.stop_name.covered_place.ambiguous_covered_place]S,X[3_arrivalplace.stop_name.covered_place.covered_neighborhood]S,X[3_arrivalplace.stop_name.covered_place.monument]S,X[3_arrivalplace.stop_name.covered_place.registered_stop]S,X[3_arrivalplace.stop_name.uncovered_place]S,X[4_busafterthatrequest]S,X[4_busafterthatrequest]V,X[4_busbeforethatrequest]V,X[ambiguous_covered_place]S,X[anystop]V,X[covered_neighborhood]S,X[date_time]S,X[disambiguatearrival]V,X[disambiguatedeparture]V,X[dontknow]V,X[dtmf_one]V,X[dtmf_one]V,X[dtmf_three]V,X[dtmf_three]V,O[dtmf_zero]V,O[establishcontext]V,O[finalquit]V,O[help.general_help]V,O[help.give_me_tips]V,O[help.what_can_i_say]V,O[help.where_are_we]V,X[no]V,O[quit]V,O[repeat]V,X[repeat]V,O[session:session_timeout]V,O[session:terminatesession]V,O[startover]V,X[startover]V,X[stop_name.monument]S,X[stop_name.registered_stop]S,O[turn_timeout:timeout]V,O[yes]V,X[yes]V'''
+stateElementsDict['inform_generic_tips']['LineConfig'] = 'set_dtmf_len = 1, set_lm = first_query'
+
 
 #===============================================================================
 # Utterance
@@ -440,7 +447,7 @@ utterElementsDict = {'inform_welcome':{},'inform_how_to_get_help':{},'request_al
 					'confirm_uncovered_place':{},'confirm_uncovered_route':{},'confirm_discontinued_route':{},\
 					'inform_welcome':{},'inform_confirm_okay':{},'inform_processing':{},'inform_success':{},'inform_error':{},\
 					'inform_subsequent_processing':{},'inform_starting_new_query':{},'inform_uncovered_place':{},\
-					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{}}
+					'inform_uncovered_route':{},'inform_discontinued_route':{},'inform_quit':{},'inform_generic_tips':{}}
 
 #===============================================================================
 # Initial
@@ -626,7 +633,8 @@ utterElementsDict['inform_success']['Query'] = ''
 utterElementsDict['inform_success']['Result'] = ''
 utterElementsDict['inform_success']['Agent'] = ''
 utterElementsDict['inform_success']['Version'] = ''
-utterElementsDict['inform_success']['Option'] = '''   :non-interruptable "true"
+utterElementsDict['inform_success']['Option'] = '''   :non-listening "true"
+   :non-repeatable "true"
 '''
 
 utterElementsDict['inform_error']['DialogAct'] = 'inform'
@@ -692,6 +700,16 @@ utterElementsDict['inform_quit']['Agent'] = ''
 utterElementsDict['inform_quit']['Version'] = ''
 utterElementsDict['inform_quit']['Option'] = ''
 
+utterElementsDict['inform_generic_tips']['DialogAct'] = 'inform'
+utterElementsDict['inform_generic_tips']['FloorState'] = 'free'
+utterElementsDict['inform_generic_tips']['Object'] = 'generic_tips'
+utterElementsDict['inform_generic_tips']['Query'] = ''
+utterElementsDict['inform_generic_tips']['Result'] = ''
+utterElementsDict['inform_generic_tips']['Agent'] = ''
+utterElementsDict['inform_generic_tips']['Version'] = ''
+utterElementsDict['inform_generic_tips']['Option'] = '''   :non-listening "true"
+   :non-repeatable "true"
+'''
 
 #===============================================================================
 # Dialog State Template

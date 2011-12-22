@@ -77,6 +77,9 @@ class DialogThread(threading.Thread):
         self.querySpec = None
         self.result = None
         self.rides = None
+        self.needToGiveTip = False
+        self.taskToRepeat = None
+        self.giveTipCount = 0
         
     def _GetNewDialogState(self):
         self.appLogger.info('_GetNewDialogState')
@@ -148,6 +151,8 @@ class DialogThread(threading.Thread):
                 self.newDialogState = 'inform_uncovered_route'
             elif self.systemAction.force == 'discontinued_route':
                 self.newDialogState = 'inform_discontinued_route'
+            elif self.systemAction.force == 'generic_tips':
+                self.newDialogState = 'inform_generic_tips'
         self.appLogger.info('New dialog state: %s'%self.newDialogState)
 
     def _BeginSessionHandler(self,frame):
@@ -599,6 +604,20 @@ class DialogThread(threading.Thread):
                 query = result = version = ''
                 
                 # Rule-parts
+                if self.needToGiveTip and self.giveTipCount < 2:
+                    self.giveTipCount += 1
+                    self.needToGiveTip = False
+                    self.systemAction.type = 'inform'
+                    self.systemAction.force = 'generic_tips'
+                    self._GetNewDialogState()
+                    self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    interruptible,execution,function,args = self.taskToRepeat
+                    newDialogState,query,result,version = args
+                    self.newDialogState = newDialogState
+                    self.taskQueue.append(self.taskToRepeat)
+                    self.taskToRepeat = []
+                    raise GotoException('Do task')
+
                 if self.asrResult.userActions[0].type != 'non-understanding' and \
                 'help' in self.asrResult.userActions[0].content:
                     self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,'version\texplain_more\n')))
@@ -678,7 +697,7 @@ class DialogThread(threading.Thread):
 #                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                     raise GotoException('Do task')
                 else:
-                    if self.systemAction.type == 'inform' and self.systemAction.force != 'confirm_okay':
+                    if self.systemAction.type == 'inform' and self.systemAction.force not in ['confirm_okay','generic_tips']:
                         self.appLogger.info('Discard user utterance')
                         raise GotoException('Do task')
     
@@ -760,12 +779,12 @@ class DialogThread(threading.Thread):
                             self.newDialogState == 'inform_confirm_okay_discontinued_route':
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                     
-                # RL-DM parts
                 if self.asrResult.userActions[0].type != 'non-understanding' and \
                 'next' in self.asrResult.userActions[0].content:
                     self.appLogger.info('Discard user utterance')
                     raise GotoException('Do task')
                 
+                # RL-DM parts
                 self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
                 self.appLogger.info('System action: %s'%str(self.systemAction))
     
@@ -829,6 +848,7 @@ class DialogThread(threading.Thread):
                 self.appLogger.info('function: %s'%str(function))
                 self.appLogger.info('args: %s'%str(args))
                 function(args)
+                self.taskToRepeat = (interruptible,execution,function,args)
                 if not execution:
                     break
         
@@ -858,8 +878,12 @@ class DialogThread(threading.Thread):
                             self.inQueue.task_done()
     #                    except Queue.Empty:
                         except:
-                            self.appLogger.info('Warning: event timeout, empty notifyPrompts')
-                            self.notifyPrompts = []
+                            self.appLogger.info('Warning: no event for a long time')
+                            for event in self.waitEvent:
+                                if event[0] == 'end_session':
+                                    self.appLogger.info('Flush waiting events to process end session')
+                                    self.notifyPrompts = []
+#                            self.notifyPrompts = []
                             continue
                     if frame == None:
                         self.appLogger.info('Warning: null frame')
@@ -872,13 +896,27 @@ class DialogThread(threading.Thread):
                         eventType = frame[':event_type']
                         self.appLogger.info('event_type: %s'%eventType)
                         if eventType == 'user_utterance_end':
+                            self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
+                            self.appLogger.info('Next utterance count: %d'%self.uttCount)
+                            self.appLogger.info('Previous system action: %s'%str(self.systemAction))
                             if len(self.notifyPrompts) > 0:
-                                if frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
+                                if self.systemAction.type == 'ask' and \
+                                ((self.systemAction.force == 'request' and 
+                                 self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
+                                 or \
+                                 (self.systemAction.force == 'confirm' and 
+                                  (not frame[':properties'].has_key(':[generic.yes]') and not frame[':properties'].has_key(':[generic.no]')))) and\
+                                str(self.uttCount-1) in self.notifyPrompts:
+                                    self.appLogger.info('Give a tip and flush the wait event list')
+                                    self.waitEvent = []
+                                    self.needToGiveTip = True
+                                elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
                                     self.appLogger.info('Append user utterance to wait event queue')
                                     self.waitEvent.append(('user_utterance_end',frame))
+                                    skipDialogProcessing = True
                                 else:
                                     self.appLogger.info('Discard event because of no parse')
-                                skipDialogProcessing = True
+                                    skipDialogProcessing = True
                             else:
                                 self._UserUtteranceEndHandler(frame)
                         elif eventType == 'system_utterance_start':
