@@ -357,12 +357,16 @@ class DialogThread(threading.Thread):
             userAction.content.update({'next':'STARTOVER'})
 
         if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
-        ((frame[':properties'].has_key(':[4_datetime]') and frame[':properties']['4_datetime'] == 'NOW') or\
+        ((frame[':properties'].has_key(':[4_datetime]') and frame[':properties'][':[4_datetime]'] == 'NOW') or\
         (('departure_place' in userAction.content and userAction.content['departure_place'] == 'MOON') or\
         ('arrival_place' in userAction.content and userAction.content['arrival_place'] == 'MOON') or\
         ('uncovered_place' in userAction.content and userAction.content['uncovered_place'] == 'MOON'))):
             userAction.content = {'confirm':'NO'}
-            
+
+        if 'confirm' in userAction.content:
+            self.appLogger.info('For now, just deal with YES/NO only in a turn')
+            userAction.content = {'confirm':userAction.content['confirm']}
+                        
         self.appLogger.info('userAction: %s'%str(userAction))
 
         if userAction.content == {}:
