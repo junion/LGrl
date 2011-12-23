@@ -359,7 +359,8 @@ class DialogThread(threading.Thread):
         if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
         ((frame[':properties'].has_key(':[4_datetime]') and frame[':properties']['4_datetime'] == 'NOW') or\
         (('departure_place' in userAction.content and userAction.content['departure_place'] == 'MOON') or\
-        ('arrival_place' in userAction.content and userAction.content['arrival_place'] == 'MOON'))):
+        ('arrival_place' in userAction.content and userAction.content['arrival_place'] == 'MOON') or\
+        ('uncovered_place' in userAction.content and userAction.content['uncovered_place'] == 'MOON'))):
             userAction.content = {'confirm':'NO'}
             
         self.appLogger.info('userAction: %s'%str(userAction))
@@ -444,12 +445,12 @@ class DialogThread(threading.Thread):
         result = self.resultQueue.get()
         self.resultQueue.task_done()
 #        self.appLogger.info('New dialog state: %s'%self.newDialogState)
-        if self.result[':outframe'].find('failed\t0') > -1: 
-            self.departurePlaceQuerySpecDict[querySpec['departure_place']] = result[':outframe']
-            return True
-        else:
+        if result[':outframe'].find('failed\t1') > -1: 
             self.appLogger.info('Backend query for place failed')
             return False
+        else:
+            self.departurePlaceQuerySpecDict[querySpec['departure_place']] = result[':outframe']
+            return True
 
     def _RequestArrivalPlaceQuery(self,args):
         querySpec = args
@@ -459,12 +460,12 @@ class DialogThread(threading.Thread):
 #        self.inQueue.task_done()
         result = self.resultQueue.get()
         self.resultQueue.task_done()
-        if self.result[':outframe'].find('failed\t0') > -1: 
-            self.arrivalPlaceQuerySpecDict[querySpec['arrival_place']] = result[':outframe']
-            return True
-        else:
+        if result[':outframe'].find('failed\t1') > -1: 
             self.appLogger.info('Backend query for place failed')
             return False
+        else:
+            self.arrivalPlaceQuerySpecDict[querySpec['arrival_place']] = result[':outframe']
+            return True
 
     def _RequestBackendQuery(self,args):
         # Backend lookup
@@ -607,6 +608,8 @@ class DialogThread(threading.Thread):
                                     
             elif eventType == 'user_utterance_end' or eventType == 'turn_timeout':
                 self.appLogger.info('%s'%eventType)
+                userActionUnavailable = False
+
                 for i,(interruptible,execution,function,args) in enumerate(self.taskQueue):
                     if interruptible and eventType == 'user_utterance_end': 
                         self.appLogger.info('Discard interruptible event')
@@ -623,8 +626,6 @@ class DialogThread(threading.Thread):
                     self.systemAction = self.dialogManager.Init(True)
 
                 query = result = version = ''
-                if self.asrResult.userActions[0].type == 'non-understanding':
-                    version = 'version\twhat_can_i_say\n'
                     
                 # Rule-parts
                 if self.needToDTMFConfirm:
@@ -638,13 +639,14 @@ class DialogThread(threading.Thread):
                     raise GotoException('Do task')
                     
                 if self.needToGiveTip:
-                    if self.giveTipCount == 1 and self.giveTipCount == 3:
-                        self.needToGiveTip = False
+                    if self.giveTipCount == 1 or self.giveTipCount == 3:
                         self.systemAction.type = 'inform'
                         self.systemAction.force = 'generic_tips'
                         self._GetNewDialogState()
                         self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    self.needToGiveTip = False
                     self.giveTipCount += 1
+                    raise GotoException('Do task')
 #                    interruptible,execution,function,args = self.taskToRepeat
 #                    newDialogState,query,result,version = args
 #                    self.newDialogState = newDialogState
@@ -806,6 +808,7 @@ class DialogThread(threading.Thread):
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                userActionUnavailable = True
                                 self.dialogResult = 'uncovered_place'
                             elif self.newDialogState == 'inform_confirm_okay_uncovered_route':
                                 self.systemAction.type = 'inform'
@@ -813,6 +816,7 @@ class DialogThread(threading.Thread):
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                userActionUnavailable = True
                                 self.dialogResult = 'uncovered_route'
                             elif self.newDialogState == 'inform_confirm_okay_discontinued_route':
                                 self.systemAction.type = 'inform'
@@ -820,6 +824,7 @@ class DialogThread(threading.Thread):
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                userActionUnavailable = True
                                 self.dialogResult = 'discontinued_route'
                             elif self.newDialogState == 'inform_confirm_okay_no_stop_matching':
                                 self.systemAction.type = 'inform'
@@ -828,6 +833,7 @@ class DialogThread(threading.Thread):
                                 query = 'place\t{\nname\t%s\ntype\tstop\n}\n'%self.systemAction.content['no_stop_matching']
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                userActionUnavailable = True
                                 self.dialogResult = 'no_stop_matching'
                         elif self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
                         self.asrResult.userActions[0].content['confirm'] == 'NO':
@@ -836,6 +842,7 @@ class DialogThread(threading.Thread):
                             self.newDialogState == 'inform_confirm_okay_discontinued_route' or\
                             self.newDialogState == 'inform_confirm_okay_no_stop_matching':
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                userActionUnavailable = True
                     
                 if self.asrResult.userActions[0].type != 'non-understanding' and \
                 'next' in self.asrResult.userActions[0].content:
@@ -853,6 +860,8 @@ class DialogThread(threading.Thread):
                     self._GetNewDialogState()
 #                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                    if self.asrResult.userActions[0].type == 'non-understanding' and not userActionUnavailable:
+                        self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,'version\twhat_can_i_say\n')))
                    
                 elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
                     if 'departure_place' in self.systemAction.content:
@@ -957,10 +966,7 @@ class DialogThread(threading.Thread):
                         eventType = frame[':event_type']
                         self.appLogger.info('event_type: %s'%eventType)
                         if eventType == 'user_utterance_end':
-                            if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
-                            (frame[':properties'][':total_num_parses'] == '0' or float(frame[':properties'][':confidence']) == 0.0): 
-                                self.needToDTMFConfirm = True
-                            elif len(self.notifyPrompts) > 0:
+                            if len(self.notifyPrompts) > 0:
                                 self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
                                 self.appLogger.info('Next utterance count: %d'%self.uttCount)
                                 self.appLogger.info('Previous system action: %s'%str(self.systemAction))
@@ -974,6 +980,7 @@ class DialogThread(threading.Thread):
                                     self.appLogger.info('Give a tip and append user utterance to wait event queue')
                                     self.waitEvent.append(('user_utterance_end',frame))
                                     self.needToGiveTip = True
+#                                    skipDialogProcessing = True
                                 elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
                                     self.appLogger.info('Append user utterance to wait event queue')
                                     self.waitEvent.append(('user_utterance_end',frame))
@@ -983,6 +990,10 @@ class DialogThread(threading.Thread):
                                     skipDialogProcessing = True
                             else:
                                 self._UserUtteranceEndHandler(frame)
+                                if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
+                                self.asrResult.userActions[0].type == 'non-understanding':
+                                    self.appLogger.info('Need to recommend to confirm using DTMF')
+                                    self.needToDTMFConfirm = True
                         elif eventType == 'system_utterance_start':
                             self._SystemUtteranceStartHandler(frame)
                         elif eventType == 'system_utterance_end':

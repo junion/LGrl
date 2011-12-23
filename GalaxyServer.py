@@ -247,8 +247,9 @@ def end_session(env,frame):
         appLogger.removeHandler(appLogger.handlers[0])
 
     except Exception:
-        appLogger.info(traceback.format_exc())
-        appLogger.error(traceback.format_exc())
+        if traceback.format_exc().find('TlsSMTPHandler') < 0:
+            appLogger.info(traceback.format_exc())
+            appLogger.error(traceback.format_exc())
 #        exit()
     
     return frame

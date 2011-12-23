@@ -140,6 +140,8 @@ class SBSarsaDialogManager(DialogManager):
         if len(asrResult.userActions) == 1:
             try:
                 if asrResult.userActions[0].content.keys()[0] == 'confirm':
+                    if asrResult.probs[0] == 1.0:
+                        raise
                     if asrResult.userActions[0].content['confirm'] == 'YES':
                         sbr_model = self.sbr_model['affirm']
                     else:
@@ -174,7 +176,7 @@ class SBSarsaDialogManager(DialogManager):
 #            if reward == self.taskSuccessReward:
 #                self.dialogResult = True
             return None
-            
+        
         if self.confidenceScoreCalibration:
             self.appLogger.info('asrResult %s'%asrResult)
 #            asrResult = deepcopy(asrResult)
