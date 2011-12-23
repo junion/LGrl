@@ -971,21 +971,22 @@ class DialogThread(threading.Thread):
                         self.appLogger.info('event_type: %s'%eventType)
                         if eventType == 'user_utterance_end':
                             if len(self.notifyPrompts) > 0:
-                                self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
-                                self.appLogger.info('Next utterance count: %d'%self.uttCount)
-                                self.appLogger.info('Previous system action: %s'%str(self.systemAction))
-                                if self.systemAction.type == 'ask' and \
-                                ((self.systemAction.force == 'request' and 
-                                 self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
-                                 or \
-                                 (self.systemAction.force == 'confirm' and 
-                                  (not frame[':properties'].has_key(':[generic.yes]') and not frame[':properties'].has_key(':[generic.no]')))) and\
-                                str(self.uttCount-1) in self.notifyPrompts:
-                                    self.appLogger.info('Give a tip and append user utterance to wait event queue')
-                                    self.waitEvent.append(('user_utterance_end',frame))
-                                    self.needToGiveTip = True
-#                                    skipDialogProcessing = True
-                                elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
+#                                self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
+#                                self.appLogger.info('Next utterance count: %d'%self.uttCount)
+#                                self.appLogger.info('Previous system action: %s'%str(self.systemAction))
+#                                if self.systemAction.type == 'ask' and \
+#                                ((self.systemAction.force == 'request' and 
+#                                 self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
+#                                 or \
+#                                 (self.systemAction.force == 'confirm' and 
+#                                  (not frame[':properties'].has_key(':[generic.yes]') and not frame[':properties'].has_key(':[generic.no]')))) and\
+#                                str(self.uttCount-1) in self.notifyPrompts:
+#                                    self.appLogger.info('Give a tip and append user utterance to wait event queue')
+#                                    self.waitEvent.append(('user_utterance_end',frame))
+#                                    self.needToGiveTip = True
+##                                    skipDialogProcessing = True
+#                                elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
+                                if frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
                                     self.appLogger.info('Append user utterance to wait event queue')
                                     self.waitEvent.append(('user_utterance_end',frame))
                                     skipDialogProcessing = True
