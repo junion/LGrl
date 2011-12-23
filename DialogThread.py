@@ -47,6 +47,7 @@ class DialogThread(threading.Thread):
         self.outQueue = outQueue
         self.resultQueue = resultQueue
         self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
+        self.dialogResult = ''
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
 #        self.waitEvent = []
@@ -805,18 +806,21 @@ class DialogThread(threading.Thread):
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                self.dialogResult = 'uncovered_place'
                             elif self.newDialogState == 'inform_confirm_okay_uncovered_route':
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'uncovered_route'
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                self.dialogResult = 'uncovered_route'
                             elif self.newDialogState == 'inform_confirm_okay_discontinued_route':
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'discontinued_route'
                                 self._GetNewDialogState()
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                self.dialogResult = 'discontinued_route'
                             elif self.newDialogState == 'inform_confirm_okay_no_stop_matching':
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'no_stop_matching'
@@ -824,6 +828,7 @@ class DialogThread(threading.Thread):
                                 query = 'place\t{\nname\t%s\ntype\tstop\n}\n'%self.systemAction.content['no_stop_matching']
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
+                                self.dialogResult = 'no_stop_matching'
                         elif self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
                         self.asrResult.userActions[0].content['confirm'] == 'NO':
                             if self.newDialogState == 'inform_confirm_okay_uncovered_place' or\
@@ -904,6 +909,9 @@ class DialogThread(threading.Thread):
                 self.taskToRepeat = (interruptible,execution,function,args)
                 if not execution:
                     break
+
+        if eventType == 'user_utterance_end':
+            self.turnNumber += 1
         
     def run(self):
             dialogSuccess = ''
@@ -999,12 +1007,12 @@ class DialogThread(threading.Thread):
                             self.waitEvent.append(('end_session',frame))
                             skipDialogProcessing = True
                         else:
-                            if dialogSuccess == 'inform_success':
-                                self.appLogger.critical('Dialog %s: Inform success'%self.logDir)
-                            elif dialogSuccess == 'inform_error':
-                                self.appLogger.critical('Dialog %s: Inform error'%self.logDir)
+                            if self.dialogResult != '':
+                                self.appLogger.info('Dialog result: %s\nNumber of turns: %d'%(self.dialogResult,self.turnNumber))
+                                self.appLogger.critical('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
                             else:
-                                self.appLogger.critical('Dialog %s: Fail'%self.logDir)
+                                self.appLogger.info('Dialog result: Fail\nNumber of turns: %d'%self.turnNumber)
+                                self.appLogger.critical('Dialog result %s: Fail, Number of turns: %d'%(self.logDir,self.turnNumber))
                             self._EndSessionHandler(frame)
                             message = {'type':'ENDSESSION'}
                             self.outQueue.put(message)
@@ -1012,9 +1020,9 @@ class DialogThread(threading.Thread):
                     if not skipDialogProcessing:
                         self._DialogProcessing(eventType)
                         if self.newDialogState == 'inform_success':
-                            dialogSuccess = 'inform_success'
+                            self.dialogResult = 'inform_success'
                         if self.newDialogState == 'inform_error':
-                            dialogSuccess = 'inform_error'
+                            self.dialogResult = 'inform_error'
                         if self.notifyPrompts == [] and self.dialogState == 'inform_quit':
                             self.appLogger.info('Terminate for %s'%self.dialogState)
                             message = {'type':'DIALOGFINISHED'}
