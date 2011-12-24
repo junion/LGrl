@@ -104,8 +104,10 @@ def DoDialogFlow(frame=None):
                 return True
 
     except Exception:
-        appLogger.info(traceback.format_exc())
+#        appLogger.info(traceback.format_exc())
         appLogger.error(traceback.format_exc())
+        EmailLogging.sendMail('Exception!',traceback.format_exc())
+
 #        exit()
 
 def reinitialize(env,frame):
@@ -155,10 +157,10 @@ def begin_session(env,frame):
             formatter = logging.Formatter("%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s")
             file_handler.setFormatter(formatter)
             appLogger.addHandler(file_handler)
-            gm = TlsSMTPHandler(("smtp.gmail.com", 587), 'letsgoreport@gmail.com', ['letsgoreport@gmail.com'],\
-                                 'New Report!', ('letsgoreport@gmail.com', 'letsgo!@#'))
-            gm.setLevel(logging.ERROR)
-            appLogger.addHandler(gm)
+#            gm = TlsSMTPHandler(("smtp.gmail.com", 587), 'letsgoreport@gmail.com', ['letsgoreport@gmail.com'],\
+#                                 'New Report!', ('letsgoreport@gmail.com', 'letsgo!@#'))
+#            gm.setLevel(logging.ERROR)
+#            appLogger.addHandler(gm)
 #            logging.basicConfig(filename=os.path.join(logDir,logPrefix),filemode='w',\
 #                                format='%(asctime)s %(lineno)4d %(module)s:%(funcName)s: %(message)s',\
 #                                level=logging.DEBUG)
@@ -195,8 +197,10 @@ def begin_session(env,frame):
 
     except Exception:
         print traceback.format_exc()
-        appLogger.info(traceback.format_exc())
+#        appLogger.info(traceback.format_exc())
         appLogger.error(traceback.format_exc())
+        EmailLogging.sendMail('Exception!',traceback.format_exc())
+       
 #        exit()
         
     return frame
@@ -243,13 +247,25 @@ def end_session(env,frame):
         inSession = False
 
 #        logging.shutdown()
-        appLogger.handlers[0].stream.close()
-        appLogger.removeHandler(appLogger.handlers[0])
 
     except Exception:
-        if traceback.format_exc().find('TlsSMTPHandler') < 0:
-            appLogger.info(traceback.format_exc())
-            appLogger.error(traceback.format_exc())
+#        if traceback.format_exc().find('TlsSMTPHandler') < 0:
+#            appLogger.info(traceback.format_exc())
+        appLogger.error(traceback.format_exc())
+        EmailLogging.sendMail('Exception!',traceback.format_exc())
+#        else:
+#            pass
+
+    appLogger.handlers[0].stream.close()
+    appLogger.removeHandler(appLogger.handlers[0])
+
+#    for handler in appLogger.handlers:
+#        try:
+#            handler.stream.close()
+#        except:
+#            pass
+#        appLogger.removeHandler(handler)
+#        appLogger.removeHandler(appLogger.handlers[0])
 #        exit()
     
     return frame
@@ -280,8 +296,9 @@ def handle_event(env,frame):
             appLogger.info('close_session sent')
 
     except Exception:
-        appLogger.info(traceback.format_exc())
+#        appLogger.info(traceback.format_exc())
         appLogger.error(traceback.format_exc())
+        EmailLogging.sendMail('Exception!',traceback.format_exc())
 #        exit()
     
     return frame

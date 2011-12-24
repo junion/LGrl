@@ -44,4 +44,35 @@ class TlsSMTPHandler(logging.handlers.SMTPHandler):
 #gm.setLevel(logging.ERROR)
 # 
 #logger.addHandler(gm)
- 
+
+def sendMail(subject,text=None):
+    import os
+    import smtplib
+    import mimetypes
+    from email.MIMEMultipart import MIMEMultipart
+    from email.MIMEBase import MIMEBase
+    from email.MIMEText import MIMEText
+    from email.MIMEAudio import MIMEAudio
+    from email.MIMEImage import MIMEImage
+    from email.Encoders import encode_base64
+    
+    gmailUser = 'letsgoreport@gmail.com'
+    gmailPassword = 'letsgo!@#'
+    recipient = 'letsgoreport@gmail.com'
+    msg = MIMEMultipart()
+    msg['From'] = gmailUser
+    msg['To'] = recipient
+    msg['Subject'] = subject
+    if text == None:
+        text = subject
+    msg.attach(MIMEText(text))
+    mailServer = smtplib.SMTP('smtp.gmail.com',587)
+    mailServer.ehlo()
+    mailServer.starttls()
+    mailServer.ehlo()
+    mailServer.login(gmailUser,gmailPassword)
+    mailServer.sendmail(gmailUser,recipient,msg.as_string())
+    mailServer.close()
+    print('Sent email to %s' % recipient)
+    
+#sendMail('x','y')

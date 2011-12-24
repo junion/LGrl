@@ -14,6 +14,7 @@ from DialogManager import SBSarsaDialogManager as DialogManager
 #from DialogManager import OpenDialogManager as DialogManager
 from GalaxyFrames import *
 from DialogModules import UserAction,ASRResult,SystemAction
+import EmailLogging
 
 MY_ID = 'DialogThread'
 
@@ -642,15 +643,15 @@ class DialogThread(threading.Thread):
                     self.taskToRepeat = []
                     raise GotoException('Do task')
                     
-                if self.needToGiveTip:
-                    if self.giveTipCount == 1 or self.giveTipCount == 3:
-                        self.systemAction.type = 'inform'
-                        self.systemAction.force = 'generic_tips'
-                        self._GetNewDialogState()
-                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                    self.needToGiveTip = False
-                    self.giveTipCount += 1
-                    raise GotoException('Do task')
+#                if self.needToGiveTip:
+#                    if self.giveTipCount == 1 or self.giveTipCount == 3:
+#                        self.systemAction.type = 'inform'
+#                        self.systemAction.force = 'generic_tips'
+#                        self._GetNewDialogState()
+#                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+#                    self.needToGiveTip = False
+#                    self.giveTipCount += 1
+#                    raise GotoException('Do task')
 #                    interruptible,execution,function,args = self.taskToRepeat
 #                    newDialogState,query,result,version = args
 #                    self.newDialogState = newDialogState
@@ -861,6 +862,16 @@ class DialogThread(threading.Thread):
                     version = 'version\ttimeout\n'
     
                 if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
+                    if self.needToGiveTip:
+                        self.needToGiveTip = False
+                        self.giveTipCount += 1
+                        if self.giveTipCount == 1 or self.giveTipCount == 3:
+                            self.systemAction.type = 'inform'
+                            self.systemAction.force = 'generic_tips'
+                            self._GetNewDialogState()
+                            self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                            self.systemAction.type = 'ask'
+                            self.systemAction.force = 'request'
                     self._GetNewDialogState()
 #                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
@@ -971,22 +982,22 @@ class DialogThread(threading.Thread):
                         self.appLogger.info('event_type: %s'%eventType)
                         if eventType == 'user_utterance_end':
                             if len(self.notifyPrompts) > 0:
-#                                self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
-#                                self.appLogger.info('Next utterance count: %d'%self.uttCount)
-#                                self.appLogger.info('Previous system action: %s'%str(self.systemAction))
-#                                if self.systemAction.type == 'ask' and \
-#                                ((self.systemAction.force == 'request' and 
-#                                 self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
-#                                 or \
-#                                 (self.systemAction.force == 'confirm' and 
-#                                  (not frame[':properties'].has_key(':[generic.yes]') and not frame[':properties'].has_key(':[generic.no]')))) and\
-#                                str(self.uttCount-1) in self.notifyPrompts:
-#                                    self.appLogger.info('Give a tip and append user utterance to wait event queue')
-#                                    self.waitEvent.append(('user_utterance_end',frame))
-#                                    self.needToGiveTip = True
-##                                    skipDialogProcessing = True
-#                                elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
-                                if frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
+                                self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
+                                self.appLogger.info('Next utterance count: %d'%self.uttCount)
+                                self.appLogger.info('Previous system action: %s'%str(self.systemAction))
+                                if self.systemAction.type == 'ask' and \
+                                ((self.systemAction.force == 'request' and 
+                                 self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
+                                 or \
+                                 (self.systemAction.force == 'confirm' and 
+                                  (not frame[':properties'].has_key(':[generic.yes]') and not frame[':properties'].has_key(':[generic.no]')))) and\
+                                str(self.uttCount-1) in self.notifyPrompts:
+                                    self.appLogger.info('Give a tip and append user utterance to wait event queue')
+                                    self.waitEvent.append(('user_utterance_end',frame))
+                                    self.needToGiveTip = True
+                                    skipDialogProcessing = True
+                                elif frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
+#                                if frame[':properties'][':total_num_parses'] != '0' or self.dialogState.find('request_next_query') > -1:
                                     self.appLogger.info('Append user utterance to wait event queue')
                                     self.waitEvent.append(('user_utterance_end',frame))
                                     skipDialogProcessing = True
@@ -1025,10 +1036,12 @@ class DialogThread(threading.Thread):
                         else:
                             if self.dialogResult != '':
                                 self.appLogger.info('Dialog result: %s\nNumber of turns: %d'%(self.dialogResult,self.turnNumber))
-                                self.appLogger.critical('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
+#                                self.appLogger.critical('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
+                                EmailLogging.sendMail('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
                             else:
                                 self.appLogger.info('Dialog result: Fail\nNumber of turns: %d'%self.turnNumber)
-                                self.appLogger.critical('Dialog result %s: Fail, Number of turns: %d'%(self.logDir,self.turnNumber))
+#                                self.appLogger.critical('Dialog result %s: Fail, Number of turns: %d'%(self.logDir,self.turnNumber))
+                                EmailLogging.sendMail('Dialog result %s: Fail, Number of turns: %d'%(self.logDir,self.turnNumber))
                             self._EndSessionHandler(frame)
                             message = {'type':'ENDSESSION'}
                             self.outQueue.put(message)
@@ -1052,8 +1065,9 @@ class DialogThread(threading.Thread):
                         self.outQueue.put(message)
                 except Exception:
                     self.appLogger.info('Try to recover from crash:')
-                    self.appLogger.info(traceback.format_exc())
+#                    self.appLogger.info(traceback.format_exc())
                     self.appLogger.error(traceback.format_exc())
+                    EmailLogging.sendMail('Exception!',traceback.format_exc())
                     self.appLogger.info('Tasks in wait:')
                     self.appLogger.info('->\n'.join([str(x) for x in self.taskQueue]))
                     self._InitDataForNewQuery()
