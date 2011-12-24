@@ -433,16 +433,16 @@ class SBSarsaDialogManager(DialogManager):
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
 
-#        if len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
-#            try:
-#                acts.remove(self.sysActHistory[-1])
-#                self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
-#                if self.sysActHistory[-1].find('confirm') > -1:
-#                    acts.remove(self.sysActHistory[-1].replace('confirm','confirm_immediate'))
-#                    self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
-#            except:
-#                self.appLogger.info('Exception while removing %s',self.sysActHistory[-1])
-# 
+        if len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
+            try:
+                acts.remove(self.sysActHistory[-1])
+                self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
+                if self.sysActHistory[-1].find('confirm') > -1:
+                    acts.remove(self.sysActHistory[-1].replace('confirm','confirm_immediate'))
+                    self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
+            except:
+                self.appLogger.info('Exception while removing %s',self.sysActHistory[-1])
+ 
         if len(acts) == 0:
             acts = ['[ask] request departure_place',\
                     '[ask] request arrival_place','[ask] request travel_time']
