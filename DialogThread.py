@@ -4,7 +4,7 @@
 
 import logging.config
 import logging
-import threading
+import os,threading
 import Queue
 from datetime import datetime
 import sys,traceback
@@ -83,6 +83,8 @@ class DialogThread(threading.Thread):
         self.needToGiveTip = False
         self.taskToRepeat = None
         self.giveTipCount = 0
+        self.consecutiveTimeoutCount = 0
+        self.consecutiveEventTimeoutCount = 0
         
     def _GetNewDialogState(self):
         self.appLogger.info('_GetNewDialogState')
@@ -626,6 +628,19 @@ class DialogThread(threading.Thread):
                         self.appLogger.info('Discard turn_timeout!!!')
                         raise GotoException('Do task')
 
+                if eventType == 'turn_timeout':
+                    self.consecutiveTimeoutCount += 1
+                    if self.consecutiveTimeoutCount > 4:
+                        self.appLogger.info('No user response, quit the dialog')
+                        self.systemAction.type = 'inform'
+                        self.systemAction.force = 'quit'
+                        self._GetNewDialogState()
+#                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
+                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        raise GotoException('Do task')
+                else:
+                    self.consecutiveTimeoutCount = 0
+
 #                if not self.systemAction:
                 if self.systemAction.type == 'initial':
                     self.systemAction = self.dialogManager.Init(True)
@@ -961,9 +976,17 @@ class DialogThread(threading.Thread):
                         try:
                             frame = deepcopy(self.inQueue.get(timeout=self.eventWaitTimeout))
                             self.inQueue.task_done()
+                            self.consecutiveEventTimeoutCount = 0
     #                    except Queue.Empty:
                         except:
                             self.appLogger.info('Warning: no event for a long time')
+                            self.consecutiveEventTimeoutCount += 1
+                            if self.consecutiveEventTimeoutCount > 2:
+                                self.appLogger.info('Broadcasting dialog state to get events')
+                                self._DialogStateChangeHandler(None)
+                            elif self.consecutiveEventTimeoutCount > 9:
+                                self.appLogger.info('System reboot: no event for a long time')
+                                os.system('shutdown -r -t 1')
                             for event in self.waitEvent:
                                 if event[0] == 'end_session':
                                     self.appLogger.info('Flush waiting events to process end session')
