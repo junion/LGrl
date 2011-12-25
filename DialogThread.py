@@ -246,6 +246,7 @@ class DialogThread(threading.Thread):
                 querySpec['departure_place'] = place
                 querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
                 if not self._RequestDeparturePlaceQuery(querySpec):
+                    updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
                     userAction.content = {'no_stop_matching':place}
 #                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
         if updateArrivalPlaceType:
@@ -282,13 +283,14 @@ class DialogThread(threading.Thread):
             self.resultQueue.task_done()
             self.appLogger.info('Timeinfo: %s'%result.PPrint())
             dateTime = {}
-            if result[':valid_date'] == 'true':
+            if result.has_key(':valid_date') and result[':valid_date'] == 'true':
                 dateTime['weekday'] = result[':weekday']
                 dateTime['year'] = result[':year']
                 dateTime['day'] = result[':day']
                 dateTime['month'] = result[':month']
             gotTime = False
-            if result[':valid_time'] == 'true' and result[':start_time'] == result[':end_time'] and \
+            if result.has_key(':valid_time') and result.has_key(':start_time') and result.has_key(':end_time') and \
+            result[':valid_time'] == 'true' and result[':start_time'] == result[':end_time'] and \
             result[':start_time'] != '' and result[':start_time'] != '1199':
                 dtTime = int(result[':start_time'])
                 self.appLogger.info('dtTime: %d'%dtTime)
