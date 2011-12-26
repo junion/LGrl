@@ -325,9 +325,14 @@ class DialogThread(threading.Thread):
                 if result[':timeperiod_spec'] != '':
                     dateTime['period_spec'] = result[':timeperiod_spec']
     #            self.appLogger.info('4')
-                self.timeSpecDict.update({dateTime['value']:deepcopy(dateTime)})
-                self.appLogger.info('dateTime: %s'%str(dateTime))
-                userAction.content.update({'travel_time':dateTime['value']})
+                if result.has_key(':timeperiod_spec') and result[':timeperiod_spec'] == 'now ':
+                    self.timeSpecDict.update({'NOW':deepcopy(dateTime)})
+                    self.appLogger.info('dateTime: %s'%str(dateTime))
+                    userAction.content.update({'travel_time':'NOW'})
+                else:
+                    self.timeSpecDict.update({dateTime['value']:deepcopy(dateTime)})
+                    self.appLogger.info('dateTime: %s'%str(dateTime))
+                    userAction.content.update({'travel_time':dateTime['value']})
     #            self.appLogger.info('5')
             else:
                 self.appLogger.info('No exact date time')
