@@ -638,7 +638,7 @@ class DialogThread(threading.Thread):
                         self.systemAction.force = 'quit'
                         self._GetNewDialogState()
 #                        self.appLogger.info('New dialog state: %s'%self.newDialogState)
-                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,'','','')))
                         raise GotoException('Do task')
                 else:
                     self.consecutiveTimeoutCount = 0
