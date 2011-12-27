@@ -220,6 +220,13 @@ class DialogThread(threading.Thread):
                     userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
                     updateDeparturePlaceType = True
                     updateArrivalPlaceType = True
+            elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
+                if 'departure_place' in self.systemAction.content:
+                    userAction.content.update({'departure_place':hypothesis})
+                    updateDeparturePlaceType = True
+                elif 'arrival_place' in self.systemAction.content:
+                    userAction.content.update({'arrival_place':hypothesis})
+                    updateArrivalPlaceType = True
             else:
                 userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True

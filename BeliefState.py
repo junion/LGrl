@@ -427,31 +427,44 @@ class Partition(object):
                 raise RuntimeError, 'Cannot handle sysAction %s'%str(sysAction)
             result = self.irrelevantUserActProb
             allFieldsMatchGoalFlag = True
+            directAnswer = False
             if sysAction.force == 'confirm':
                 askedField = sysAction.content.keys()[0]
                 if userAction.type != 'non-understanding':
                     for ua_field in userAction.content:
+                        self.appLogger.info('User action field: %s:%s'%(ua_field,userAction.content[ua_field]))
                         if ua_field == 'confirm' and userAction.content[ua_field] == 'YES':
                             val = sysAction.content[askedField]
                             if self.fields[askedField].type == 'excludes' or not self.fields[askedField].equals == val:
+                                self.appLogger.info('Mismatched YES')
                                 allFieldsMatchGoalFlag = False
                         elif ua_field == 'confirm' and userAction.content[ua_field] == 'NO':
                             val = sysAction.content[askedField]
-                            if self.fields[askedField].type == 'equals' or not val in self.fields[askedField].excludes:
+                            if (self.fields[askedField].type == 'equals' and self.fields[askedField].equals == val) or\
+                            (self.fields[askedField].type == 'excludes' and val not in self.fields[askedField].excludes):
+                                self.appLogger.info('Mismatched NO')
                                 allFieldsMatchGoalFlag = False
                         elif askedField == ua_field:
-                            val = sysAction.content[askedField]
-                            if self.fields[askedField].type == 'excludes' or not self.fields[askedField].equals == val\
-                            or not userAction.content[askedField] == val:
+                            directAnswer = True
+#                            val = sysAction.content[askedField]
+#                            if self.fields[askedField].type != 'excludes' and \
+#                            self.fields[askedField].equals == userAction.content[askedField]:
+#                                self.appLogger.info('Matched %s'%userAction.content[askedField])
+#                                allFieldsMatchGoalFlag = True
+                            if self.fields[askedField].type == 'excludes' or \
+                            self.fields[askedField].equals != userAction.content[askedField]:
+                                self.appLogger.info('Mismatched %s'%userAction.content[askedField])
                                 allFieldsMatchGoalFlag = False
                         else:
                             val = userAction.content[ua_field]
                             if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
+                                self.appLogger.info('Mismatched %s for irrelevant field to confirmation'%userAction.content[ua_field])
                                 allFieldsMatchGoalFlag = False
                 elif self.ignoreNonunderstandingFactor:
                     allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
-                    if userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES':
+                    if (userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES') or\
+                    directAnswer:
                         result = self.userModel['C-o'][self._getClosestUserAct(userAction)]
                     else:
                         result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
