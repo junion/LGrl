@@ -264,6 +264,10 @@ class PartitionDistribution(object):
                         nextNewHistoryEntry.userActionLikelihoodTotal = None
                         nextNewHistoryEntry.history.Update(existingPartitionEntry.partition,userAction,sysAction)
                         existingPartitionEntry.newHistoryEntryList.append(nextNewHistoryEntry)
+                        self.appLogger.info('userActionLikelihood=%g'%userActionLikelihood)
+                        self.appLogger.info('asrLikelihood=%g'%asrLikelihood)
+                        self.appLogger.info('existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
+                        self.appLogger.info('->nextNewHistoryEntry.belief=%g'%nextNewHistoryEntry.belief)
                         # Update existingHistoryEntry
                         if (self.useAggregateUserActionLikelihoods):
                             if (userActionLikelihoodType not in existingHistoryEntry.userActionLikelihoodTypes):
@@ -306,7 +310,13 @@ class PartitionDistribution(object):
                     if self.offListBeliefUpdateMethod == 'plain':
                         existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
                     elif self.offListBeliefUpdateMethod == 'unlikelihood':
-                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * asrUnseenActionLikelihood * offListUserActionLikelihood * existingPartitionEntry.partition.UserActionUnlikelihood(userAction,existingHistoryEntry.history,sysAction)
+                        discountedOffListUserActionLikelihood = offListUserActionLikelihood * existingPartitionEntry.partition.UserActionUnlikelihood(userAction,existingHistoryEntry.history,sysAction)
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * asrUnseenActionLikelihood * discountedOffListUserActionLikelihood
+                    self.appLogger.info('offListUserActionLikelihood=%g'%offListUserActionLikelihood)
+                    self.appLogger.info('discountedOffListUserActionLikelihood=%g'%discountedOffListUserActionLikelihood)
+                    self.appLogger.info('asrUnseenActionLikelihood=%g'%asrUnseenActionLikelihood)
+                    self.appLogger.info('existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
+                    self.appLogger.info('->existingHistoryEntry.belief=%g'%existingHistoryEntry.belief)
                     existingPartitionEntry.newBelief = existingPartitionEntry.newBelief - oldOffListHistoryEntryBelief + existingHistoryEntry.belief
                     rawOfflistBeliefTotal += existingHistoryEntry.belief
                     self.appLogger.info('  oldHistoryEntryBelief: %g -> newHistoryEntryBelief: %g'%(oldOffListHistoryEntryBelief,existingHistoryEntry.belief))

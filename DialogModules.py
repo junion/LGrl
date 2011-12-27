@@ -405,6 +405,7 @@ class ASRResult:
         if not provided, defaults to None
         '''
         self = cls()
+        self.asrOffListProb = self.config.getfloat('BeliefState','asrOffListProb')
         assert (len(userActions) == len(probs)),'In ASRResult, length of userActions (%d) not equal to length of probs (%d)' % (len(userActions),len(probs))
         for userAction in userActions:
             assert (not userAction.type == 'oog'),'userAction type for ASR result cannot be oog -- oog is implicit in left-over mass'
@@ -438,6 +439,7 @@ class ASRResult:
         if not provided, defaults to None
         '''
         self = cls()
+        self.asrOffListProb = self.config.getfloat('BeliefState','asrOffListProb')
         assert (len(userActions) == len(probs)),'In ASRResult, length of userActions (%d) not equal to length of probs (%d)' % (len(userActions),len(probs))
         for userAction in userActions:
             assert (not userAction.type == 'oog'),'userAction type for ASR result cannot be oog -- oog is implicit in left-over mass'
@@ -511,5 +513,6 @@ class ASRResult:
             self.releasedActions += 1
 #            offListProb = 1.0 * (1.0 - self.releasedProb) / (self.grammar.cardinality + 2 - self.releasedActions)
             offListProb = 1.0 * (1.0 - self.releasedProb) / (3000000 + 2 - self.releasedActions)
+#            offListProb = self.asrOffListProb
             yield (userAction,prob,offListProb)
             i += 1

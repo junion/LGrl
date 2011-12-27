@@ -463,12 +463,17 @@ class Partition(object):
                 elif self.ignoreNonunderstandingFactor:
                     allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
+                    self.appLogger.info('All fields matched')
                     if (userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES') or\
                     directAnswer:
                         result = self.userModel['C-o'][self._getClosestUserAct(userAction)]
                     else:
+                        if 'confirm' in userAction.content and directAnswer:
+                            del userAction.content['confirm']
                         result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
+                    self.appLogger.info('User action likelihood %g'%result)
                     result = self.minRelevantUserActProb if result < self.minRelevantUserActProb else result
+                    self.appLogger.info('Set minimum user action likelihood %g'%result)
             elif sysAction.force == 'request':
                 askedField = sysAction.content
                 if userAction.type != 'non-understanding':
