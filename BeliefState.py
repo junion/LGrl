@@ -82,6 +82,7 @@ class Partition(object):
         self.num_route = self.config.getint(MY_ID,'numberOfRoute')
         self.num_place = self.config.getint(MY_ID,'numberOfPlace')
         self.num_time = self.config.getint(MY_ID,'numberOfTime')
+        self.offListBeliefUpdateMethod = self.config.get('PartitionDistribution','offListBeliefUpdateMethod')
         
         db = GetDB()
 #        self.appLogger.info('Partition 1')
@@ -128,8 +129,14 @@ class Partition(object):
 #                self.appLogger.info('Partition 5')
                 self.userModel = pickle.load(open(os.path.join(modelPath,self.userModelPath),'rb'))
 #                self.appLogger.info('Partition 6')
-                self.irrelevantUserActProb = self.config.getfloat(MY_ID,'irrelevantUserActProb')
-                self.minRelevantUserActProb = self.config.getfloat(MY_ID,'minRelevantUserActProb')
+                if self.offListBeliefUpdateMethod == 'heuristicUsingPrior':
+                    self.irrelevantUserActProb = self.config.getfloat(MY_ID,'irrelevantUserActProb_HeuristicUsingPrior')
+                    self.minRelevantUserActProb = self.config.getfloat(MY_ID,'minRelevantUserActProb_HeuristicUsingPrior')
+                elif self.offListBeliefUpdateMethod == ['plain','heuristicPossibleActions']:
+                    self.irrelevantUserActProb = self.config.getfloat(MY_ID,'irrelevantUserActProb')
+                    self.minRelevantUserActProb = self.config.getfloat(MY_ID,'minRelevantUserActProb')
+                else:
+                    raise RuntimeError,'Unknown offListBeliefUpdateMethod'
 #                self.appLogger.info('Partition 7')
         else:
             assert not fieldToSplit == None,'arg not defined'
@@ -422,7 +429,7 @@ class Partition(object):
             else:
                 raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
         else:
-            self.appLogger.info('Apply learned user model')
+#            self.appLogger.info('Apply learned user model')
             if sysAction.type != 'ask':
                 raise RuntimeError, 'Cannot handle sysAction %s'%str(sysAction)
             result = self.irrelevantUserActProb
@@ -511,14 +518,14 @@ class Partition(object):
         if sysAction.type != 'ask':
             raise RuntimeError, 'Dont know sysAction.type = %s' % (sysAction.type)
 
-        self.appLogger.info('Apply confirmUnlikelyDiscountFactor %f'%self.confirmUnlikelyDiscountFactor)
+#        self.appLogger.info('Apply confirmUnlikelyDiscountFactor %f'%self.confirmUnlikelyDiscountFactor)
         if sysAction.force == 'request':
             result = self.prior
             reason = 'request'
         elif sysAction.force == 'confirm':
             result = self.confirmUnlikelyDiscountFactor * self.prior
             reason = 'confirm'
-        self.appLogger.info('UserActionUnlikelihood by (%s): %g'%(reason,result))
+#        self.appLogger.info('UserActionUnlikelihood by (%s): %g'%(reason,result))
         return result
 
 class History(object):

@@ -92,6 +92,11 @@ class PartitionDistribution(object):
                 self.useAggregateUserActionLikelihoods = config.getboolean(MY_ID,'useAggregateUserActionLikelihoods')
             if (config.has_option(MY_ID, 'offListBeliefUpdateMethod')):
                 self.offListBeliefUpdateMethod = config.get(MY_ID,'offListBeliefUpdateMethod')
+            self.num_route = config.getint('BeliefState','numberOfRoute')
+            self.num_place = config.getint('BeliefState','numberOfPlace')
+            self.num_time = config.getint('BeliefState','numberOfTime')
+            self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
+            self.numberOfPossibleActionsForConfirmation = config.getint('BeliefState','numberOfPossibleActionsForConfirmation')
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
         self.appLogger.info('Config: maxPartitions = %d' % (self.maxPartitions))
@@ -138,6 +143,21 @@ class PartitionDistribution(object):
             self.partitionEntryList.append(partitionEntry)
 #            self.appLogger.info('7')
 
+    def _OffListUserActionASRLikelihood(self,offListASRProb,userAction):
+        count = 1
+        for field in userAction.content:
+            if field == 'confirm':
+                count *= self.numberOfPossibleActionsForConfirmation
+            elif field == 'route':
+                count *= self.num_route
+            elif field in ['departure_place','arrival_place']:
+                count *= self.num_place
+            elif field == 'travel_time':
+                count *= self.num_time
+            else:
+                raise RuntimeError,'Invalid field %s'%field
+        return offListASRProb/count
+    
     def Update(self,asrResult,sysAction):
         '''
         Updates a partitionDistributionObject object with
@@ -219,6 +239,7 @@ class PartitionDistribution(object):
                                 s += ' existingPartitionEntry.partition.prior = %e\n' % (existingPartitionEntry.partition.prior)
                                 raise RuntimeError,s
                         newPartitionEntry.newBelief = existingPartitionEntry.newBelief * newBeliefFraction
+                        self.appLogger.info('   newPartitionEntry.newBelief=%g'%newPartitionEntry.newBelief)
                         newBeliefFractionTotal += newBeliefFraction
                         for existingHistoryEntry in existingPartitionEntry.historyEntryList:
                             refinedExistingHistoryEntry = _HistoryEntry()
@@ -229,6 +250,7 @@ class PartitionDistribution(object):
                             refinedExistingHistoryEntry.history = existingHistoryEntry.history.Copy()
                             refinedExistingHistoryEntry.userActionLikelihoodTypes = existingHistoryEntry.userActionLikelihoodTypes.copy()
                             newPartitionEntry.historyEntryList.append(refinedExistingHistoryEntry)
+                            self.appLogger.info('    refinedExistingHistoryEntry.belief=%g'%refinedExistingHistoryEntry.belief)
                         for newHistoryEntry in existingPartitionEntry.newHistoryEntryList:
                             refinedNewHistoryEntry = _HistoryEntry()
                             refinedNewHistoryEntry.history = newHistoryEntry.history.Copy()
@@ -237,13 +259,17 @@ class PartitionDistribution(object):
                             refinedNewHistoryEntry.userActionLikelihoodTotal = None
                             refinedNewHistoryEntry.userActionLikelihoodTypes = None
                             newPartitionEntry.newHistoryEntryList.append(refinedNewHistoryEntry)
+                            self.appLogger.info('    refinedNewHistoryEntry.belief=%g'%refinedNewHistoryEntry.belief)
                         self.partitionEntryList.append(newPartitionEntry)
                     existingPartitionEntry.newBelief = existingPartitionEntry.newBelief * (1-newBeliefFractionTotal)
+                    self.appLogger.info('  existingPartitionEntry.newBelief=%g'%existingPartitionEntry.newBelief)
                     for existingHistoryEntry in existingPartitionEntry.historyEntryList:
                         existingHistoryEntry.belief *= (1-newBeliefFractionTotal)
                         existingHistoryEntry.origBelief *= (1-newBeliefFractionTotal)
+                        self.appLogger.info('   existingHistoryEntry.belief=%g'%existingHistoryEntry.belief)
                     for newHistoryEntry in existingPartitionEntry.newHistoryEntryList:
                         newHistoryEntry.belief = newHistoryEntry.belief * (1-newBeliefFractionTotal)
+                        self.appLogger.info('   newHistoryEntry.belief=%g'%newHistoryEntry.belief)
                 else:
                     self.appLogger.info('  Could not split this partition.')
                 # 1B. Compute raw likelihoods and update offList mass
@@ -251,10 +277,10 @@ class PartitionDistribution(object):
                 for existingHistoryEntry in existingPartitionEntry.historyEntryList:
                     if (self.useAggregateUserActionLikelihoods):
                         (userActionLikelihood,userActionLikelihoodType) = existingPartitionEntry.partition.UserActionLikelihood(userAction,existingHistoryEntry.history,sysAction)
-                        self.appLogger.info('  History = %s; userActionLikelihood=%0.15f; usereActionLikelihoodType=%s' % (existingHistoryEntry.history,userActionLikelihood,userActionLikelihoodType))
+                        self.appLogger.info('  History = %s; userActionLikelihood=%g; usereActionLikelihoodType=%s' % (existingHistoryEntry.history,userActionLikelihood,userActionLikelihoodType))
                     else:
                         userActionLikelihood = existingPartitionEntry.partition.UserActionLikelihood(userAction,existingHistoryEntry.history,sysAction)
-                        self.appLogger.info('  History = %s; userActionLikelihood=%0.15f' % (existingHistoryEntry.history,userActionLikelihood))
+                        self.appLogger.info('  History = %s; userActionLikelihood=%g' % (existingHistoryEntry.history,userActionLikelihood))
                     if (userActionLikelihood > 0.0):
                         # Update newHistoryEntry
                         nextNewHistoryEntry = _HistoryEntry()
@@ -264,10 +290,11 @@ class PartitionDistribution(object):
                         nextNewHistoryEntry.userActionLikelihoodTotal = None
                         nextNewHistoryEntry.history.Update(existingPartitionEntry.partition,userAction,sysAction)
                         existingPartitionEntry.newHistoryEntryList.append(nextNewHistoryEntry)
-                        self.appLogger.info('userActionLikelihood=%g'%userActionLikelihood)
-                        self.appLogger.info('asrLikelihood=%g'%asrLikelihood)
-                        self.appLogger.info('existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
-                        self.appLogger.info('->nextNewHistoryEntry.belief=%g'%nextNewHistoryEntry.belief)
+                        self.appLogger.info('   New history = %s'%nextNewHistoryEntry.history)
+                        self.appLogger.info('    userActionLikelihood=%g'%userActionLikelihood)
+                        self.appLogger.info('    asrLikelihood=%g'%asrLikelihood)
+                        self.appLogger.info('    existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
+                        self.appLogger.info('    ->nextNewHistoryEntry.belief=%g'%nextNewHistoryEntry.belief)
                         # Update existingHistoryEntry
                         if (self.useAggregateUserActionLikelihoods):
                             if (userActionLikelihoodType not in existingHistoryEntry.userActionLikelihoodTypes):
@@ -308,19 +335,25 @@ class PartitionDistribution(object):
                     # Re-compute the amount of mass for all offlist actions
                     oldOffListHistoryEntryBelief = existingHistoryEntry.belief
                     if self.offListBeliefUpdateMethod == 'plain':
-                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * asrUnseenActionLikelihood
-                    elif self.offListBeliefUpdateMethod == 'unlikelihood':
+                        offListUserActionASRLikelihood = asrUnseenActionLikelihood
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood
+                    elif self.offListBeliefUpdateMethod == 'heuristicUsingPrior':
+                        offListUserActionASRLikelihood = asrUnseenActionLikelihood
                         discountedOffListUserActionLikelihood = offListUserActionLikelihood * existingPartitionEntry.partition.UserActionUnlikelihood(userAction,existingHistoryEntry.history,sysAction)
-                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * asrUnseenActionLikelihood * discountedOffListUserActionLikelihood
-                    self.appLogger.info('offListUserActionLikelihood=%g'%offListUserActionLikelihood)
-                    self.appLogger.info('discountedOffListUserActionLikelihood=%g'%discountedOffListUserActionLikelihood)
-                    self.appLogger.info('asrUnseenActionLikelihood=%g'%asrUnseenActionLikelihood)
-                    self.appLogger.info('existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
-                    self.appLogger.info('->existingHistoryEntry.belief=%g'%existingHistoryEntry.belief)
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionASRLikelihood * discountedOffListUserActionLikelihood
+                    elif self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
+                        offListUserActionASRLikelihood = self._OffListUserActionASRLikelihood(asrUnseenActionLikelihood,userAction)
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood
+                    else:
+                        raise RuntimeError,'Unknown offListBeliefUpdateMethod'
+                    self.appLogger.info('   offListUserActionLikelihood=%g'%offListUserActionLikelihood)
+                    self.appLogger.info('   offListUserActionASRLikelihood=%g'%offListUserActionASRLikelihood)
+                    self.appLogger.info('   existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)
+                    self.appLogger.info('   ->existingHistoryEntry.belief=%g'%existingHistoryEntry.belief)
                     existingPartitionEntry.newBelief = existingPartitionEntry.newBelief - oldOffListHistoryEntryBelief + existingHistoryEntry.belief
                     rawOfflistBeliefTotal += existingHistoryEntry.belief
-                    self.appLogger.info('  oldHistoryEntryBelief: %g -> newHistoryEntryBelief: %g'%(oldOffListHistoryEntryBelief,existingHistoryEntry.belief))
-                self.appLogger.info('  Raw (unnormalized) log-belief in this partition is now %s' % (_LogToStringSafely(existingPartitionEntry.newBelief)))
+#                    self.appLogger.info('  oldHistoryEntryBelief = %g -> newHistoryEntryBelief = %g'%(oldOffListHistoryEntryBelief,existingHistoryEntry.belief))
+                self.appLogger.info(' Raw (unnormalized) log-belief in this partition is now %s' % (_LogToStringSafely(existingPartitionEntry.newBelief)))
                 i += 1
 
             # 2. Compact tree by pruning
