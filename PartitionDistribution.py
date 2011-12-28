@@ -345,7 +345,7 @@ class PartitionDistribution(object):
                         offListUserActionASRLikelihood = self._OffListUserActionASRLikelihood(asrUnseenActionLikelihood,userAction)
                         existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood
                     else:
-                        raise RuntimeError,'Unknown offListBeliefUpdateMethod'
+                        raise RuntimeError,'Unknown offListBeliefUpdateMethod = %s'%self.offListBeliefUpdateMethod
                     self.appLogger.info('   offListUserActionLikelihood=%g'%offListUserActionLikelihood)
                     self.appLogger.info('   offListUserActionASRLikelihood=%g'%offListUserActionASRLikelihood)
                     self.appLogger.info('   existingHistoryEntry.origBelief=%g'%existingHistoryEntry.origBelief)

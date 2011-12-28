@@ -272,12 +272,7 @@ class ASRResult:
         self.config = GetConfig()
         self.probTotal = 0.0
         self.correctPosition = None
-#        self.watsonResult = None
-        self.offListBeliefUpdateMethod = self.config.get('PartitionDistribution','offListBeliefUpdateMethod')
-        self.numberOfRoute = self.config.getfloat('BeliefState','numberOfRoute')
-        self.numberOfPlace = self.config.getfloat('BeliefState','numberOfPlace')
-        self.numberOfTime = self.config.getfloat('BeliefState','numberOfTime')
-        self.totalCount = self.numberOfRoute * self.numberOfPlace * self.numberOfPlace * self.numberOfTime
+        self.watsonResult = None
 
 #    @classmethod
 #    def FromWatson(cls,watsonResult,grammar):
@@ -410,6 +405,7 @@ class ASRResult:
         if not provided, defaults to None
         '''
         self = cls()
+        self.asrOffListProb = self.config.getfloat('BeliefState','asrOffListProb')
         assert (len(userActions) == len(probs)),'In ASRResult, length of userActions (%d) not equal to length of probs (%d)' % (len(userActions),len(probs))
         for userAction in userActions:
             assert (not userAction.type == 'oog'),'userAction type for ASR result cannot be oog -- oog is implicit in left-over mass'
@@ -443,6 +439,7 @@ class ASRResult:
         if not provided, defaults to None
         '''
         self = cls()
+        self.asrOffListProb = self.config.getfloat('BeliefState','asrOffListProb')
         assert (len(userActions) == len(probs)),'In ASRResult, length of userActions (%d) not equal to length of probs (%d)' % (len(userActions),len(probs))
         for userAction in userActions:
             assert (not userAction.type == 'oog'),'userAction type for ASR result cannot be oog -- oog is implicit in left-over mass'
@@ -516,11 +513,6 @@ class ASRResult:
             self.releasedActions += 1
 #            offListProb = 1.0 * (1.0 - self.releasedProb) / (self.grammar.cardinality + 2 - self.releasedActions)
 #            offListProb = 1.0 * (1.0 - self.releasedProb) / (3000000 + 2 - self.releasedActions)
-            if self.offListBeliefUpdateMethod in ['plain','heuristicUsingPrior']:
-                offListProb = 1.0 * (1.0 - self.releasedProb) / (self.totalCount + 2 - self.releasedActions)
-            elif self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
-                offListProb = 1.0 - self.releasedProb
-            else:
-                raise RuntimeError,'Unknown offListBeliefUpdateMethod = %s'%self.offListBeliefUpdateMethod
+            offListProb = self.asrOffListProb
             yield (userAction,prob,offListProb)
             i += 1

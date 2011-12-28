@@ -227,28 +227,34 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(1,2):
+    for testIndex in range(0,3):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [1000]
+            iter = [500]
             errorRates = [-1]
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
         elif testIndex == 1:
-            iter = [1000]
+            iter = [500]
             errorRates = [-1]
-            config.set('DialogManager','preferNaturalSequence','false')
-#        elif testIndex == 2:
-#            iter = [500]
-#            errorRates = [-1]
-#            config.set('DialogManager','preferNaturalSequence','true')
-#            config.set('DialogManager','useDirectedOpenQuestion','false')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicUsingPrior')
         elif testIndex == 2:
             iter = [500]
             errorRates = [-1]
-            config.set('DialogManager','preferNaturalSequence','true')
-            config.set('DialogManager','useDirectedOpenQuestion','true')
-            config.set('DialogManager','confidenceScoreCalibration','false')
-            config.set('BeliefState','useLearnedUserModel','false')
             config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+        elif testIndex == 3:
+            iter = [500]
+            errorRates = [-1]
+            config.set('BeliefState','numberOfRoute','297')
+            config.set('BeliefState','numberOfPlace','1988')
+            config.set('BeliefState','numberOfTime','1440')
+            config.set('BeliefState','asrOffListProb','3e-10')
+        elif testIndex == 4:
+            iter = [500]
+            errorRates = [-1]
+            config.set('BeliefState','numberOfRoute','297')
+            config.set('BeliefState','numberOfPlace','1988')
+            config.set('BeliefState','numberOfTime','1440')
+            config.set('BeliefState','asrOffListProb','3e-11')
 #        elif testIndex == 4:
 #            iter = [500]
 #            errorRates = [-1]
@@ -258,7 +264,7 @@ def main():
 #        iter = [200]
 #        errorRates = [0,1,2]
 #        errorRates = [-1]
-        interval = 4
+        interval = 10
 #        basisFunctionMax = [500]
         basisFunctionMax = ['500','500','500','500']
         totalDialogSuccessCount = 0
@@ -342,7 +348,12 @@ def main():
 
 #                rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
 #                rewards['taskSuccessReward'] += errorRate*5 
-                log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
+                while True:
+                    try:
+                        log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
+                    except:
+                        continue
+                    break
                 
                 totalDialogReward.append(log['result'][1])
                 intervalDialogReward.append(log['result'][1])
