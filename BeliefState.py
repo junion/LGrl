@@ -471,11 +471,11 @@ class Partition(object):
                     allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
                     self.appLogger.info('All fields matched')
-                    if (userAction.content != None and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES') or\
+                    if (userAction.type != 'non-understanding' and 'confirm' in userAction.content and userAction.content['confirm'] == 'YES') or\
                     directAnswer:
                         result = self.userModel['C-o'][self._getClosestUserAct(userAction)]
                     else:
-                        if 'confirm' in userAction.content and directAnswer:
+                        if userAction.type != 'non-understanding' and 'confirm' in userAction.content and directAnswer:
                             del userAction.content['confirm']
                         result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
                     self.appLogger.info('User action likelihood %g'%result)
