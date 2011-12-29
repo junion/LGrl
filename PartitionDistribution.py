@@ -148,9 +148,10 @@ class PartitionDistribution(object):
         if userAction.type == 'non-understanding':
             return offListASRProb
         count = 1
+        confirmExist = False
         for field in userAction.content:
-            if len(userAction.content) == 1 and field == 'confirm':
-                count *= self.numberOfPossibleActionsForConfirmation
+            if field == 'confirm':
+                confirmExist = True
             elif field == 'route':
                 count *= self.num_route
             elif field in ['departure_place','arrival_place']:
@@ -159,6 +160,8 @@ class PartitionDistribution(object):
                 count *= self.num_time
             else:
                 raise RuntimeError,'Invalid field %s'%field
+        if confirmExist and count == 1:
+            count *= self.numberOfPossibleActionsForConfirmation
         return offListASRProb/count
     
     def Update(self,asrResult,sysAction):
