@@ -48,6 +48,7 @@ class DialogThread(threading.Thread):
         self.outQueue = outQueue
         self.resultQueue = resultQueue
         self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
+        self.preventCorrectionInConfirm = self.config.getboolean(MY_ID,'preventCorrectionInConfirm')
         self.dialogResult = ''
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
@@ -380,9 +381,10 @@ class DialogThread(threading.Thread):
         ('uncovered_place' in userAction.content and userAction.content['uncovered_place'] == 'MOON'))):
             userAction.content = {'confirm':'NO'}
 
-        if 'confirm' in userAction.content:
-            self.appLogger.info('For now, just deal with YES/NO only in a turn')
-            userAction.content = {'confirm':userAction.content['confirm']}
+        if self.preventCorrectionInConfirm:
+            if 'confirm' in userAction.content:
+                self.appLogger.info('For now, just deal with YES/NO only in a turn')
+                userAction.content = {'confirm':userAction.content['confirm']}
                         
         self.appLogger.info('userAction: %s'%str(userAction))
 
