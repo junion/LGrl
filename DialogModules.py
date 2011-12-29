@@ -278,6 +278,7 @@ class ASRResult:
         self.numberOfPlace = self.config.getfloat('BeliefState','numberOfPlace')
         self.numberOfTime = self.config.getfloat('BeliefState','numberOfTime')
         self.totalCount = self.numberOfRoute * self.numberOfPlace * self.numberOfPlace * self.numberOfTime
+        self.fixedASRConfusionProbability = self.config.getfloat('BeliefState','fixedASRConfusionProbability')
 
 #    @classmethod
 #    def FromWatson(cls,watsonResult,grammar):
@@ -517,9 +518,15 @@ class ASRResult:
 #            offListProb = 1.0 * (1.0 - self.releasedProb) / (self.grammar.cardinality + 2 - self.releasedActions)
 #            offListProb = 1.0 * (1.0 - self.releasedProb) / (3000000 + 2 - self.releasedActions)
             if self.offListBeliefUpdateMethod in ['plain','heuristicUsingPrior']:
-                offListProb = 1.0 * (1.0 - self.releasedProb) / (self.totalCount + 2 - self.releasedActions)
+                if self.fixedASRConfusionProbability > 0:
+                    offListProb = self.fixedASRConfusionProbability / self.totalCount
+                else:
+                    offListProb = 1.0 * (1.0 - self.releasedProb) / (self.totalCount + 2 - self.releasedActions)
             elif self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
-                offListProb = 1.0 - self.releasedProb
+                if self.fixedASRConfusionProbability > 0:
+                    offListProb = self.fixedASRConfusionProbability
+                else:
+                    offListProb = 1.0 - self.releasedProb
             else:
                 raise RuntimeError,'Unknown offListBeliefUpdateMethod = %s'%self.offListBeliefUpdateMethod
             yield (userAction,prob,offListProb)
