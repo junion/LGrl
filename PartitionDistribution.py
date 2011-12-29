@@ -147,7 +147,7 @@ class PartitionDistribution(object):
     def _OffListUserActionASRLikelihood(self,offListASRProb,userAction):
         count = 1
         for field in userAction.content:
-            if field == 'confirm':
+            if len(userAction.content) == 1 and field == 'confirm':
                 count *= self.numberOfPossibleActionsForConfirmation
             elif field == 'route':
                 count *= self.num_route
