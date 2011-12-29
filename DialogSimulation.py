@@ -20,7 +20,7 @@ www.research.att.com/people/Williams_Jason_D
 '''
 
 # Extend sys.path to include src directory
-import os,sys,shutil
+import os,sys,shutil,traceback
 import datetime as dt
 #sys.path.append(os.path.join(os.path.dirname(__file__),'../../src'))
 
@@ -233,9 +233,9 @@ def main():
             iter = [300]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
+            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','5000')
             config.set('PartitionDistribution','conservativeUpdateFactor','5.0')
-            config.set('DialogThread','preventCorrectionInConfirm','false')
+            config.set('DialogThread','preventCorrectionInConfirm','true')
             config.set('BeliefState','fixedASRConfusionProbability','0.3')
         elif testIndex == 1:
             iter = [300]
@@ -354,6 +354,7 @@ def main():
                     try:
                         log = SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate)
                     except:
+                        appLogger.error(traceback.format_exc())
                         continue
                     break
                 
