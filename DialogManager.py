@@ -137,7 +137,7 @@ class SBSarsaDialogManager(DialogManager):
             return BASIS
 
         sbr_model = None
-        if len(asrResult.userActions) == 1:
+        if len(asrResult.userActions[0].content) == 1:
             try:
                 if asrResult.userActions[0].content.keys()[0] == 'confirm':
                     if asrResult.probs[0] == 1.0:
@@ -150,9 +150,9 @@ class SBSarsaDialogManager(DialogManager):
                     sbr_model = self.sbr_model[asrResult.userActions[0].content.keys()[0]]
             except:
                 pass
-        elif len(asrResult.userActions) == 2:
+        elif len(asrResult.userActions[0].content) == 2:
             sbr_model = self.sbr_model['multi2']
-        elif len(asrResult.userActions) == 3:
+        elif len(asrResult.userActions[0].content) == 3:
             sbr_model = self.sbr_model['multi3']
         else:
             sbr_model = self.sbr_model['multi4']
