@@ -145,6 +145,8 @@ class PartitionDistribution(object):
 #            self.appLogger.info('7')
 
     def _OffListUserActionASRLikelihood(self,offListASRProb,userAction):
+        if userAction.type == 'non-understanding':
+            return offListASRProb
         count = 1
         for field in userAction.content:
             if len(userAction.content) == 1 and field == 'confirm':
