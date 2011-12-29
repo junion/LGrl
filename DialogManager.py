@@ -137,7 +137,9 @@ class SBSarsaDialogManager(DialogManager):
             return BASIS
 
         sbr_model = None
-        if len(asrResult.userActions[0].content) == 1:
+        if asrResult.userActions[0].type == 'non-understanding':
+            return
+        elif len(asrResult.userActions[0].content) == 1:
             try:
                 if asrResult.userActions[0].content.keys()[0] == 'confirm':
                     if asrResult.probs[0] == 1.0:
