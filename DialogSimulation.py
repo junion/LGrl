@@ -219,7 +219,7 @@ def main():
     config = GetConfig()
     config.read(['LGrl.conf'])
     config.set('Global','modelPath','.')
-    config.set('DialogManager','dialogStrategyLearning','false')
+    config.set('DialogManager','dialogStrategyLearning','true')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -227,34 +227,36 @@ def main():
     rewards['taskProceedReward'] = config.getint('DialogManager','taskProceedReward')
 
 #    InitDB()
-    for testIndex in range(0,3):
+    for testIndex in range(0,1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [500]
+            iter = [300]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
+            config.set('PartitionDistribution','conservativeUpdateFactor','5.0')
+            config.set('DialogThread','preventCorrectionInConfirm','false')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
         elif testIndex == 1:
-            iter = [500]
+            iter = [300]
             errorRates = [-1]
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicUsingPrior')
+            config.set('BeliefState','fixedASRConfusionProbability','0.2')
         elif testIndex == 2:
-            iter = [500]
+            iter = [300]
             errorRates = [-1]
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','plain')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
         elif testIndex == 3:
-            iter = [500]
+            iter = [300]
             errorRates = [-1]
-            config.set('BeliefState','numberOfRoute','297')
-            config.set('BeliefState','numberOfPlace','1988')
-            config.set('BeliefState','numberOfTime','1440')
-            config.set('BeliefState','asrOffListProb','3e-10')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
+            config.set('PartitionDistribution','conservativeUpdateFactor','8.0')
         elif testIndex == 4:
-            iter = [500]
+            iter = [300]
             errorRates = [-1]
-            config.set('BeliefState','numberOfRoute','297')
-            config.set('BeliefState','numberOfPlace','1988')
-            config.set('BeliefState','numberOfTime','1440')
-            config.set('BeliefState','asrOffListProb','3e-11')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
+            config.set('PartitionDistribution','conservativeUpdateFactor','9.0')
 #        elif testIndex == 4:
 #            iter = [500]
 #            errorRates = [-1]

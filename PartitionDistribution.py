@@ -97,6 +97,7 @@ class PartitionDistribution(object):
             self.num_time = config.getint('BeliefState','numberOfTime')
             self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
             self.numberOfPossibleActionsForConfirmation = config.getint('BeliefState','numberOfPossibleActionsForConfirmation')
+            self.conservativeUpdateFactor =  config.getfloat(MY_ID,'conservativeUpdateFactor')
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
         self.appLogger.info('Config: maxPartitions = %d' % (self.maxPartitions))
@@ -343,7 +344,7 @@ class PartitionDistribution(object):
                         existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionASRLikelihood * discountedOffListUserActionLikelihood
                     elif self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
                         offListUserActionASRLikelihood = self._OffListUserActionASRLikelihood(asrUnseenActionLikelihood,userAction)
-                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood * self.conservativeUpdateFactor #* existingPartitionEntry.partition.prior
                     else:
                         raise RuntimeError,'Unknown offListBeliefUpdateMethod = %s'%self.offListBeliefUpdateMethod
                     self.appLogger.info('   offListUserActionLikelihood=%g'%offListUserActionLikelihood)
