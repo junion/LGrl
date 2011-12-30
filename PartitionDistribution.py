@@ -164,6 +164,26 @@ class PartitionDistribution(object):
             count *= self.numberOfPossibleActionsForConfirmation
         return offListASRProb/count
     
+    def _MinUserActionLikelihood(self,userAction):
+        if userAction.type == 'non-understanding':
+            return 0.0
+        count = 1
+        confirmExist = False
+        for field in userAction.content:
+            if field == 'confirm':
+                confirmExist = True
+            elif field == 'route':
+                count *= self.num_route
+            elif field in ['departure_place','arrival_place']:
+                count *= self.num_place
+            elif field == 'travel_time':
+                count *= self.num_time
+            else:
+                raise RuntimeError,'Invalid field %s'%field
+        if confirmExist and count == 1:
+            count *= self.numberOfPossibleActionsForConfirmation
+        return 1.0/count
+        
     def Update(self,asrResult,sysAction):
         '''
         Updates a partitionDistributionObject object with
@@ -291,7 +311,12 @@ class PartitionDistribution(object):
                         # Update newHistoryEntry
                         nextNewHistoryEntry = _HistoryEntry()
                         nextNewHistoryEntry.history = existingHistoryEntry.history.Copy()
-                        nextNewHistoryEntry.belief = userActionLikelihood * asrLikelihood * existingHistoryEntry.origBelief
+                        if self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
+                            minUserActionLikelihood = self._MinUserActionLikelihood(userAction)
+                            userActionLikelihood = max(userActionLikelihood,minUserActionLikelihood)
+                            nextNewHistoryEntry.belief = userActionLikelihood * asrLikelihood * existingHistoryEntry.origBelief
+                        else:
+                            nextNewHistoryEntry.belief = userActionLikelihood * asrLikelihood * existingHistoryEntry.origBelief
                         nextNewHistoryEntry.origBelief = None
                         nextNewHistoryEntry.userActionLikelihoodTotal = None
                         nextNewHistoryEntry.history.Update(existingPartitionEntry.partition,userAction,sysAction)
@@ -349,7 +374,7 @@ class PartitionDistribution(object):
                         existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionASRLikelihood * discountedOffListUserActionLikelihood
                     elif self.offListBeliefUpdateMethod == 'heuristicPossibleActions':
                         offListUserActionASRLikelihood = self._OffListUserActionASRLikelihood(asrUnseenActionLikelihood,userAction)
-                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood * self.conservativeUpdateFactor #* existingPartitionEntry.partition.prior
+                        existingHistoryEntry.belief = existingHistoryEntry.origBelief * offListUserActionLikelihood * offListUserActionASRLikelihood #* self.conservativeUpdateFactor #* existingPartitionEntry.partition.prior
                     else:
                         raise RuntimeError,'Unknown offListBeliefUpdateMethod = %s'%self.offListBeliefUpdateMethod
                     self.appLogger.info('   offListUserActionLikelihood=%g'%offListUserActionLikelihood)
