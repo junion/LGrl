@@ -97,7 +97,8 @@ class PartitionDistribution(object):
             self.num_time = config.getint('BeliefState','numberOfTime')
             self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
             self.numberOfPossibleActionsForConfirmation = config.getint('BeliefState','numberOfPossibleActionsForConfirmation')
-            self.conservativeUpdateFactor =  config.getfloat(MY_ID,'conservativeUpdateFactor')
+            self.conservativeUpdateFactor = config.getfloat(MY_ID,'conservativeUpdateFactor')
+            self.minPartitionProbability = config.getfloat(MY_ID,'minPartitionProbability')
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
         self.appLogger.info('Config: maxPartitions = %d' % (self.maxPartitions))
@@ -440,6 +441,8 @@ class PartitionDistribution(object):
                     if (partitionEntry != None):
                         cleanPartitionEntryList.append(partitionEntry)
                 self.partitionEntryList = cleanPartitionEntryList
+                
+            self.CompactByProbability(self.minPartitionProbability)
 
         rawBeliefTotal = rawOfflistBeliefTotal + rawOnlistBeliefTotal
 
@@ -549,6 +552,69 @@ class PartitionDistribution(object):
             for partitionEntry in self.partitionEntryList:
                 partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+        self.stats.EndClock('compact')
+
+    def CompactByProbability(self,minProbability):
+        '''
+        Compacts a partitionDistribution object down
+        to at most maxPartitions.
+
+        This function does not need to be called as
+        a part of the normal operation of the class.
+        '''
+        self.stats.InitUpdate()
+        self.stats.StartClock('compact')
+        partitionCount = len(self.partitionEntryList)
+        self.stats.lastUpdateMaxPartitions = partitionCount
+        leafPartitionEntryList = []
+        i = 0
+        for partitionEntry in self.partitionEntryList:
+            partitionEntry.selfPointer = i
+            if (len(partitionEntry.children) == 0 and partitionEntry.parent != None):
+                leafPartitionEntryList.append(partitionEntry)
+            i += 1
+        leafPartitionCount = len(leafPartitionEntryList)
+        leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+        while (leafPartitionEntryList[0].belief < minProbability):
+            for i in range(leafPartitionCount):
+                partitionEntry = leafPartitionEntryList[i]
+                if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
+                    self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
+                    self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
+                    parent = partitionEntry.parent
+                    # merge histories
+                    parent.historyEntryList.extend(partitionEntry.historyEntryList)
+                    PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
+                    # merge belief
+                    parent.belief = parent.belief + partitionEntry.belief
+                    # delete pointer to child
+                    del parent.children[ parent.children.index(partitionEntry) ]
+                    self.partitionEntryList[ partitionEntry.selfPointer ] = None
+                    del leafPartitionEntryList[i]
+                    partitionCount -= 1
+                    leafPartitionCount -= 1
+                    # test if parent is now a leaf
+                    if (len(parent.children) == 0 and parent.parent != None):
+                        # find the right place to insert the parent
+                        insertedFlag = 0
+                        for j in range(leafPartitionCount):
+                            if (parent.belief < leafPartitionEntryList[j].belief):
+                                leafPartitionEntryList.insert(j,parent)
+                                insertedFlag = 1
+                                break
+                        if (insertedFlag == 0):
+                            leafPartitionEntryList.append(parent)
+                        leafPartitionCount += 1
+                    break
+        # Clean up empty entries
+        cleanPartitionEntryList = []
+        for partitionEntry in self.partitionEntryList:
+            if (partitionEntry != None):
+                cleanPartitionEntryList.append(partitionEntry)
+        self.partitionEntryList = cleanPartitionEntryList
+#        for partitionEntry in self.partitionEntryList:
+#            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+#        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         self.stats.EndClock('compact')
 
     @staticmethod
