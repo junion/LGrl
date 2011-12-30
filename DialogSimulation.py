@@ -173,7 +173,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1):
         
 #        appLogger.info('** PartitionDistribution: **\n%s' % (dialogManager.beliefState))
         
-        updateTime = dialogManager.beliefState.partitionDistribution.stats.clocks['mainUpdate']
+        updateTime = 0 #dialogManager.beliefState.partitionDistribution.stats.clocks['mainUpdate']
         
 #        appLogger.info('Update time: %f' % (updateTime))
         
@@ -233,30 +233,37 @@ def main():
             iter = [300]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','5000')
-            config.set('PartitionDistribution','conservativeUpdateFactor','5.0')
+            config.set('PartitionDistribution','minPartitionProbability','1e-4')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
             config.set('DialogThread','preventCorrectionInConfirm','true')
-            config.set('BeliefState','fixedASRConfusionProbability','0.3')
         elif testIndex == 1:
-            iter = [300]
-            errorRates = [-1]
-            config.set('BeliefState','fixedASRConfusionProbability','0.2')
-        elif testIndex == 2:
-            iter = [300]
-            errorRates = [-1]
-            config.set('BeliefState','fixedASRConfusionProbability','0.3')
-        elif testIndex == 3:
-            iter = [300]
+            iter = [10]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
-            config.set('PartitionDistribution','conservativeUpdateFactor','8.0')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','100000')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
+            config.set('DialogThread','preventCorrectionInConfirm','true')
+        elif testIndex == 2:
+            iter = [1000]
+            errorRates = [-1]
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','10000')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
+            config.set('DialogThread','preventCorrectionInConfirm','true')
+        elif testIndex == 3:
+            iter = [1000]
+            errorRates = [-1]
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
+            config.set('DialogThread','preventCorrectionInConfirm','true')
         elif testIndex == 4:
             iter = [300]
             errorRates = [-1]
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','numberOfPossibleActionsForConfirmation','10')
-            config.set('PartitionDistribution','conservativeUpdateFactor','9.0')
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicUsingPrior')
+            config.set('DialogThread','preventCorrectionInConfirm','true')
+            config.set('BeliefState','fixedASRConfusionProbability','1.0')
 #        elif testIndex == 4:
 #            iter = [500]
 #            errorRates = [-1]
