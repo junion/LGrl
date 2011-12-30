@@ -576,6 +576,7 @@ class PartitionDistribution(object):
             i += 1
         leafPartitionCount = len(leafPartitionEntryList)
         leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+        needToCleanup = False
         while (leafPartitionCount > 0 and leafPartitionEntryList[0].belief < minProbability):
             for i in range(leafPartitionCount):
                 partitionEntry = leafPartitionEntryList[i]
@@ -606,60 +607,36 @@ class PartitionDistribution(object):
                         if (insertedFlag == 0):
                             leafPartitionEntryList.append(parent)
                         leafPartitionCount += 1
+                    leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+                    needToCleanup = True
                     break
-        # Clean up empty entries
-        cleanPartitionEntryList = []
-        for partitionEntry in self.partitionEntryList:
-            if (partitionEntry != None):
-                cleanPartitionEntryList.append(partitionEntry)
-        self.partitionEntryList = cleanPartitionEntryList
-#        for partitionEntry in self.partitionEntryList:
-#            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
-#        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-#        self.stats.EndClock('compact')
-
-#        rawOfflistBeliefTotalCheck = 0.0
-        rawBeliefTotal = 0.0
-#        i = 0
-        for partitionEntry in self.partitionEntryList:
-            for historyEntry in partitionEntry.historyEntryList:
-                rawBeliefTotal += historyEntry.belief
-                
-        for partitionEntry in self.partitionEntryList:
-#            for newHistoryEntry in partitionEntry.newHistoryEntryList:
-#                rawOnlistBeliefTotalCheck += newHistoryEntry.belief
-#            for historyEntry in partitionEntry.historyEntryList:
-#                historyEntry.history.Update(partitionEntry.partition,None,sysAction)
-#                partitionEntry.newHistoryEntryList.append(historyEntry)
-#                rawOfflistBeliefTotalCheck += historyEntry.belief
-#            rawBeliefTotal = rawOnlistBeliefTotalCheck + rawOfflistBeliefTotalCheck
-#            partitionEntry.historyEntryList = partitionEntry.newHistoryEntryList
-#            partitionEntry.newHistoryEntryList = []
-#            PartitionDistribution._CombineHistoryDuplicatesOnList(partitionEntry.historyEntryList)
-            partitionEntry.belief = 0.0
-            partitionEntry.newBelief = 0.0
-            for historyEntry in partitionEntry.historyEntryList:
-                historyEntry.belief = historyEntry.belief / rawBeliefTotal
-                historyEntry.origBelief = historyEntry.belief
-#                historyEntry.userActionLikelihoodTotal = 0.0
-#                historyEntry.userActionLikelihoodTypes = {}
-                if (historyEntry.belief < 0.0):
-                    s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
-                    s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
-                    raise RuntimeError,s
-                partitionEntry.belief += historyEntry.belief
-            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
-#            if (self.maxHistories > 0 and len(partitionEntry.historyEntryList) > self.maxHistories):
-#                deletedMass = 0.0
-#                while (len(partitionEntry.historyEntryList) > self.maxHistories):
-#                    deletedMass += partitionEntry.historyEntryList[0].belief
-#                    del partitionEntry.historyEntryList[0]
-#                increaseFactor = 1.0 / (1.0 - deletedMass)
-#                for historyEntry in partitionEntry.historyEntryList:
-#                    historyEntry.belief *= increaseFactor
-#                    historyEntry.origBelief = historyEntry.belief
-#            i += 1
-        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+        
+        if needToCleanup:
+            # Clean up empty entries
+            cleanPartitionEntryList = []
+            for partitionEntry in self.partitionEntryList:
+                if (partitionEntry != None):
+                    cleanPartitionEntryList.append(partitionEntry)
+            self.partitionEntryList = cleanPartitionEntryList
+    
+            rawBeliefTotal = 0.0
+            for partitionEntry in self.partitionEntryList:
+                for historyEntry in partitionEntry.historyEntryList:
+                    rawBeliefTotal += historyEntry.belief
+                    
+            for partitionEntry in self.partitionEntryList:
+                partitionEntry.belief = 0.0
+                partitionEntry.newBelief = 0.0
+                for historyEntry in partitionEntry.historyEntryList:
+                    historyEntry.belief = historyEntry.belief / rawBeliefTotal
+                    historyEntry.origBelief = historyEntry.belief
+                    if (historyEntry.belief < 0.0):
+                        s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
+                        s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
+                        raise RuntimeError,s
+                    partitionEntry.belief += historyEntry.belief
+                partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+            self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
 
     @staticmethod
     def _ComparePartitionEntries(a,b):
