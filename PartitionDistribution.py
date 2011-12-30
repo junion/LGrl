@@ -193,9 +193,9 @@ class PartitionDistribution(object):
         #
         # Init
         #
-        self.stats.InitUpdate()
+#        self.stats.InitUpdate()
 
-        self.stats.StartClock('mainUpdate')
+#        self.stats.StartClock('mainUpdate')
         rawOnlistBeliefTotal = 0.0
         rawOfflistBeliefTotal = 0.0
 
@@ -442,8 +442,6 @@ class PartitionDistribution(object):
                         cleanPartitionEntryList.append(partitionEntry)
                 self.partitionEntryList = cleanPartitionEntryList
                 
-            self.CompactByProbability(self.minPartitionProbability)
-
         rawBeliefTotal = rawOfflistBeliefTotal + rawOnlistBeliefTotal
 
         # 3. Normalize, clean up and sort
@@ -487,7 +485,10 @@ class PartitionDistribution(object):
                     historyEntry.origBelief = historyEntry.belief
             i += 1
         self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        self.stats.EndClock('mainUpdate')
+        
+        self.CompactByProbability(self.minPartitionProbability,sysAction)
+        
+#        self.stats.EndClock('mainUpdate')
 
     def Compact(self,maxPartitions):
         '''
@@ -554,7 +555,7 @@ class PartitionDistribution(object):
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         self.stats.EndClock('compact')
 
-    def CompactByProbability(self,minProbability):
+    def CompactByProbability(self,minProbability,sysAction):
         '''
         Compacts a partitionDistribution object down
         to at most maxPartitions.
@@ -562,8 +563,8 @@ class PartitionDistribution(object):
         This function does not need to be called as
         a part of the normal operation of the class.
         '''
-        self.stats.InitUpdate()
-        self.stats.StartClock('compact')
+#        self.stats.InitUpdate()
+#        self.stats.StartClock('compact')
         partitionCount = len(self.partitionEntryList)
         self.stats.lastUpdateMaxPartitions = partitionCount
         leafPartitionEntryList = []
@@ -575,11 +576,11 @@ class PartitionDistribution(object):
             i += 1
         leafPartitionCount = len(leafPartitionEntryList)
         leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        while (leafPartitionEntryList[0].belief < minProbability):
+        while (leafPartitionCount > 0 and leafPartitionEntryList[0].belief < minProbability):
             for i in range(leafPartitionCount):
                 partitionEntry = leafPartitionEntryList[i]
                 if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
-                    self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
+                    self.appLogger.info('Combining child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
                     self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
                     parent = partitionEntry.parent
                     # merge histories
@@ -615,7 +616,50 @@ class PartitionDistribution(object):
 #        for partitionEntry in self.partitionEntryList:
 #            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
 #        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        self.stats.EndClock('compact')
+#        self.stats.EndClock('compact')
+
+#        rawOfflistBeliefTotalCheck = 0.0
+        rawBeliefTotal = 0.0
+#        i = 0
+        for partitionEntry in self.partitionEntryList:
+            for historyEntry in partitionEntry.historyEntryList:
+                rawBeliefTotal += historyEntry.belief
+                
+        for partitionEntry in self.partitionEntryList:
+#            for newHistoryEntry in partitionEntry.newHistoryEntryList:
+#                rawOnlistBeliefTotalCheck += newHistoryEntry.belief
+#            for historyEntry in partitionEntry.historyEntryList:
+#                historyEntry.history.Update(partitionEntry.partition,None,sysAction)
+#                partitionEntry.newHistoryEntryList.append(historyEntry)
+#                rawOfflistBeliefTotalCheck += historyEntry.belief
+#            rawBeliefTotal = rawOnlistBeliefTotalCheck + rawOfflistBeliefTotalCheck
+#            partitionEntry.historyEntryList = partitionEntry.newHistoryEntryList
+#            partitionEntry.newHistoryEntryList = []
+#            PartitionDistribution._CombineHistoryDuplicatesOnList(partitionEntry.historyEntryList)
+            partitionEntry.belief = 0.0
+            partitionEntry.newBelief = 0.0
+            for historyEntry in partitionEntry.historyEntryList:
+                historyEntry.belief = historyEntry.belief / rawBeliefTotal
+                historyEntry.origBelief = historyEntry.belief
+#                historyEntry.userActionLikelihoodTotal = 0.0
+#                historyEntry.userActionLikelihoodTypes = {}
+                if (historyEntry.belief < 0.0):
+                    s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
+                    s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
+                    raise RuntimeError,s
+                partitionEntry.belief += historyEntry.belief
+            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+#            if (self.maxHistories > 0 and len(partitionEntry.historyEntryList) > self.maxHistories):
+#                deletedMass = 0.0
+#                while (len(partitionEntry.historyEntryList) > self.maxHistories):
+#                    deletedMass += partitionEntry.historyEntryList[0].belief
+#                    del partitionEntry.historyEntryList[0]
+#                increaseFactor = 1.0 / (1.0 - deletedMass)
+#                for historyEntry in partitionEntry.historyEntryList:
+#                    historyEntry.belief *= increaseFactor
+#                    historyEntry.origBelief = historyEntry.belief
+#            i += 1
+        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
 
     @staticmethod
     def _ComparePartitionEntries(a,b):
