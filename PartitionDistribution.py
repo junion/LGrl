@@ -563,6 +563,7 @@ class PartitionDistribution(object):
         This function does not need to be called as
         a part of the normal operation of the class.
         '''
+        self.appLogger.info('Compacts a partitionDistribution down based on minimum partition probability')
 #        self.stats.InitUpdate()
 #        self.stats.StartClock('compact')
         partitionCount = len(self.partitionEntryList)
@@ -578,38 +579,45 @@ class PartitionDistribution(object):
         leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         needToCleanup = False
         while (leafPartitionCount > 0 and leafPartitionEntryList[0].belief < minProbability):
+            changed = False
             for i in range(leafPartitionCount):
                 partitionEntry = leafPartitionEntryList[i]
-                if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
-                    self.appLogger.info('Combining child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
-                    self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
-                    parent = partitionEntry.parent
-                    # merge histories
-                    parent.historyEntryList.extend(partitionEntry.historyEntryList)
-                    PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
-                    # merge belief
-                    parent.belief = parent.belief + partitionEntry.belief
-                    # delete pointer to child
-                    del parent.children[ parent.children.index(partitionEntry) ]
-                    self.partitionEntryList[ partitionEntry.selfPointer ] = None
-                    del leafPartitionEntryList[i]
-                    partitionCount -= 1
-                    leafPartitionCount -= 1
-                    # test if parent is now a leaf
-                    if (len(parent.children) == 0 and parent.parent != None):
-                        # find the right place to insert the parent
-                        insertedFlag = 0
-                        for j in range(leafPartitionCount):
-                            if (parent.belief < leafPartitionEntryList[j].belief):
-                                leafPartitionEntryList.insert(j,parent)
-                                insertedFlag = 1
-                                break
-                        if (insertedFlag == 0):
-                            leafPartitionEntryList.append(parent)
-                        leafPartitionCount += 1
-                    leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-                    needToCleanup = True
-                    break
+                if partitionEntry.belief < minProbability:
+                    if partitionEntry.parent.partition.Recombine(partitionEntry.partition):
+                        self.appLogger.info('Combining child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
+                        self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
+                        parent = partitionEntry.parent
+                        # merge histories
+                        parent.historyEntryList.extend(partitionEntry.historyEntryList)
+                        PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
+                        # merge belief
+                        parent.belief = parent.belief + partitionEntry.belief
+                        # delete pointer to child
+                        del parent.children[ parent.children.index(partitionEntry) ]
+                        self.partitionEntryList[ partitionEntry.selfPointer ] = None
+                        del leafPartitionEntryList[i]
+                        partitionCount -= 1
+                        leafPartitionCount -= 1
+                        # test if parent is now a leaf
+                        if (len(parent.children) == 0 and parent.parent != None):
+                            # find the right place to insert the parent
+                            insertedFlag = 0
+                            for j in range(leafPartitionCount):
+                                if (parent.belief < leafPartitionEntryList[j].belief):
+                                    leafPartitionEntryList.insert(j,parent)
+                                    insertedFlag = 1
+                                    break
+                            if (insertedFlag == 0):
+                                leafPartitionEntryList.append(parent)
+                            leafPartitionCount += 1
+                        leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+                        needToCleanup = True
+                        changed = True
+                        break
+                    else:
+                        self.appLogger.info('Cannot combine child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
+            if not changed:
+                break
         
         if needToCleanup:
             # Clean up empty entries
