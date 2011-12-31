@@ -437,7 +437,7 @@ class SBSarsaDialogManager(DialogManager):
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
 
-        if len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
+        if len(acts) > 1 and len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
             try:
                 acts.remove(self.sysActHistory[-1])
                 self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
@@ -452,32 +452,15 @@ class SBSarsaDialogManager(DialogManager):
                     '[ask] request arrival_place','[ask] request travel_time']
             self.appLogger.info('Length of acts becomes zero')
                                                     
-        act = ''
-        if userFirst:
-            act = '[ask] request all' 
-            self.appLogger.info('Choose request all as an implicit start action')
-        elif self.dialogStrategyLearning and self.GetBasisSize() == 0:
-            act = random.choice(acts[:4])
-        elif self.dialogStrategyLearning and random.random() < 0.1:
-            act = random.choice(acts)
-            self.appLogger.info('Exploration act: %s'%act)
-#        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
-#            act = acts[-1]
-#            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
-
-#        if self.beliefState.GetTopUserGoalBelief() == 1.0:
-#            act = '[ask] request all'
-#            self.appLogger.info('Only request all is allowed as an initial act')
-
         if len(self.sysActHistory) > 0 and self.sysActHistory[-1].find('confirm') > -1 and \
         asrResult.userActions[0].type != 'non-understanding' and 'confirm' in asrResult.userActions[0].content and \
         asrResult.userActions[0].content['confirm'] == 'NO':
             self.repeatedAskedField = self.sysActHistory[-1].split(' ')[-1]
             self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
-            if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < 3:
+            if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < 2:
                 acts = [] if '[inform]' not in acts else ['[inform]']
                 acts.append('[ask] request %s'%self.repeatedAskedField)
-                acts.append('[ask] confirm %s'%self.repeatedAskedField)
+#                acts.append('[ask] confirm %s'%self.repeatedAskedField)
                 self.appLogger.info('Limited to request/confirm %s because of confirm failure'%self.repeatedAskedField)
             else:
                 try:
@@ -497,27 +480,54 @@ class SBSarsaDialogManager(DialogManager):
                     self.appLogger.info('Exception while removing confirm_immediate %s'%self.repeatedAskedField)
                 if set(acts).issubset(set(['[ask] request all','[ask] confirm route','[inform]'])):
                     acts.append('[ask] request %s'%self.repeatedAskedField)
-                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
+#                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
                     self.appLogger.info('Add request/confirm %s because of no other available actions'%self.repeatedAskedField)
             self.numberOfRepeatedConfirmFail += 1
-        elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] request %s'%self.repeatedAskedField:
+        elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] request %s'%self.repeatedAskedField and \
+        asrResult.userActions[0].type != 'non-understanding' and self.repeatedAskedField in asrResult.userActions[0].content:
             self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
             acts = [] if '[inform]' not in acts else []
-            acts.append('[ask] request %s'%self.repeatedAskedField)
+#            acts.append('[ask] request %s'%self.repeatedAskedField)
             acts.append('[ask] confirm %s'%self.repeatedAskedField)
             self.appLogger.info('Limited to request/confirm %s because of confirm failure'%self.repeatedAskedField)
         else:
             self.repeatedAskedField = ''
             self.numberOfRepeatedConfirmFail = 0
+            if len(self.sysActHistory) > 0 and self.sysActHistory[-1].find('[ask] request') > -1:
+                askedField = self.sysActHistory[-1].split(' ')[-1]
+                if asrResult.userActions[0].type != 'non-understanding' and askedField in asrResult.userActions[0].content and \
+                 len(marginals[askedField]) > 0 and marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold:
+                    acts = [] if '[inform]' not in acts else []
+                    acts.append('[ask] confirm %s'%askedField)
+                    acts.append('[ask] confirm_immediate %s'%askedField)
+                    self.appLogger.info('Limited to confirm(_immediate) %s to enforce request/confirm pattern'%askedField)
+                    
                 
-        if self.repeatedAskedField != '' and \
-        (len(marginals[self.repeatedAskedField]) == 0 or \
-         marginals[self.repeatedAskedField][-1]['belief'] < self.fieldRejectThreshold):
-            try:
-                self.appLogger.info('Exclude confirm %s because of no value or very low marginal'%self.repeatedAskedField)
-                acts.remove('[ask] confirm %s'%self.repeatedAskedField)
-            except:
-                self.appLogger.info('Exception while removing confirm %s'%self.repeatedAskedField)
+#        if self.repeatedAskedField != '' and \
+#        (len(marginals[self.repeatedAskedField]) == 0 or \
+#         marginals[self.repeatedAskedField][-1]['belief'] < self.fieldRejectThreshold):
+#            try:
+#                self.appLogger.info('Exclude confirm %s because of no value or very low marginal'%self.repeatedAskedField)
+#                acts.remove('[ask] confirm %s'%self.repeatedAskedField)
+#            except:
+#                self.appLogger.info('Exception while removing confirm %s'%self.repeatedAskedField)
+
+        act = ''
+        if userFirst:
+            act = '[ask] request all' 
+            self.appLogger.info('Choose request all as an implicit start action')
+        elif self.dialogStrategyLearning and self.GetBasisSize() == 0:
+            act = random.choice(acts[:4])
+        elif self.dialogStrategyLearning and random.random() < 0.1:
+            act = random.choice(acts)
+            self.appLogger.info('Exploration act: %s'%act)
+#        elif self.beliefState.GetTopUniqueMandatoryUserGoal() > self.acceptThreshold:
+#            act = acts[-1]
+#            self.appLogger.info('Choose inform because of high top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
+
+#        if self.beliefState.GetTopUserGoalBelief() == 1.0:
+#            act = '[ask] request all'
+#            self.appLogger.info('Only request all is allowed as an initial act')
 
         contX = [self.beliefState.GetTopUserGoalBelief()]
         for field in self.fields:
