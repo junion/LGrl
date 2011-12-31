@@ -400,43 +400,50 @@ class SBSarsaDialogManager(DialogManager):
             acts.remove('[inform]')
             self.appLogger.info('Exclude inform because of low top belief %f'%self.beliefState.GetTopUniqueMandatoryUserGoal())
 
-        marginals = self.beliefState.GetMarginals()
-        if self.preferNaturalSequence:
-            if self.fieldCounts['departure_place'] == 0:
-                if len(marginals['arrival_place']) == 0:
-                    acts.remove('[ask] request arrival_place')
-                    self.appLogger.info('Exclude request arrival_place for a natural sequence') 
-                if len(marginals['travel_time']) == 0:
-                    acts.remove('[ask] request travel_time')
-                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
-            elif self.fieldCounts['arrival_place'] == 0:
-                if len(marginals['travel_time']) == 0:
-                    acts.remove('[ask] request travel_time')
-                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
-        
-        for field in self.fields: 
-            if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
-                acts.remove('[ask] confirm %s'%field)
-                acts.remove('[ask] confirm_immediate %s'%field)
-                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
-            elif marginals[field][-1]['belief'] > self.fieldAcceptThreshold:
-                if field != 'route':
-                    acts.remove('[ask] request %s'%field)
-                acts.remove('[ask] confirm %s'%field)
-                acts.remove('[ask] confirm_immediate %s'%field)
-                self.appLogger.info('Exclude request and confirm(_immediate) %s because of high belief'%field)
-                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
-            else:
-                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
-
         for field in self.fields:
             if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
                 try:
-                    acts.remove('[ask] confirm_immediate %s'%field)
                     self.appLogger.info('Exclude confirm_immediate %s because of no immediate value'%field)
+                    acts.remove('[ask] confirm_immediate %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
 
+        marginals = self.beliefState.GetMarginals()
+
+        for field in self.fields: 
+            if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
+                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
+                acts.remove('[ask] confirm %s'%field)
+                try:
+                    acts.remove('[ask] confirm_immediate %s'%field)
+                except:
+                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+            elif marginals[field][-1]['belief'] > self.fieldAcceptThreshold:
+                self.appLogger.info('Exclude request and confirm(_immediate) %s because of high belief'%field)
+                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
+                if field != 'route':
+                    acts.remove('[ask] request %s'%field)
+                acts.remove('[ask] confirm %s'%field)
+                try:
+                    acts.remove('[ask] confirm_immediate %s'%field)
+                except:
+                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+            else:
+                self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
+
+        if self.preferNaturalSequence:
+            if self.fieldCounts['departure_place'] == 0:
+                if len(marginals['arrival_place']) == 0:
+                    self.appLogger.info('Exclude request arrival_place for a natural sequence') 
+                    acts.remove('[ask] request arrival_place')
+                if len(marginals['travel_time']) == 0:
+                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
+                    acts.remove('[ask] request travel_time')
+            elif self.fieldCounts['arrival_place'] == 0:
+                if len(marginals['travel_time']) == 0:
+                    self.appLogger.info('Exclude request travel_time for a natural sequence') 
+                    acts.remove('[ask] request travel_time')
+        
         if len(acts) > 1 and len(self.sysActHistory) > 1 and self.sysActHistory[-1] == self.sysActHistory[-2]:
             try:
                 acts.remove(self.sysActHistory[-1])
@@ -446,12 +453,7 @@ class SBSarsaDialogManager(DialogManager):
                     self.appLogger.info('Exclude %s because of repetition',self.sysActHistory[-1])
             except:
                 self.appLogger.info('Exception while removing %s',self.sysActHistory[-1])
-
-        if len(acts) == 0:
-            acts = ['[ask] request departure_place',\
-                    '[ask] request arrival_place','[ask] request travel_time']
-            self.appLogger.info('Length of acts becomes zero')
-                                                    
+ 
         if len(self.sysActHistory) > 0 and self.sysActHistory[-1].find('confirm') > -1 and \
         asrResult.userActions[0].type != 'non-understanding' and 'confirm' in asrResult.userActions[0].content and \
         asrResult.userActions[0].content['confirm'] == 'NO':
@@ -512,6 +514,11 @@ class SBSarsaDialogManager(DialogManager):
 #            except:
 #                self.appLogger.info('Exception while removing confirm %s'%self.repeatedAskedField)
 
+        if len(acts) == 0:
+            acts = ['[ask] request departure_place',\
+                    '[ask] request arrival_place','[ask] request travel_time']
+            self.appLogger.info('Length of acts becomes zero')
+                                                    
         act = ''
         if userFirst:
             act = '[ask] request all' 
