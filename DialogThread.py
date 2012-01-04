@@ -228,6 +228,10 @@ class DialogThread(threading.Thread):
                 elif 'arrival_place' in self.systemAction.content:
                     userAction.content.update({'arrival_place':hypothesis})
                     updateArrivalPlaceType = True
+#                else:
+#                    userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
+#                    updateDeparturePlaceType = True
+#                    updateArrivalPlaceType = True
             else:
                 userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True
