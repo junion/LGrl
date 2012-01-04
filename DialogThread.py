@@ -433,14 +433,21 @@ class DialogThread(threading.Thread):
                 self.appLogger.info('For now, just deal with YES/NO only in a turn')
                 userAction.content = {'confirm':userAction.content['confirm']}
 
-        if self.preferDirectAnswerToRoute and 'route' in userAction.content and len(userAction.content) > 1:
-            if not (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and 'route' in self.systemAction.content):
+        if self.preferDirectAnswerToRoute and len(userAction.content) > 1 and\
+        ('route' in userAction.content or 'discontinued_route' in userAction.content or 'uncovered_route' in userAction.content):
+            if not (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
+            ('route' in self.systemAction.content or 'discontinued_route' in self.systemAction.content or 'uncovered_route' in self.systemAction.content)):
                 if (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
                 (not set(userAction.content).isdisjoint(set(self.systemAction.content)))) or\
                 (self.systemAction.type == 'ask' and self.systemAction.force == 'request' and\
                 self.systemAction.content in userAction.content):
                     self.appLogger.info('For now, just remove route to focus on other fields')
-                    del userAction.content['route']
+                    if 'discontinued_route' in userAction.content:
+                        del userAction.content['discontinued_route']
+                    if 'uncovered_route' in userAction.content and len(userAction.content) > 1:
+                        del userAction.content['uncovered_route']
+                    if 'route' in userAction.content and len(userAction.content) > 1:
+                        del userAction.content['route']
                         
         self.appLogger.info('userAction: %s'%str(userAction))
 
