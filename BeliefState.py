@@ -507,7 +507,9 @@ class Partition(object):
                     elif askedField == 'all':
 #                        print self.userModel['R-open']
                         result = self.userModel['R-open'][self._getClosestUserAct(userAction)]
+                    self.appLogger.info('User action likelihood %g'%result)
                     result = self.minRelevantUserActProb if result < self.minRelevantUserActProb else result
+                    self.appLogger.info('Set minimum user action likelihood %g'%result)
         return result
     
     def UserActionUnlikelihood(self, userAction, history, sysAction):

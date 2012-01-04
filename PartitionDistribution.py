@@ -486,7 +486,7 @@ class PartitionDistribution(object):
             i += 1
         self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         
-        self.CompactByProbability(self.minPartitionProbability,sysAction)
+        self.CompactByProbability(self.minPartitionProbability)
         
 #        self.stats.EndClock('mainUpdate')
 
@@ -555,7 +555,7 @@ class PartitionDistribution(object):
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         self.stats.EndClock('compact')
 
-    def CompactByProbability(self,minProbability,sysAction):
+    def CompactByProbability(self,minProbability):
         '''
         Compacts a partitionDistribution object down
         to at most maxPartitions.
@@ -646,6 +646,23 @@ class PartitionDistribution(object):
                 partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
 
+
+    def KillFieldBelief(self,field):
+        self.appLogger.info('Kill belief of every value for field %s'%field)
+
+        for partitionEntry in self.partitionEntryList:
+            if partitionEntry.partition.fields[field].type == 'equals':
+                partitionEntry.belief = 0.0
+                partitionEntry.newBelief = 0.0
+                for historyEntry in partitionEntry.historyEntryList:
+                    historyEntry.belief = 0.0
+                    historyEntry.origBelief = 0.0
+#                    partitionEntry.belief += historyEntry.belief
+#                partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+
+        self.CompactByProbability(self.minPartitionProbability)
+
+        
     @staticmethod
     def _ComparePartitionEntries(a,b):
         return cmp(a.belief,b.belief)

@@ -127,6 +127,9 @@ class SBSarsaDialogManager(DialogManager):
 #    def DialogResult(self):
 #        return (self.dialogResult,self.dialogReward)
 
+    def KillFieldBelief(self,field):
+        self.beliefState.partitionDistribution.KillFieldBelief(field)
+        
     def Calibrate(self,asrResult):
         def dist_squared(X,Y):
             nx = X.shape[0]
@@ -410,8 +413,16 @@ class SBSarsaDialogManager(DialogManager):
 
         marginals = self.beliefState.GetMarginals()
 
+        self.appLogger.info('Marginals\n %s'%str(marginals))
         for field in self.fields: 
-            if len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold:
+            if field == 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold * 0.1):
+                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
+                acts.remove('[ask] confirm %s'%field)
+                try:
+                    acts.remove('[ask] confirm_immediate %s'%field)
+                except:
+                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+            elif field != 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold):
                 self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
                 acts.remove('[ask] confirm %s'%field)
                 try:
