@@ -1005,9 +1005,11 @@ class DialogThread(threading.Thread):
                                 os.system('shutdown -r -t 1')
                             for event in self.waitEvent:
                                 if event[0] == 'end_session':
-                                    self.appLogger.info('Flush waiting events to process end session')
+                                    self.appLogger.info('Flush notify prompts to process end session')
                                     self.notifyPrompts = []
-#                            self.notifyPrompts = []
+#                            if self.dialogState != 'request_next_query':
+#                                self.appLogger.info('Flush notify prompts to escape from a potential stop')
+#                                self.notifyPrompts = []
                             continue
                     if frame == None:
                         self.appLogger.info('Warning: null frame')
@@ -1024,6 +1026,9 @@ class DialogThread(threading.Thread):
                                 self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
                                 self.appLogger.info('Next utterance count: %d'%self.uttCount)
                                 self.appLogger.info('Previous system action: %s'%str(self.systemAction))
+#                                if len(self.waitEvent) > 0:
+#                                    self.appLogger.info('Flush notify prompts to escape from a potential stop')
+#                                    self.notifyPrompts = []
                                 if self.systemAction.type == 'ask' and \
                                 ((self.systemAction.force == 'request' and 
                                  self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
