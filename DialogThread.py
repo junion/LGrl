@@ -980,21 +980,34 @@ class DialogThread(threading.Thread):
                     self.appLogger.info('Events in wait:')
                     self.appLogger.info('->\n'.join([str(x[0]) for x in self.waitEvent]))
                     if self.notifyPrompts == [] and not self.waitEvent == []:
+                        for event in self.waitEvent:
+                            if event[0] == 'end_session':
+                                self.waitEvent = [event]
                         for i,event in enumerate(reversed(self.waitEvent)):
                             if event[0] == 'user_utterance_end':
-                                del self.waitEvent[0:len(self.waitEvent)-i-1]
-                                self.appLogger.info('Remained events after pruning:')
-                                self.appLogger.info('\n'.join([str(x[0]) for x in self.waitEvent]))
-                        event = self.waitEvent.pop(0)
-                        if event[0] == 'turn_timeout' and len(self.waitEvent) > 0:
-                            self.appLogger.info('Skip event in wait %s'%event[0])
-                            continue
+                                self.waitEvent = [event]
+#                                del self.waitEvent[0:len(self.waitEvent)-i-1]
+#                                self.appLogger.info('Remained events after pruning:')
+#                                self.appLogger.info('\n'.join([str(x[0]) for x in self.waitEvent]))
+#                        event = self.waitEvent.pop(0)
+#                        if event[0] == 'turn_timeout' and len(self.waitEvent) > 0:
+#                            self.appLogger.info('Skip event in wait %s'%event[0])
+#                            continue
+                        event = self.waitEvent[-1]
+                        self.waitEvent = []
                         self.appLogger.info('Take event in wait %s'%event[0])
                         frame = event[1]
                     else:
                         self.appLogger.info('Wait event')
                         try:
-                            frame = deepcopy(self.inQueue.get(timeout=self.eventWaitTimeout))
+                            if self.dialogState in ['inform_success','inform_error']:
+                                eventWaitTimeout = 10
+                            elif self.dialogState in ['request_next_query']:
+                                eventWaitTimeout = 20
+                            else:
+                                eventWaitTimeout = self.eventWaitTimeout
+#                            eventWaitTimeout = self.eventWaitTimeout
+                            frame = deepcopy(self.inQueue.get(timeout=eventWaitTimeout))
                             self.inQueue.task_done()
                             self.consecutiveEventTimeoutCount = 0
     #                    except Queue.Empty:
@@ -1007,13 +1020,12 @@ class DialogThread(threading.Thread):
                             elif self.consecutiveEventTimeoutCount > 9:
                                 self.appLogger.info('System reboot: no event for a long time')
                                 os.system('shutdown -r -t 1')
-                            for event in self.waitEvent:
-                                if event[0] == 'end_session':
-                                    self.appLogger.info('Flush notify prompts to process end session')
-                                    self.notifyPrompts = []
-#                            if self.dialogState != 'request_next_query':
-#                                self.appLogger.info('Flush notify prompts to escape from a potential stop')
-#                                self.notifyPrompts = []
+#                            for event in self.waitEvent:
+#                                if event[0] == 'end_session':
+#                                    self.appLogger.info('Flush notify prompts to process end session')
+#                                    self.notifyPrompts = []
+                            self.appLogger.info('Flush notify prompts to escape from a potential stop')
+                            self.notifyPrompts = []
                             continue
                     if frame == None:
                         self.appLogger.info('Warning: null frame')
@@ -1030,9 +1042,9 @@ class DialogThread(threading.Thread):
                                 self.appLogger.info('notifyPrompts: %s'%str(self.notifyPrompts))
                                 self.appLogger.info('Next utterance count: %d'%self.uttCount)
                                 self.appLogger.info('Previous system action: %s'%str(self.systemAction))
-#                                if len(self.waitEvent) > 0:
-#                                    self.appLogger.info('Flush notify prompts to escape from a potential stop')
-#                                    self.notifyPrompts = []
+                                if len(self.waitEvent) > 0:
+                                    self.appLogger.info('Flush notify prompts to escape from a potential stop')
+                                    self.notifyPrompts = []
                                 if self.systemAction.type == 'ask' and \
                                 ((self.systemAction.force == 'request' and 
                                  self.systemAction.content in ['departure_place','arrival_place','travel_time'])\
