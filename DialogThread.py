@@ -435,7 +435,10 @@ class DialogThread(threading.Thread):
 
         if self.preferDirectAnswerToRoute and 'route' in userAction.content and len(userAction.content) > 1:
             if not (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and 'route' in self.systemAction.content):
-                if not set(userAction.content).isdisjoint(set(self.systemAction.content)):
+                if (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
+                (not set(userAction.content).isdisjoint(set(self.systemAction.content)))) or\
+                (self.systemAction.type == 'ask' and self.systemAction.force == 'request' and\
+                self.systemAction.content in userAction.content):
                     self.appLogger.info('For now, just remove route to focus on other fields')
                     del userAction.content['route']
                         
