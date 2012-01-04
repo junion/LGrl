@@ -49,6 +49,7 @@ class DialogThread(threading.Thread):
         self.resultQueue = resultQueue
         self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
         self.preventCorrectionInConfirm = self.config.getboolean(MY_ID,'preventCorrectionInConfirm')
+        self.preferDirectAnswerToRoute = self.config.getboolean(MY_ID,'preferDirectAnswerToRoute')
         self.dialogResult = ''
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
@@ -417,6 +418,8 @@ class DialogThread(threading.Thread):
             self.appLogger.info('Start over')
             userAction.content.update({'next':'STARTOVER'})
 
+        self.appLogger.info('userAction: %s'%str(userAction))
+
         if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
         ((frame[':properties'].has_key(':[4_datetime]') and frame[':properties'][':[4_datetime]'] == 'NOW') or\
         (('departure_place' in userAction.content and userAction.content['departure_place'] == 'MOON') or\
@@ -429,6 +432,12 @@ class DialogThread(threading.Thread):
             if 'confirm' in userAction.content:
                 self.appLogger.info('For now, just deal with YES/NO only in a turn')
                 userAction.content = {'confirm':userAction.content['confirm']}
+
+        if self.preferDirectAnswerToRoute and 'route' in userAction.content and len(userAction.content) > 1:
+            if not (self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and 'route' in self.systemAction.content):
+                if not set(userAction.content).isdisjoint(set(self.systemAction.content)):
+                    self.appLogger.info('For now, just remove route to focus on other fields')
+                    del userAction.content['route']
                         
         self.appLogger.info('userAction: %s'%str(userAction))
 

@@ -119,6 +119,7 @@ class SBSarsaDialogManager(DialogManager):
         self.confidenceScoreCalibration = self.config.getboolean(MY_ID,'confidenceScoreCalibration')
         self.preferNaturalSequence = self.config.getboolean(MY_ID,'preferNaturalSequence')
         self.useDirectedOpenQuestion = self.config.getboolean(MY_ID,'useDirectedOpenQuestion')
+        self.routeRejectThresholdMultiplier = self.config.getfloat(MY_ID,'routeRejectThresholdMultiplier')
          
     def ReloadConfig(self):
         self._LoadConfig()
@@ -415,7 +416,7 @@ class SBSarsaDialogManager(DialogManager):
 
         self.appLogger.info('Marginals\n %s'%str(marginals))
         for field in self.fields: 
-            if field == 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold * 0.1):
+            if field == 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold * self.routeRejectThresholdMultiplier):
                 self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
                 acts.remove('[ask] confirm %s'%field)
                 try:
