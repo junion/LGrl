@@ -370,8 +370,8 @@ class DialogThread(threading.Thread):
                     hypothesis = frame[':properties'][':[2_departureplace.stop_name.covered_place]']
                 else:
                     hypothesis = frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']
-                    self.exceptionalEntities.append(hypothesis)
                     self.exceptionalEntities[hypothesis] = 'uncovered_place'
+                userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True
             if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]') or \
             frame[':properties'].has_key(':[3_arrivalplace.stop_name.uncovered_place]'):
@@ -398,7 +398,6 @@ class DialogThread(threading.Thread):
                     querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
                     if not self._RequestDeparturePlaceQuery(querySpec):
                         updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
-                        userAction.content = {'no_stop_matching':place}
                         self.exceptionalEntities[place] = 'no_stop_matching'
     #                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
             if updateArrivalPlaceType:
@@ -414,7 +413,6 @@ class DialogThread(threading.Thread):
                     querySpec['arrival_place'] = place
                     querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
                     if not self._RequestArrivalPlaceQuery(querySpec):
-                        userAction.content = {'no_stop_matching':place}
                         self.exceptionalEntities[place] = 'no_stop_matching'
     #                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
   
@@ -1074,15 +1072,17 @@ class DialogThread(threading.Thread):
                 if not self.integrateExceptionalHandlingIntoBeliefTracking:                    
                     self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
                 else:
-                    self.systemAction = self.dialogManager.TakeTurn(self.asrResult,self.exceptionalEntities)
+                    self.systemAction = self.dialogManager.TakeTurn(self.asrResult,exceptionalEntities=self.exceptionalEntities)
                     exceptionalEntityHandled = self.dialogManager.GetExceptionalEntityHandled()
                     if exceptionalEntityHandled != None:
+                        originalSystemAction = deepcopy(self.systemAction)
                         self.systemAction.type = 'inform'
                         self.systemAction.force = exceptionalEntityHandled['type']
                         self._GetNewDialogState()
                         if exceptionalEntityHandled['type'] == 'no_stop_matching':
                             query = 'place\t{\nname\t%s\ntype\tstop\n}\n'%exceptionalEntityHandled['entity']
                         self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
+                        self.systemAction = originalSystemAction
                         
                 self.appLogger.info('System action: %s'%str(self.systemAction))
 

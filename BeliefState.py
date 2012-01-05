@@ -749,23 +749,23 @@ class BeliefState(object):
         }
 
         '''
-        if (self.marginals == None):
+#        if (self.marginals == None):
             # Not computed yet; compute them now
-            self.marginals = {}
-            for field in self.fields:
-                self.marginals[field] = []
-            for field in self.fields:
-                marginalTotals = {}
-                for partitionEntry in self.partitionDistribution.partitionEntryList:
-                    if (partitionEntry.partition.fields[field].type == 'equals'):
-                        val = partitionEntry.partition.fields[field].equals
-                        if (val not in marginalTotals):
-                            marginalTotals[val] = partitionEntry.belief
-                        else:
-                            marginalTotals[val] += partitionEntry.belief
-                for val in marginalTotals:
-                    self.marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
-                self.marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
+        self.marginals = {}
+        for field in self.fields:
+            self.marginals[field] = []
+        for field in self.fields:
+            marginalTotals = {}
+            for partitionEntry in self.partitionDistribution.partitionEntryList:
+                if (partitionEntry.partition.fields[field].type == 'equals'):
+                    val = partitionEntry.partition.fields[field].equals
+                    if (val not in marginalTotals):
+                        marginalTotals[val] = partitionEntry.belief
+                    else:
+                        marginalTotals[val] += partitionEntry.belief
+            for val in marginalTotals:
+                self.marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
+            self.marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
         return deepcopy(self.marginals)
 
     def __str__(self):

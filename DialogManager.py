@@ -210,8 +210,9 @@ class SBSarsaDialogManager(DialogManager):
                     self.exceptionalEntityHandled = {}
                     self.exceptionalEntityHandled['entity'] = marginals[field][-1]['equals']
                     self.exceptionalEntityHandled['type'] = exceptionalEntities[marginals[field][-1]['equals']]
+                    self.appLogger.info('Detect exceptional entity %s of field %s with high marginal'%(self.exceptionalEntityHandled['entity'],field))
                     self.beliefState.partitionDistribution.KillFieldBelief(field)
-                    self.appLogger.info('Detect exceptional entity %s of field %s with high marginal'%(field))
+                    self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
                     break
             else:
                 self.exceptionalEntityHandled = None
