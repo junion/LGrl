@@ -50,7 +50,6 @@ class DialogThread(threading.Thread):
         self.eventWaitTimeout = self.config.getint(MY_ID,'eventWaitTimeout')
         self.preventCorrectionInConfirm = self.config.getboolean(MY_ID,'preventCorrectionInConfirm')
         self.preferDirectAnswerToRoute = self.config.getboolean(MY_ID,'preferDirectAnswerToRoute')
-        self.integrateExceptionalHandlingIntoBeliefTracking = self.config.getboolean(MY_ID,'integrateExceptionalHandlingIntoBeliefTracking')
         self.dialogResult = ''
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
@@ -89,7 +88,6 @@ class DialogThread(threading.Thread):
         self.consecutiveTimeoutCount = 0
         self.consecutiveEventTimeoutCount = 0
         self.exceptionalPlaceType = ''
-        self.exceptionalEntities = {}
         
     def _GetNewDialogState(self):
         self.appLogger.info('_GetNewDialogState')
@@ -200,236 +198,133 @@ class DialogThread(threading.Thread):
         if frame[':properties'].has_key(':[dtmf_key.dtmf_six]'):
             userAction.content.update({'next':'FAIL'})
 
-        # Place
-        if not self.integrateExceptionalHandlingIntoBeliefTracking:                    
-            if frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
-                userAction.content.update({'uncovered_place':frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']})
-                if not ('uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content):
-                    self.exceptionalPlaceType = ''
-                    if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
-                        if self.systemAction.content in ['departure_place','arrival_place']:
-                            self.exceptionalPlaceType = self.systemAction.content
-                        elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
-                            self.exceptionalPlaceType = 'departure_place'
-                    elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
-                        if 'departure_place' in self.systemAction.content:
-                            self.exceptionalPlaceType = 'departure_place'
-                        elif 'arrival_place' in self.systemAction.content:
-                            self.exceptionalPlaceType = 'arrival_place'
-                self.appLogger.info('Uncovered place type: %s'%('both' if self.exceptionalPlaceType == '' else self.exceptionalPlaceType))
-            if frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
-                userAction.content.update({'uncovered_place':frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']})
-                self.exceptionalPlaceType = 'departure_place'
-                self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
-    
-            if frame[':properties'].has_key(':[3_arrivalplace.stop_name.uncovered_place]'):
-                userAction.content.update({'uncovered_place':frame[':properties'][':[3_arrivalplace.stop_name.uncovered_place]']})
-                self.exceptionalPlaceType = 'arrival_place'
-                self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
-                
-            updateDeparturePlaceType = updateArrivalPlaceType = False
-            if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]'):
-                hypothesis = frame[':properties'][':[1_singleplace.stop_name.covered_place]']
+        # Place                    
+        if frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']})
+            if not ('uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content):
+                self.exceptionalPlaceType = ''
                 if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
-                    if self.systemAction.content == 'departure_place':
-                        userAction.content.update({'departure_place':hypothesis})
-                        updateDeparturePlaceType = True
-                    elif self.systemAction.content == 'arrival_place':
-                        userAction.content.update({'arrival_place':hypothesis})
-                        updateArrivalPlaceType = True
+                    if self.systemAction.content in ['departure_place','arrival_place']:
+                        self.exceptionalPlaceType = self.systemAction.content
                     elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
-                        userAction.content.update({'departure_place':hypothesis})
-                        updateDeparturePlaceType = True
-                    else:
-                        userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
-                        updateDeparturePlaceType = True
-                        updateArrivalPlaceType = True
+                        self.exceptionalPlaceType = 'departure_place'
                 elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
                     if 'departure_place' in self.systemAction.content:
+                        self.exceptionalPlaceType = 'departure_place'
+                    elif 'arrival_place' in self.systemAction.content:
+                        self.exceptionalPlaceType = 'arrival_place'
+            self.appLogger.info('Uncovered place type: %s'%('both' if self.exceptionalPlaceType == '' else self.exceptionalPlaceType))
+        if frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']})
+            self.exceptionalPlaceType = 'departure_place'
+            self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
+
+        if frame[':properties'].has_key(':[2_arrivalplace.stop_name.uncovered_place]'):
+            userAction.content.update({'uncovered_place':frame[':properties'][':[2_arrivalplace.stop_name.uncovered_place]']})
+            self.exceptionalPlaceType = 'arrival_place'
+            self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
+            
+        updateDeparturePlaceType = updateArrivalPlaceType = False
+        if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[1_singleplace.stop_name.covered_place]']
+            if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
+                if self.systemAction.content == 'departure_place':
+                    userAction.content.update({'departure_place':hypothesis})
+                    updateDeparturePlaceType = True
+                elif self.systemAction.content == 'arrival_place':
+                    userAction.content.update({'arrival_place':hypothesis})
+                    updateArrivalPlaceType = True
+                elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
+                    userAction.content.update({'departure_place':hypothesis})
+                    updateDeparturePlaceType = True
+                else:
+                    userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
+                    updateDeparturePlaceType = True
+                    updateArrivalPlaceType = True
+            elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
+                if 'departure_place' in self.systemAction.content:
+                    userAction.content.update({'departure_place':hypothesis})
+                    updateDeparturePlaceType = True
+                elif 'arrival_place' in self.systemAction.content:
+                    userAction.content.update({'arrival_place':hypothesis})
+                    updateArrivalPlaceType = True
+                elif 'uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content:
+                    if self.exceptionalPlaceType == 'departure_place':
                         userAction.content.update({'departure_place':hypothesis})
                         updateDeparturePlaceType = True
-                    elif 'arrival_place' in self.systemAction.content:
+                    elif self.exceptionalPlaceType == 'arrival_place':
                         userAction.content.update({'arrival_place':hypothesis})
                         updateArrivalPlaceType = True
-                    elif 'uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content:
-                        if self.exceptionalPlaceType == 'departure_place':
-                            userAction.content.update({'departure_place':hypothesis})
-                            updateDeparturePlaceType = True
-                        elif self.exceptionalPlaceType == 'arrival_place':
-                            userAction.content.update({'arrival_place':hypothesis})
-                            updateArrivalPlaceType = True
-                        else:
-                            userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
-                            updateDeparturePlaceType = True
-                            updateArrivalPlaceType = True
                     else:
                         userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
                         updateDeparturePlaceType = True
                         updateArrivalPlaceType = True
                 else:
-                    userAction.content.update({'departure_place':hypothesis})
+                    userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
                     updateDeparturePlaceType = True
-            if frame[':properties'].has_key(':[2_departureplace.stop_name.covered_place]'):
-                hypothesis = frame[':properties'][':[2_departureplace.stop_name.covered_place]']
+                    updateArrivalPlaceType = True
+            else:
                 userAction.content.update({'departure_place':hypothesis})
                 updateDeparturePlaceType = True
-            if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]'):
-                hypothesis = frame[':properties'][':[3_arrivalplace.stop_name.covered_place]']
-                userAction.content.update({'arrival_place':hypothesis})
-                updateArrivalPlaceType = True
-            parse = frame[':properties'][':parse_str']
-            exceptionalPlaceType = []
-            if updateDeparturePlaceType:
-                place = userAction.content['departure_place']
-    #            self.appLogger.info('%d'%parse.find(place))
-                subParse = parse[parse.find(place)-20:parse.find(place)]
-                self.appLogger.info('place %s, subParse %s'%(place,subParse))
-                if subParse.find('neighborhood') > -1:
-                    self.departurePlaceTypeDict[place] = 'neighborhood'
-                else:
-                    self.departurePlaceTypeDict[place] = 'stop'
-                if place not in self.departurePlaceQuerySpecDict:
-                    querySpec = {}
-                    querySpec['departure_place'] = place
-                    querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
-                    if not self._RequestDeparturePlaceQuery(querySpec):
-                        updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
-                        userAction.content = {'no_stop_matching':place}
-                        exceptionalPlaceType.append('departure_place')
-    #                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
-            if updateArrivalPlaceType:
-                place = userAction.content['arrival_place']
-                subParse = parse[parse.find(place)-20:parse.find(place)]
-                self.appLogger.info('place %s, subParse %s'%(place,subParse))
-                if subParse.find('neighborhood') > -1:
-                    self.arrivalPlaceTypeDict[place] = 'neighborhood'
-                else:                        
-                    self.arrivalPlaceTypeDict[place] = 'stop'
-                if place not in self.arrivalPlaceQuerySpecDict:
-                    querySpec = {}
-                    querySpec['arrival_place'] = place
-                    querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
-                    if not self._RequestArrivalPlaceQuery(querySpec):
-                        userAction.content = {'no_stop_matching':place}
-                        exceptionalPlaceType.append('arrival_place')
-    #                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
-            if len(exceptionalPlaceType) == 2:
-                self.exceptionalPlaceType = ''
-                self.appLogger.info('No stop matching place type: both')
-            elif len(exceptionalPlaceType) == 1:
-                self.exceptionalPlaceType = exceptionalPlaceType[0]
-                self.appLogger.info('No stop matching place type: %s'%self.exceptionalPlaceType)
-    
-            # Route
-            if frame[':properties'].has_key(':[0_busnumber.route.0_uncovered_route]'):
-                userAction.content.update({'uncovered_route':frame[':properties'][':[0_busnumber.route.0_uncovered_route]']})
-            if frame[':properties'].has_key(':[0_busnumber.route.0_discontinued_route]'):
-                userAction.content.update({'discontinued_route':frame[':properties'][':[0_busnumber.route.0_discontinued_route]']})
-            if frame[':properties'].has_key(':[0_busnumber.route.0_covered_route]'):
-                userAction.content.update({'route':frame[':properties'][':[0_busnumber.route.0_covered_route]']})
-        else:
-            updateDeparturePlaceType = updateArrivalPlaceType = False
-            if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]') or \
-            frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
-                if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]'):
-                    hypothesis = frame[':properties'][':[1_singleplace.stop_name.covered_place]']
-                else:
-                    hypothesis = frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']
-                    self.exceptionalEntities[hypothesis] = 'uncovered_place'
-                if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
-                    if self.systemAction.content == 'departure_place':
-                        userAction.content.update({'departure_place':hypothesis})
-                        updateDeparturePlaceType = True
-                    elif self.systemAction.content == 'arrival_place':
-                        userAction.content.update({'arrival_place':hypothesis})
-                        updateArrivalPlaceType = True
-                    elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
-                        userAction.content.update({'departure_place':hypothesis})
-                        updateDeparturePlaceType = True
-                    else:
-                        userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
-                        updateDeparturePlaceType = True
-                        updateArrivalPlaceType = True
-                elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
-                    if 'departure_place' in self.systemAction.content:
-                        userAction.content.update({'departure_place':hypothesis})
-                        updateDeparturePlaceType = True
-                    elif 'arrival_place' in self.systemAction.content:
-                        userAction.content.update({'arrival_place':hypothesis})
-                        updateArrivalPlaceType = True
-                    else:
-                        userAction.content.update({'departure_place':hypothesis,'arrival_place':hypothesis})
-                        updateDeparturePlaceType = True
-                        updateArrivalPlaceType = True
-                else:
-                    userAction.content.update({'departure_place':hypothesis})
-                    updateDeparturePlaceType = True
-            if frame[':properties'].has_key(':[2_departureplace.stop_name.covered_place]') or \
-            frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
-                if frame[':properties'].has_key(':[2_departureplace.stop_name.covered_place]'):
-                    hypothesis = frame[':properties'][':[2_departureplace.stop_name.covered_place]']
-                else:
-                    hypothesis = frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']
-                    self.exceptionalEntities.append(hypothesis)
-                    self.exceptionalEntities[hypothesis] = 'uncovered_place'
-                updateDeparturePlaceType = True
-            if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]') or \
-            frame[':properties'].has_key(':[3_arrivalplace.stop_name.uncovered_place]'):
-                if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]'):
-                    hypothesis = frame[':properties'][':[3_arrivalplace.stop_name.covered_place]']
-                else:
-                    hypothesis = frame[':properties'][':[3_arrivalplace.stop_name.uncovered_place]']
-                    self.exceptionalEntities[hypothesis] = 'uncovered_place'
-                userAction.content.update({'arrival_place':hypothesis})
-                updateArrivalPlaceType = True
-            parse = frame[':properties'][':parse_str']
-            if updateDeparturePlaceType:
-                place = userAction.content['departure_place']
-    #            self.appLogger.info('%d'%parse.find(place))
-                subParse = parse[parse.find(place)-20:parse.find(place)]
-                self.appLogger.info('place %s, subParse %s'%(place,subParse))
-                if subParse.find('neighborhood') > -1:
-                    self.departurePlaceTypeDict[place] = 'neighborhood'
-                else:
-                    self.departurePlaceTypeDict[place] = 'stop'
-                if place not in self.departurePlaceQuerySpecDict:
-                    querySpec = {}
-                    querySpec['departure_place'] = place
-                    querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
-                    if not self._RequestDeparturePlaceQuery(querySpec):
-                        updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
-                        userAction.content = {'no_stop_matching':place}
-                        self.exceptionalEntities[place] = 'no_stop_matching'
-    #                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
-            if updateArrivalPlaceType:
-                place = userAction.content['arrival_place']
-                subParse = parse[parse.find(place)-20:parse.find(place)]
-                self.appLogger.info('place %s, subParse %s'%(place,subParse))
-                if subParse.find('neighborhood') > -1:
-                    self.arrivalPlaceTypeDict[place] = 'neighborhood'
-                else:                        
-                    self.arrivalPlaceTypeDict[place] = 'stop'
-                if place not in self.arrivalPlaceQuerySpecDict:
-                    querySpec = {}
-                    querySpec['arrival_place'] = place
-                    querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
-                    if not self._RequestArrivalPlaceQuery(querySpec):
-                        userAction.content = {'no_stop_matching':place}
-                        self.exceptionalEntities[place] = 'no_stop_matching'
-    #                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
-  
-            # Route
-            if frame[':properties'].has_key(':[0_busnumber.route.0_uncovered_route]'):
-                route = frame[':properties'][':[0_busnumber.route.0_uncovered_route]']
-                userAction.content.update({'route':route})
-                self.exceptionalEntities[route] = 'uncovered_route'
-            if frame[':properties'].has_key(':[0_busnumber.route.0_discontinued_route]'):
-                route = frame[':properties'][':[0_busnumber.route.0_discontinued_route]']
-                userAction.content.update({'route':route})
-                self.exceptionalEntities[route] = 'discontinued_route'
-            if frame[':properties'].has_key(':[0_busnumber.route.0_covered_route]'):
-                userAction.content.update({'route':frame[':properties'][':[0_busnumber.route.0_covered_route]']})
-            
+        if frame[':properties'].has_key(':[2_departureplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[2_departureplace.stop_name.covered_place]']
+            userAction.content.update({'departure_place':hypothesis})
+            updateDeparturePlaceType = True
+        if frame[':properties'].has_key(':[3_arrivalplace.stop_name.covered_place]'):
+            hypothesis = frame[':properties'][':[3_arrivalplace.stop_name.covered_place]']
+            userAction.content.update({'arrival_place':hypothesis})
+            updateArrivalPlaceType = True
+        parse = frame[':properties'][':parse_str']
+        exceptionalPlaceType = []
+        if updateDeparturePlaceType:
+            place = userAction.content['departure_place']
+#            self.appLogger.info('%d'%parse.find(place))
+            subParse = parse[parse.find(place)-20:parse.find(place)]
+            self.appLogger.info('place %s, subParse %s'%(place,subParse))
+            if subParse.find('neighborhood') > -1:
+                self.departurePlaceTypeDict[place] = 'neighborhood'
+            else:
+                self.departurePlaceTypeDict[place] = 'stop'
+            if place not in self.departurePlaceQuerySpecDict:
+                querySpec = {}
+                querySpec['departure_place'] = place
+                querySpec['departure_place_type'] = self.departurePlaceTypeDict[place]
+                if not self._RequestDeparturePlaceQuery(querySpec):
+                    updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
+                    userAction.content = {'no_stop_matching':place}
+                    exceptionalPlaceType.append('departure_place')
+#                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
+        if updateArrivalPlaceType:
+            place = userAction.content['arrival_place']
+            subParse = parse[parse.find(place)-20:parse.find(place)]
+            self.appLogger.info('place %s, subParse %s'%(place,subParse))
+            if subParse.find('neighborhood') > -1:
+                self.arrivalPlaceTypeDict[place] = 'neighborhood'
+            else:                        
+                self.arrivalPlaceTypeDict[place] = 'stop'
+            if place not in self.arrivalPlaceQuerySpecDict:
+                querySpec = {}
+                querySpec['arrival_place'] = place
+                querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
+                if not self._RequestArrivalPlaceQuery(querySpec):
+                    userAction.content = {'no_stop_matching':place}
+                    exceptionalPlaceType.append('arrival_place')
+#                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
+        if len(exceptionalPlaceType) == 2:
+            self.exceptionalPlaceType = ''
+            self.appLogger.info('No stop matching place type: both')
+        elif len(exceptionalPlaceType) == 1:
+            self.exceptionalPlaceType = exceptionalPlaceType[0]
+            self.appLogger.info('No stop matching place type: %s'%self.exceptionalPlaceType)
+
+        # Route
+        if frame[':properties'].has_key(':[0_busnumber.route.0_uncovered_route]'):
+            userAction.content.update({'uncovered_route':frame[':properties'][':[0_busnumber.route.0_uncovered_route]']})
+        if frame[':properties'].has_key(':[0_busnumber.route.0_discontinued_route]'):
+            userAction.content.update({'discontinued_route':frame[':properties'][':[0_busnumber.route.0_discontinued_route]']})
+        if frame[':properties'].has_key(':[0_busnumber.route.0_covered_route]'):
+            userAction.content.update({'route':frame[':properties'][':[0_busnumber.route.0_covered_route]']})
+
         # Time
         if frame[':properties'].has_key(':[4_datetime]'):
             message = MakeParseDateTimeMessage(frame[':properties'][':gal_slotsframe'])
@@ -534,14 +429,9 @@ class DialogThread(threading.Thread):
             userAction.content = {'confirm':'NO'}
 
         if self.preventCorrectionInConfirm:
-            if self.systemAction.type == 'ask' and self.systemAction.force == 'confirm' and\
-            'confirm' in userAction.content:
+            if 'confirm' in userAction.content:
                 self.appLogger.info('For now, just deal with YES/NO only in a turn')
                 userAction.content = {'confirm':userAction.content['confirm']}
-#            elif self.systemAction.type == 'ask' and self.systemAction.force == 'request' and\
-#            'confirm' in userAction.content:
-#                self.appLogger.info('For now, just remove useless YES/NO in response to request')
-#                del userAction.content['confirm']
 
         if self.preferDirectAnswerToRoute and len(userAction.content) > 1 and\
         ('route' in userAction.content or 'discontinued_route' in userAction.content or 'uncovered_route' in userAction.content):
@@ -1071,26 +961,16 @@ class DialogThread(threading.Thread):
                     raise GotoException('Do task')
                 
                 # RL-DM parts
-                if not self.integrateExceptionalHandlingIntoBeliefTracking:                    
-                    self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
-                else:
-                    self.systemAction = self.dialogManager.TakeTurn(self.asrResult,self.exceptionalEntities)
-                    exceptionalEntityHandled = self.dialogManager.GetExceptionalEntityHandled()
-                    if exceptionalEntityHandled != None:
-                        self.systemAction.type = 'inform'
-                        self.systemAction.force = exceptionalEntityHandled['type']
-                        self._GetNewDialogState()
-                        if exceptionalEntityHandled['type'] == 'no_stop_matching':
-                            query = 'place\t{\nname\t%s\ntype\tstop\n}\n'%exceptionalEntityHandled['entity']
-                        self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
-                        
+                self.systemAction = self.dialogManager.TakeTurn(self.asrResult)
                 self.appLogger.info('System action: %s'%str(self.systemAction))
-
+    
                 if eventType == 'turn_timeout':
                     version = 'version\ttimeout\n'
     
                 if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
                     if self.needToGiveTip:
+                        self.needToGiveTip = False
+                        self.giveTipCount += 1
                         if self.giveTipCount == 1 or self.giveTipCount == 3:
                             self.systemAction.type = 'inform'
                             self.systemAction.force = 'generic_tips'
@@ -1098,8 +978,6 @@ class DialogThread(threading.Thread):
                             self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                             self.systemAction.type = 'ask'
                             self.systemAction.force = 'request'
-                        self.needToGiveTip = False
-                        self.giveTipCount += 1
                     self._GetNewDialogState()
 #                    self.appLogger.info('New dialog state: %s'%self.newDialogState)
                     self.taskQueue.append((False,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))

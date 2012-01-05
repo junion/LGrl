@@ -103,6 +103,7 @@ class SBSarsaDialogManager(DialogManager):
 #        self.dialogReward = 0
         self.repeatedAskedField = ''
         self.numberOfRepeatedConfirmFail = 0
+        self.exceptionalEntityHandled = None
         return deepcopy(sysAction)
 
     def _LoadConfig(self):
@@ -172,7 +173,7 @@ class SBSarsaDialogManager(DialogManager):
                                         sbr_model['weights'])[0,0]
             if asrResult.probs[0] < 0: asrResult.probs[0] = 0
          
-    def TakeTurn(self,asrResult,reward=0):
+    def TakeTurn(self,asrResult,reward=0,exceptionalEntities=None):
         from copy import deepcopy
         # terminal case
         if asrResult == None:
@@ -199,6 +200,24 @@ class SBSarsaDialogManager(DialogManager):
 #        self.appLogger.info('prevSysAction for update %s'%str(self.prevSysAction))
         self.beliefState.Update(asrResult,self.prevSysAction)
         self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
+        
+        if exceptionalEntities != None:
+            marginals = self.beliefState.GetMarginals()
+            self.appLogger.info('Marginals\n %s'%str(marginals))
+            for field in self.fields: 
+                if len(marginals[field]) != 0 and marginals[field][-1]['belief'] > self.fieldAcceptThreshold and \
+                marginals[field][-1]['equals'] in exceptionalEntities:
+                    self.exceptionalEntityHandled = {}
+                    self.exceptionalEntityHandled['entity'] = marginals[field][-1]['equals']
+                    self.exceptionalEntityHandled['type'] = exceptionalEntities[marginals[field][-1]['equals']]
+                    self.beliefState.partitionDistribution.KillFieldBelief(field)
+                    self.appLogger.info('Detect exceptional entity %s of field %s with high marginal'%(field))
+                    break
+            else:
+                self.exceptionalEntityHandled = None
+        else:
+            self.exceptionalEntityHandled = None
+            
         sysAction,Qval = self._ChooseAction(asrResult)
         if self.dialogStrategyLearning:
             self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
@@ -218,6 +237,9 @@ class SBSarsaDialogManager(DialogManager):
 #                self.dialogResult = True
         return deepcopy(sysAction)
 
+    def GetExceptionalEntityHandled(self):
+        return self.exceptionalEntityHandled
+    
 #    def _GetReward(self,beliefState,sysAction):
 #        if sysAction.type == 'inform':
 #            field = beliefState.GetTopUserGoal()
