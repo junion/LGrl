@@ -51,7 +51,8 @@ class DialogThread(threading.Thread):
         self.preventCorrectionInConfirm = self.config.getboolean(MY_ID,'preventCorrectionInConfirm')
         self.preferDirectAnswerToRoute = self.config.getboolean(MY_ID,'preferDirectAnswerToRoute')
         self.integrateExceptionalHandlingIntoBeliefTracking = self.config.getboolean(MY_ID,'integrateExceptionalHandlingIntoBeliefTracking')
-        self.dialogResult = ''
+#        self.dialogResult = ''
+        self.dialogResult = []
         self._InitDataForNewQuery()
 #        self.notifyPrompts = []
 #        self.waitEvent = []
@@ -204,18 +205,21 @@ class DialogThread(threading.Thread):
         if not self.integrateExceptionalHandlingIntoBeliefTracking:                    
             if frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
                 userAction.content.update({'uncovered_place':frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']})
-                if not ('uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content):
-                    self.exceptionalPlaceType = ''
-                    if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
-                        if self.systemAction.content in ['departure_place','arrival_place']:
-                            self.exceptionalPlaceType = self.systemAction.content
-                        elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
-                            self.exceptionalPlaceType = 'departure_place'
-                    elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
-                        if 'departure_place' in self.systemAction.content:
-                            self.exceptionalPlaceType = 'departure_place'
-                        elif 'arrival_place' in self.systemAction.content:
-                            self.exceptionalPlaceType = 'arrival_place'
+                try:
+                    if not ('uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content):
+                        self.exceptionalPlaceType = ''
+                        if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
+                            if self.systemAction.content in ['departure_place','arrival_place']:
+                                self.exceptionalPlaceType = self.systemAction.content
+                            elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
+                                self.exceptionalPlaceType = 'departure_place'
+                        elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
+                            if 'departure_place' in self.systemAction.content:
+                                self.exceptionalPlaceType = 'departure_place'
+                            elif 'arrival_place' in self.systemAction.content:
+                                self.exceptionalPlaceType = 'arrival_place'
+                except:
+                    self.exceptionalPlaceType = 'departure_place'
                 self.appLogger.info('Uncovered place type: %s'%('both' if self.exceptionalPlaceType == '' else self.exceptionalPlaceType))
             if frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
                 userAction.content.update({'uncovered_place':frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']})
@@ -1021,7 +1025,8 @@ class DialogThread(threading.Thread):
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                                 userActionUnavailable = True
-                                self.dialogResult = 'uncovered_place'
+#                                self.dialogResult = 'uncovered_place'
+                                self.dialogResult.append('uncovered_place')
                             elif self.newDialogState == 'inform_confirm_okay_uncovered_route':
                                 self.dialogManager.KillFieldBelief('route')
                                 self.systemAction.type = 'inform'
@@ -1030,7 +1035,8 @@ class DialogThread(threading.Thread):
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                                 userActionUnavailable = True
-                                self.dialogResult = 'uncovered_route'
+#                                self.dialogResult = 'uncovered_route'
+                                self.dialogResult.append('uncovered_route')
                             elif self.newDialogState == 'inform_confirm_okay_discontinued_route':
                                 self.dialogManager.KillFieldBelief('route')
                                 self.systemAction.type = 'inform'
@@ -1039,7 +1045,8 @@ class DialogThread(threading.Thread):
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                                 userActionUnavailable = True
-                                self.dialogResult = 'discontinued_route'
+#                                self.dialogResult = 'discontinued_route'
+                                self.dialogResult.append('discontinued_route')
                             elif self.newDialogState == 'inform_confirm_okay_no_stop_matching':
                                 if self.exceptionalPlaceType != '':
                                     self.dialogManager.KillFieldBelief(self.exceptionalPlaceType)
@@ -1053,7 +1060,8 @@ class DialogThread(threading.Thread):
                                 self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                                 userActionUnavailable = True
-                                self.dialogResult = 'no_stop_matching'
+#                                self.dialogResult = 'no_stop_matching'
+                                self.dialogResult.append('no_stop_matching')
                         elif self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
                         self.asrResult.userActions[0].content['confirm'] == 'NO':
                             if self.newDialogState == 'inform_confirm_okay_uncovered_place' or\
@@ -1287,10 +1295,13 @@ class DialogThread(threading.Thread):
                             self.waitEvent.append(('end_session',frame))
                             skipDialogProcessing = True
                         else:
-                            if self.dialogResult != '':
-                                self.appLogger.info('Dialog result: %s\nNumber of turns: %d'%(self.dialogResult,self.turnNumber))
+#                            if self.dialogResult != '':
+                            if self.dialogResult != []:
+#                                self.appLogger.info('Dialog result: %s\nNumber of turns: %d'%(self.dialogResult,self.turnNumber))
+                                self.appLogger.info('Dialog result: %s\nNumber of turns: %d'%(','.join(self.dialogResult),self.turnNumber))
 #                                self.appLogger.critical('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
-                                EmailLogging.sendMail('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
+#                                EmailLogging.sendMail('Dialog result %s: %s, Number of turns: %d'%(self.logDir,self.dialogResult,self.turnNumber))
+                                EmailLogging.sendMail('Dialog result %s: %s, Number of turns: %d'%(self.logDir,','.join(self.dialogResult),self.turnNumber))
                             else:
                                 self.appLogger.info('Dialog result: Fail\nNumber of turns: %d'%self.turnNumber)
 #                                self.appLogger.critical('Dialog result %s: Fail, Number of turns: %d'%(self.logDir,self.turnNumber))
@@ -1302,9 +1313,11 @@ class DialogThread(threading.Thread):
                     if not skipDialogProcessing:
                         self._DialogProcessing(eventType)
                         if self.newDialogState == 'inform_success':
-                            self.dialogResult = 'inform_success'
+#                            self.dialogResult = 'inform_success'
+                            self.dialogResult.append('inform_success')
                         if self.newDialogState == 'inform_error':
-                            self.dialogResult = 'inform_error'
+#                            self.dialogResult = 'inform_error'
+                            self.dialogResult.append('inform_error')
                         if self.notifyPrompts == [] and self.dialogState == 'inform_quit':
                             self.appLogger.info('Terminate for %s'%self.dialogState)
                             message = {'type':'DIALOGFINISHED'}

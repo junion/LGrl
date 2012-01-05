@@ -210,6 +210,7 @@ class SBSarsaDialogManager(DialogManager):
                     self.exceptionalEntityHandled = {}
                     self.exceptionalEntityHandled['entity'] = marginals[field][-1]['equals']
                     self.exceptionalEntityHandled['type'] = exceptionalEntities[marginals[field][-1]['equals']]
+                    self.exceptionalEntityHandled['field'] = field
                     self.appLogger.info('Detect exceptional entity %s of field %s with high marginal'%(self.exceptionalEntityHandled['entity'],field))
                     self.beliefState.partitionDistribution.KillFieldBelief(field)
                     self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
@@ -218,8 +219,16 @@ class SBSarsaDialogManager(DialogManager):
                 self.exceptionalEntityHandled = None
         else:
             self.exceptionalEntityHandled = None
+        if self.exceptionalEntityHandled != None:
+            if self.exceptionalEntityHandled['field'] == 'departure_place':
+                sysAction,Qval = self._ChooseAction(asrResult,preChosenAction='[ask] request departure_place')
+            elif self.exceptionalEntityHandled['field'] == 'arrival_place':
+                sysAction,Qval = self._ChooseAction(asrResult,preChosenAction='[ask] request arrival_place')
+            else:
+                sysAction,Qval = self._ChooseAction(asrResult)
+        else:
+            sysAction,Qval = self._ChooseAction(asrResult)
             
-        sysAction,Qval = self._ChooseAction(asrResult)
         if self.dialogStrategyLearning:
             self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
                           self.prevSysAction,reward,Qval,self.prevAsrResult)
@@ -404,7 +413,7 @@ class SBSarsaDialogManager(DialogManager):
             for Qval in Qvals:
                 self.appLogger.info('%s:%f'%(Qval[0],Qval[1]))
                 
-    def _ChooseAction(self,asrResult=None,userFirst=False):
+    def _ChooseAction(self,asrResult=None,userFirst=False,preChosenAction=None):
         import random
         
         # action list
@@ -571,6 +580,10 @@ class SBSarsaDialogManager(DialogManager):
 #            act = '[ask] request all'
 #            self.appLogger.info('Only request all is allowed as an initial act')
 
+        if preChosenAction != None:
+            act = preChosenAction
+            self.appLogger.info('Set as pre-chosen action')
+            
         contX = [self.beliefState.GetTopUserGoalBelief()]
         for field in self.fields:
             if (len(marginals[field]) > 0):
