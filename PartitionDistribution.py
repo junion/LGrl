@@ -672,9 +672,10 @@ class PartitionDistribution(object):
                             if set(parent.fields[field].excludes) == set(child.fields[field].excludes):
                                 self.appLogger.info('Parent and child have the same excludes %s'%str(parent.fields[field].excludes))
                                 pass
-                            elif set(parent.fields[field].excludes).issubset(set(child.fields[field].excludes)):
+                            elif set(parent.fields[field].excludes).issubset(set(child.fields[field].excludes)) or\
+                            set(child.fields[field].excludes).issubset(set(parent.fields[field].excludes)):
                                 fieldsToRecombine.append(field)
-                                self.appLogger.info("Child's excludes supersets parent's")
+                                self.appLogger.info("Child's excludes subsets/supersets parent's")
     #                            elif len(parent.fields[field].excludes) == len(child.fields[field].excludes) and \
     #                            len(set(parent.fields[field].excludes).symmetric_difference(set(child.fields[field].excludes))) != 0:
                             else:
@@ -690,7 +691,12 @@ class PartitionDistribution(object):
                         break
                 if nextChild:
                     continue
-    
+                
+                for field in fieldsToRecombine:
+                    if child.fields[field].type == 'excludes' and \
+                    set(child.fields[field].excludes).issubset(set(parent.fields[field].excludes)):
+                        child.fields[field].excludes = parent.fields[field].excludes 
+
                 self.appLogger.info('Combining parent (id %d, belief %g) into its child (id %d)' % (parentEntry.id,parentEntry.belief,childEntry.id))
                 self.appLogger.info('Child (%d) is now: %s' % (childEntry.id,childEntry.partition))
                 childEntry.historyEntryList.extend(parentEntry.historyEntryList)
