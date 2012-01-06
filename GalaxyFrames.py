@@ -1152,7 +1152,7 @@ def MakeScheduleQuery(querySpec,result=None,next=None):
 #	appLogger.info('Make query for schedule: %s',str(querySpec))
 	appLogger.info('Make query for schedule')
 
-	if 'day' in querySpec:
+	if 'day' in querySpec and 'now' in querySpec:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
 		appLogger.info('1')
@@ -1263,7 +1263,7 @@ def MakeScheduleSection(querySpec,result,next=None):
 	query = query.replace('${type}',type)
 	
 
-	if 'day' in querySpec:
+	if 'day' in querySpec and 'now' in querySpec:
 		timeSpec = fullTimeSpec
 		timeSpec = timeSpec.replace('${month}',querySpec['month'])
 		appLogger.info('1')
