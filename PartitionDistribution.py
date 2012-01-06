@@ -647,22 +647,136 @@ class PartitionDistribution(object):
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
 
 
+    def _TraversePartitionTreeToCombine(self,parentEntry):
+        if len(parentEntry.children) == 0:
+            return False
+        else:
+            for childEntry in parentEntry.children: 
+                if self._TraversePartitionTreeToCombine(childEntry):
+                    return True
+            parent = parentEntry.partition
+            for childEntry in parentEntry.children:
+                child = childEntry.partition
+                fieldsToRecombine = []
+                nextChild = False
+                self.appLogger.info('Try to combine parent (id %d, belief %g) into its child (id %d)' % (parentEntry.id,parentEntry.belief,childEntry.id))
+                self.appLogger.info('Parent %s'%parent)
+                self.appLogger.info('Child %s'%child)
+                for field in parent.fields:
+                    self.appLogger.info('Inspect field %s'%field)
+                    if parent.fields[field].type == 'excludes':
+                        if child.fields[field].type == 'equals':
+                            nextChild = True
+                            self.appLogger.info('Parent excludes but child equals')
+                        else:
+                            if set(parent.fields[field].excludes) == set(child.fields[field].excludes):
+                                self.appLogger.info('Parent and child have the same excludes %s'%str(parent.fields[field].excludes))
+                                pass
+                            elif set(parent.fields[field].excludes).issubset(set(child.fields[field].excludes)):
+                                fieldsToRecombine.append(field)
+                                self.appLogger.info("Child's excludes supersets parent's")
+    #                            elif len(parent.fields[field].excludes) == len(child.fields[field].excludes) and \
+    #                            len(set(parent.fields[field].excludes).symmetric_difference(set(child.fields[field].excludes))) != 0:
+                            else:
+                                nextChild = True
+                                self.appLogger.info('Disjoint excludes')
+                    else:
+                        if child.fields[field].type == 'equals' and parent.fields[field].equals == child.fields[field].equals:
+                            self.appLogger.info('Parent and child have the same equals %s'%parent.fields[field].equals)
+                            pass
+                        else:
+                            raise RuntimeError,'Error: field %s: parent %s but child %s'%(field,parent,child)
+                    if nextChild:
+                        break
+                if nextChild:
+                    continue
+    
+                self.appLogger.info('Combining parent (id %d, belief %g) into its child (id %d)' % (parentEntry.id,parentEntry.belief,childEntry.id))
+                self.appLogger.info('Child (%d) is now: %s' % (childEntry.id,childEntry.partition))
+                childEntry.historyEntryList.extend(parentEntry.historyEntryList)
+                PartitionDistribution._CombineHistoryDuplicatesOnList(childEntry.historyEntryList)
+                # merge belief
+                childEntry.belief = childEntry.belief + parentEntry.belief
+                for otherChildEntry in parentEntry.children:
+                    if otherChildEntry != childEntry:
+                        otherChildEntry.parent = childEntry
+                        childEntry.children.append(otherChildEntry)
+                childEntry.parent = parentEntry.parent
+                if childEntry.parent:
+                    childEntry.parent.children.append(childEntry)
+                    childEntry.parent.children.remove(parentEntry)
+                self.partitionEntryList.remove(parentEntry)
+                return True
+            else:
+                return False
+
+
     def KillFieldBelief(self,field):
         self.appLogger.info('Kill belief of every value for field %s'%field)
 
+#        for partitionEntry in self.partitionEntryList:
+#            if partitionEntry.partition.fields[field].type == 'equals':
+#                partitionEntry.belief = 0.0
+#                partitionEntry.newBelief = 0.0
+#                for historyEntry in partitionEntry.historyEntryList:
+#                    historyEntry.belief = 0.0
+#                    historyEntry.origBelief = 0.0
+#        self.CompactByProbability(self.minPartitionProbability)
         for partitionEntry in self.partitionEntryList:
-            if partitionEntry.partition.fields[field].type == 'equals':
-                partitionEntry.belief = 0.0
-                partitionEntry.newBelief = 0.0
-                for historyEntry in partitionEntry.historyEntryList:
-                    historyEntry.belief = 0.0
-                    historyEntry.origBelief = 0.0
-#                    partitionEntry.belief += historyEntry.belief
-#                partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+            partitionEntry.partition.fields[field].type = 'excludes'
+            partitionEntry.partition.fields[field].excludes = {}
+            if partitionEntry.parent == None:
+                rootEntry = partitionEntry
 
-        self.CompactByProbability(self.minPartitionProbability)
+        needToCombine = True
+        while needToCombine:
+            self.appLogger.info('** PartitionDistribution: **\n%s'%self)
+            needToCombine = self._TraversePartitionTreeToCombine(rootEntry)
+            for partitionEntry in self.partitionEntryList:
+                if partitionEntry.parent == None:
+                    rootEntry = partitionEntry
+                    break
+            else:
+                raise RuntimeError,'No Root!!!'
 
-        
+        for partitionEntry in self.partitionEntryList:
+            count = 1
+            fields = partitionEntry.partition.fields
+            for field in fields:
+                if fields[field].type == 'excludes':
+                    if field == 'route':
+                        num_field = self.num_route
+                    elif field in ['departure_place','arrival_place']:
+                        num_field = self.num_place
+                    elif field == 'travel_time':
+                        num_field = self.num_time
+                    else:
+                        raise RuntimeError,'Invalid field %s'%field
+                    count *= (num_field - len(fields[field].excludes))
+            partitionEntry.partition.count = count
+            partitionEntry.partition.prior = 1.0 * count/partitionEntry.partition.totalCount
+
+        rawBeliefTotal = 0.0
+        for partitionEntry in self.partitionEntryList:
+            for historyEntry in partitionEntry.historyEntryList:
+                rawBeliefTotal += historyEntry.belief
+                
+        for partitionEntry in self.partitionEntryList:
+            partitionEntry.belief = 0.0
+            partitionEntry.newBelief = 0.0
+            for historyEntry in partitionEntry.historyEntryList:
+                historyEntry.belief = historyEntry.belief / rawBeliefTotal
+                historyEntry.origBelief = historyEntry.belief
+                if (historyEntry.belief < 0.0):
+                    s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
+                    s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
+                    raise RuntimeError,s
+                partitionEntry.belief += historyEntry.belief
+            partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
+        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
+
+            
+
     @staticmethod
     def _ComparePartitionEntries(a,b):
         return cmp(a.belief,b.belief)
