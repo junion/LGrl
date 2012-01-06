@@ -228,6 +228,25 @@ class SBSarsaDialogManager(DialogManager):
                 sysAction,Qval = self._ChooseAction(asrResult)
         else:
             sysAction,Qval = self._ChooseAction(asrResult)
+
+        if exceptionalEntities != None and sysAction.type == 'inform':
+            userGoal,belief = self.beliefState.GetTopUniqueUserGoal()
+            for field in self.fields:
+                if userGoal[field] in exceptionalEntities:
+                    self.exceptionalEntityHandled = {}
+                    self.exceptionalEntityHandled['entity'] = userGoal[field]
+                    self.exceptionalEntityHandled['type'] = exceptionalEntities[userGoal[field]]
+                    self.exceptionalEntityHandled['field'] = field
+                    self.appLogger.info('Detect exceptional entity %s of field %s in inform action'%(self.exceptionalEntityHandled['entity'],field))
+                    self.beliefState.partitionDistribution.KillFieldBelief(field)
+                    self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
+                    if self.exceptionalEntityHandled['field'] == 'departure_place':
+                        sysAction,Qval = self._ChooseAction(asrResult,preChosenAction='[ask] request departure_place')
+                    elif self.exceptionalEntityHandled['field'] == 'arrival_place':
+                        sysAction,Qval = self._ChooseAction(asrResult,preChosenAction='[ask] request arrival_place')
+                    else:
+                        sysAction,Qval = self._ChooseAction(asrResult)
+                    break
             
         if self.dialogStrategyLearning:
             self._SBSarsa(self.prevTopBelief,self.prevTopFields,self.prevMarginals,\
