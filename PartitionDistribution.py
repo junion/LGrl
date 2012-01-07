@@ -596,26 +596,27 @@ class PartitionDistribution(object):
                 self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
             self.stats.EndClock('compact')
         else:
+            rootEntry = None
             for partitionEntry in self.partitionEntryList:
                 if partitionEntry.parent == None:
                     rootEntry = partitionEntry
                     break
-            marginals = {}
-            for field in rootEntry.partition.fields:
-                marginals[field] = []
-            for field in rootEntry.partition.fields:
-                marginalTotals = {}
-                for partitionEntry in self.partitionEntryList:
-                    if (partitionEntry.partition.fields[field].type == 'equals'):
-                        val = partitionEntry.partition.fields[field].equals
-                        if (val not in marginalTotals):
-                            marginalTotals[val] = partitionEntry.belief
-                        else:
-                            marginalTotals[val] += partitionEntry.belief
-                for val in marginalTotals:
-                    marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
-                marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
             while len(self.partitionEntryList) > self.maxPartitions:
+                marginals = {}
+                for field in rootEntry.partition.fields:
+                    marginals[field] = []
+                for field in rootEntry.partition.fields:
+                    marginalTotals = {}
+                    for partitionEntry in self.partitionEntryList:
+                        if (partitionEntry.partition.fields[field].type == 'equals'):
+                            val = partitionEntry.partition.fields[field].equals
+                            if (val not in marginalTotals):
+                                marginalTotals[val] = partitionEntry.belief
+                            else:
+                                marginalTotals[val] += partitionEntry.belief
+                    for val in marginalTotals:
+                        marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
+                    marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
                 minBelief = 1.0
                 minField = ''
                 minValue = ''
@@ -721,6 +722,7 @@ class PartitionDistribution(object):
                     partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
                 self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         else:
+            rootEntry = None
             for partitionEntry in self.partitionEntryList:
                 if partitionEntry.parent == None:
                     rootEntry = partitionEntry
@@ -980,14 +982,14 @@ class _PartitionEntry(object):
         if self.partition.fields[field].type == 'excludes' and value in self.partition.fields[field].excludes:
             for child in self.children:
                 if child.partition.fields[field].type == 'equals' and child.partition.fields[field].equals == value:
-                    partitionToCombine = child
-                    self.appLogger.info('Child (id %d) to prune = %s'%(partitionToCombine.id,partitionToCombine.partition))
+#                    partitionToCombine = child
+                    self.appLogger.info('Child (id %d) to prune = %s'%(child.id,child.partition))
                     beliefs = []
-                    partitionToCombine._DeletePartition(beliefs)
-                    beliefs.append(partitionToCombine.belief)
-                    partitionToCombine.parent = None
-                    self.children.remove(partitionToCombine)
-                    self.appLogger.info('Child (id %d) removed'%partitionToCombine.id)
+                    child._DeletePartition(beliefs)
+                    beliefs.append(child.belief)
+                    child.parent = None
+                    self.children.remove(child)
+                    self.appLogger.info('Child (id %d) removed'%child.id)
                     self._UpdateBeliefAndRemoveComplements(beliefs,field,value)
                     break
 #            else:
@@ -1003,21 +1005,26 @@ class _PartitionEntry(object):
 
 
     def _DeletePartition(self,beliefs):
+        self.appLogger.info('Delete partition (id %d) %s'%(self.id,self.partition))
+        toRemoveChildList = []
         for child in self.children:
             child._DeletePartition(beliefs)
             beliefs.append(child.belief)
             child.parent = None
+            toRemoveChildList.append(child)
+        for child in toRemoveChildList:
             self.children.remove(child)
             self.appLogger.info('Child (id %d) of partition (id %d) removed'%(child.id,self.id))
         self.appLogger.info('Partition (id %d) completed'%self.id)
     
     def _UpdateBeliefAndRemoveComplements(self,beliefs,field,value):
+        self.appLogger.info('Update partition (id %d) %s'%(self.id,str(self.partition.fields[field].excludes)))
         self.belief += beliefs.pop(0)
         del self.partition.fields[field].excludes[value]
         self.appLogger.info('Belief of partition (id %d) updated'%self.id)
         for child in self.children:
             if child.partition.fields[field].type == 'excludes' and value in child.partition.fields[field].excludes:
-                self._UpdateBeliefAndRemoveComplements(beliefs,field,value)
+                child._UpdateBeliefAndRemoveComplements(beliefs,field,value)
                 if len(beliefs) == 0:
                     break
         self.appLogger.info('Partition (id %d) completed'%self.id)

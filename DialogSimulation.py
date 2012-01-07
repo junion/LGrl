@@ -246,7 +246,7 @@ def main():
     config = GetConfig()
     config.read(['LGrl.conf'])
     config.set('Global','modelPath','.')
-    config.set('DialogManager','dialogStrategyLearning','false')
+    config.set('DialogManager','dialogStrategyLearning','true')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -257,7 +257,7 @@ def main():
     for testIndex in range(0,1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [10]
+            iter = [1000]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
             config.set('PartitionDistribution','minPartitionProbability','1e-4')
@@ -266,7 +266,7 @@ def main():
             config.set('BeliefState','fixedASRConfusionProbability','0.3')
             config.set('DialogManager','confidenceScoreCalibration','true')
             config.set('BeliefState','useLearnedUserModel','true')
-            config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','true')
+            config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','false')
             preventCorrectionInConfirm = True
             preferDirectAnswerToRoute = False
         elif testIndex == 1:
@@ -405,7 +405,7 @@ def main():
                                                 preventCorrectionInConfirm,preferDirectAnswerToRoute)
                     except:
                         appLogger.error(traceback.format_exc())
-                        exit()
+#                        exit()
                         continue
                     break
                 
