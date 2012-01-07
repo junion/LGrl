@@ -89,7 +89,8 @@ class DialogThread(threading.Thread):
         self.giveTipCount = 0
         self.consecutiveTimeoutCount = 0
         self.consecutiveEventTimeoutCount = 0
-        self.exceptionalPlaceType = ''
+        self.exceptionalEntityType = ''
+        self.exceptionalEntity = ''
         self.exceptionalEntities = {}
         
     def _GetNewDialogState(self):
@@ -205,31 +206,34 @@ class DialogThread(threading.Thread):
         if not self.integrateExceptionalHandlingIntoBeliefTracking:                    
             if frame[':properties'].has_key(':[1_singleplace.stop_name.uncovered_place]'):
                 userAction.content.update({'uncovered_place':frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']})
+                self.exceptionalEntityValue = frame[':properties'][':[1_singleplace.stop_name.uncovered_place]']
                 try:
                     if not ('uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content):
-                        self.exceptionalPlaceType = ''
+                        self.exceptionalEntityType = ''
                         if self.systemAction.type == 'ask' and self.systemAction.force == 'request':
                             if self.systemAction.content in ['departure_place','arrival_place']:
-                                self.exceptionalPlaceType = self.systemAction.content
+                                self.exceptionalEntityType = self.systemAction.content
                             elif self.useDirectedOpenQuestion and self.systemAction.content == 'all':
-                                self.exceptionalPlaceType = 'departure_place'
+                                self.exceptionalEntityType = 'departure_place'
                         elif self.systemAction.type == 'ask' and self.systemAction.force == 'confirm':
                             if 'departure_place' in self.systemAction.content:
-                                self.exceptionalPlaceType = 'departure_place'
+                                self.exceptionalEntityType = 'departure_place'
                             elif 'arrival_place' in self.systemAction.content:
-                                self.exceptionalPlaceType = 'arrival_place'
+                                self.exceptionalEntityType = 'arrival_place'
                 except:
-                    self.exceptionalPlaceType = 'departure_place'
-                self.appLogger.info('Uncovered place type: %s'%('both' if self.exceptionalPlaceType == '' else self.exceptionalPlaceType))
+                    self.exceptionalEntityType = 'departure_place'
+                self.appLogger.info('Uncovered place type: %s'%('both' if self.exceptionalEntityType == '' else self.exceptionalEntityType))
             if frame[':properties'].has_key(':[2_departureplace.stop_name.uncovered_place]'):
                 userAction.content.update({'uncovered_place':frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']})
-                self.exceptionalPlaceType = 'departure_place'
-                self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
+                self.exceptionalEntityValue = frame[':properties'][':[2_departureplace.stop_name.uncovered_place]']
+                self.exceptionalEntityType = 'departure_place'
+                self.appLogger.info('Uncovered place type: %s'%self.exceptionalEntityType)
     
             if frame[':properties'].has_key(':[3_arrivalplace.stop_name.uncovered_place]'):
                 userAction.content.update({'uncovered_place':frame[':properties'][':[3_arrivalplace.stop_name.uncovered_place]']})
-                self.exceptionalPlaceType = 'arrival_place'
-                self.appLogger.info('Uncovered place type: %s'%self.exceptionalPlaceType)
+                self.exceptionalEntityValue = frame[':properties'][':[3_arrivalplace.stop_name.uncovered_place]']
+                self.exceptionalEntityType = 'arrival_place'
+                self.appLogger.info('Uncovered place type: %s'%self.exceptionalEntityType)
                 
             updateDeparturePlaceType = updateArrivalPlaceType = False
             if frame[':properties'].has_key(':[1_singleplace.stop_name.covered_place]'):
@@ -256,10 +260,10 @@ class DialogThread(threading.Thread):
                         userAction.content.update({'arrival_place':hypothesis})
                         updateArrivalPlaceType = True
                     elif 'uncovered_place' in self.systemAction.content or 'no_stop_matching' in self.systemAction.content:
-                        if self.exceptionalPlaceType == 'departure_place':
+                        if self.exceptionalEntityType == 'departure_place':
                             userAction.content.update({'departure_place':hypothesis})
                             updateDeparturePlaceType = True
-                        elif self.exceptionalPlaceType == 'arrival_place':
+                        elif self.exceptionalEntityType == 'arrival_place':
                             userAction.content.update({'arrival_place':hypothesis})
                             updateArrivalPlaceType = True
                         else:
@@ -299,6 +303,7 @@ class DialogThread(threading.Thread):
                     if not self._RequestDeparturePlaceQuery(querySpec):
                         updateArrivalPlaceType = False # to prevent arrival processing when dealing with a singleplace case 
                         userAction.content = {'no_stop_matching':place}
+                        self.exceptionalEntityValue = place
                         exceptionalPlaceType.append('departure_place')
     #                self.taskQueue.append((False,True,self._RequestDeparturePlaceQuery,querySpec))
             if updateArrivalPlaceType:
@@ -315,20 +320,23 @@ class DialogThread(threading.Thread):
                     querySpec['arrival_place_type'] = self.arrivalPlaceTypeDict[place]
                     if not self._RequestArrivalPlaceQuery(querySpec):
                         userAction.content = {'no_stop_matching':place}
+                        self.exceptionalEntityValue = place
                         exceptionalPlaceType.append('arrival_place')
     #                self.taskQueue.append((False,True,self._RequestArrivalPlaceQuery,querySpec))
             if len(exceptionalPlaceType) == 2:
-                self.exceptionalPlaceType = ''
+                self.exceptionalEntityType = ''
                 self.appLogger.info('No stop matching place type: both')
             elif len(exceptionalPlaceType) == 1:
-                self.exceptionalPlaceType = exceptionalPlaceType[0]
-                self.appLogger.info('No stop matching place type: %s'%self.exceptionalPlaceType)
+                self.exceptionalEntityType = exceptionalPlaceType[0]
+                self.appLogger.info('No stop matching place type: %s'%self.exceptionalEntityType)
     
             # Route
             if frame[':properties'].has_key(':[0_busnumber.route.0_uncovered_route]'):
                 userAction.content.update({'uncovered_route':frame[':properties'][':[0_busnumber.route.0_uncovered_route]']})
+                self.exceptionalEntityValue = frame[':properties'][':[0_busnumber.route.0_uncovered_route]']
             if frame[':properties'].has_key(':[0_busnumber.route.0_discontinued_route]'):
                 userAction.content.update({'discontinued_route':frame[':properties'][':[0_busnumber.route.0_discontinued_route]']})
+                self.exceptionalEntityValue = frame[':properties'][':[0_busnumber.route.0_discontinued_route]']
             if frame[':properties'].has_key(':[0_busnumber.route.0_covered_route]'):
                 userAction.content.update({'route':frame[':properties'][':[0_busnumber.route.0_covered_route]']})
         else:
@@ -1018,11 +1026,11 @@ class DialogThread(threading.Thread):
                             self._GetNewDialogState()
                             self.taskQueue.append((True,False,self._RequestSystemUtterance,(self.newDialogState,query,result,version)))
                             if self.newDialogState == 'inform_confirm_okay_uncovered_place':
-                                if self.exceptionalPlaceType != '':
-                                    self.dialogManager.KillFieldBelief(self.exceptionalPlaceType)
+                                if self.exceptionalEntityType != '':
+                                    self.dialogManager.KillFieldBelief(self.exceptionalEntityType,self.exceptionalEntityValue)
                                 else:
-                                    self.dialogManager.KillFieldBelief('departure_place')
-                                    self.dialogManager.KillFieldBelief('arrival_place')
+                                    self.dialogManager.KillFieldBelief('departure_place',self.exceptionalEntityValue)
+                                    self.dialogManager.KillFieldBelief('arrival_place',self.exceptionalEntityValue)
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'uncovered_place'
                                 self._GetNewDialogState()
@@ -1032,7 +1040,7 @@ class DialogThread(threading.Thread):
 #                                self.dialogResult = 'uncovered_place'
                                 self.dialogResult.append('uncovered_place(%d)'%self.turnNumber)
                             elif self.newDialogState == 'inform_confirm_okay_uncovered_route':
-                                self.dialogManager.KillFieldBelief('route')
+                                self.dialogManager.KillFieldBelief('route',self.exceptionalEntityValue)
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'uncovered_route'
                                 self._GetNewDialogState()
@@ -1042,7 +1050,7 @@ class DialogThread(threading.Thread):
 #                                self.dialogResult = 'uncovered_route'
                                 self.dialogResult.append('uncovered_route(%d)'%self.turnNumber)
                             elif self.newDialogState == 'inform_confirm_okay_discontinued_route':
-                                self.dialogManager.KillFieldBelief('route')
+                                self.dialogManager.KillFieldBelief('route',self.exceptionalEntityValue)
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'discontinued_route'
                                 self._GetNewDialogState()
@@ -1052,11 +1060,11 @@ class DialogThread(threading.Thread):
 #                                self.dialogResult = 'discontinued_route'
                                 self.dialogResult.append('discontinued_route(%d)'%self.turnNumber)
                             elif self.newDialogState == 'inform_confirm_okay_no_stop_matching':
-                                if self.exceptionalPlaceType != '':
-                                    self.dialogManager.KillFieldBelief(self.exceptionalPlaceType)
+                                if self.exceptionalEntityType != '':
+                                    self.dialogManager.KillFieldBelief(self.exceptionalEntityType,self.exceptionalEntityValue)
                                 else:
-                                    self.dialogManager.KillFieldBelief('departure_place')
-                                    self.dialogManager.KillFieldBelief('arrival_place')
+                                    self.dialogManager.KillFieldBelief('departure_place',self.exceptionalEntityValue)
+                                    self.dialogManager.KillFieldBelief('arrival_place',self.exceptionalEntityValue)
                                 self.systemAction.type = 'inform'
                                 self.systemAction.force = 'no_stop_matching'
                                 self._GetNewDialogState()
