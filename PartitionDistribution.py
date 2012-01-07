@@ -821,7 +821,10 @@ class PartitionDistribution(object):
 
 
     def KillFieldBelief(self,field,value):
-        self.appLogger.info('Kill belief of every value for field %s'%field)
+        if value == None:
+            self.appLogger.info('Kill belief of every value for field %s'%field)
+        else:
+            self.appLogger.info('Kill belief of %s for field %s'%(value,field))
 
 #        for partitionEntry in self.partitionEntryList:
 #            if partitionEntry.partition.fields[field].type == 'equals':
@@ -885,7 +888,15 @@ class PartitionDistribution(object):
                 partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         else:
-            self._CompactByFieldValue(field,value)
+            if value == None:
+                values = set([])
+                for partitionEntry in self.partitionEntryList:
+                    if (partitionEntry.partition.fields[field].type == 'equals'):
+                        values.add(partitionEntry.partition.fields[field].equals)
+                for value in values:
+                    self._CompactByFieldValue(field,value)
+            else:
+                self._CompactByFieldValue(field,value)
             
 
     @staticmethod

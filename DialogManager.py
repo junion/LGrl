@@ -130,7 +130,7 @@ class SBSarsaDialogManager(DialogManager):
 #        return (self.dialogResult,self.dialogReward)
 
     def KillFieldBelief(self,field,value):
-        self.beliefState.partitionDistribution.KillFieldBelief(field,value)
+        self.beliefState.partitionDistribution.KillFieldBelief(field,None)
         
     def Calibrate(self,asrResult):
         def dist_squared(X,Y):
