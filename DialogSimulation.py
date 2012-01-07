@@ -29,6 +29,7 @@ import logging
 from GlobalConfig import *
 from BeliefState import BeliefState
 from UserSimulation import UserSimulation
+from DialogModules import UserAction,ASRResult
 from DB import InitDB
 #from DialogManager import OpenDialogManager as DialogManager
 from DialogManager import SBSarsaDialogManager as DialogManager
@@ -166,16 +167,27 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
         appLogger.info('User Action: %s' % (userAction))
         
         if preventCorrectionInConfirm:
-            if userAction.userActions[0].type != 'non-understanding' and 'confirm' in userAction.userActions[0].content:
+            if systemAction.type == 'ask' and systemAction.force == 'confirm' and\
+            userAction.userActions[0].type != 'non-understanding' and 'confirm' in userAction.userActions[0].content:
                 appLogger.info('For now, just deal with YES/NO only in a turn')
                 userAction.userActions[0].content = {'confirm':userAction.userActions[0].content['confirm']}
+#            elif systemAction.type == 'ask' and systemAction.force == 'request' and\
+#            userAction.userActions[0].type != 'non-understanding' and 'confirm' in userAction.userActions[0].content:
+#                appLogger.info('For now, just remove useless YES/NO in response to request')
+#                del userAction.userActions[0].content['confirm']
 
         if preferDirectAnswerToRoute and userAction.userActions[0].type != 'non-understanding' and\
         'route' in userAction.userActions[0].content and len(userAction.userActions[0].content) > 1:
             if not (systemAction.type == 'ask' and systemAction.force == 'confirm' and 'route' in systemAction.content):
-                if not set(userAction.userActions[0].content).isdisjoint(set(systemAction.content)):
+                if (systemAction.type == 'ask' and systemAction.force == 'confirm' and\
+                (not set(userAction.userActions[0].content).isdisjoint(set(systemAction.content)))) or\
+                (systemAction.type == 'ask' and systemAction.force == 'request' and\
+                systemAction.content in userAction.userActions[0].content):
                     appLogger.info('For now, just remove route to focus on other fields')
                     del userAction.userActions[0].content['route']
+
+        if userAction.userActions[0].content == {}:
+            userAction = ASRResult.Simulated(None,[UserAction('non-understanding')],[1.0])
         
         appLogger.info('User Action: %s' % (userAction))
 #        asrResult = asrSimulation.SimASR(systemAction.grammar,userAction)
@@ -234,7 +246,7 @@ def main():
     config = GetConfig()
     config.read(['LGrl.conf'])
     config.set('Global','modelPath','.')
-    config.set('DialogManager','dialogStrategyLearning','true')
+    config.set('DialogManager','dialogStrategyLearning','false')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -245,6 +257,19 @@ def main():
     for testIndex in range(0,1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
+            iter = [10]
+            errorRates = [-1]
+            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
+            config.set('PartitionDistribution','minPartitionProbability','1e-4')
+            config.set('PartitionDistribution','compactByPruningFieldValuePair','true')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000')
+            config.set('BeliefState','fixedASRConfusionProbability','0.3')
+            config.set('DialogManager','confidenceScoreCalibration','true')
+            config.set('BeliefState','useLearnedUserModel','true')
+            config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','true')
+            preventCorrectionInConfirm = True
+            preferDirectAnswerToRoute = False
+        elif testIndex == 1:
             iter = [1000]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
@@ -255,16 +280,6 @@ def main():
             config.set('BeliefState','useLearnedUserModel','true')
             preventCorrectionInConfirm = True
             preferDirectAnswerToRoute = True
-        elif testIndex == 1:
-            iter = [1000]
-            errorRates = [-1]
-            config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','minPartitionProbability','1e-4')
-            config.set('BeliefState','numberOfPossibleActionsForConfirmation','100000')
-            config.set('BeliefState','fixedASRConfusionProbability','0.3')
-            config.set('DialogThread','preventCorrectionInConfirm','true')
-            config.set('DialogManager','confidenceScoreCalibration','true')
-            config.set('BeliefState','useLearnedUserModel','false')
         elif testIndex == 2:
             iter = [1000]
             errorRates = [-1]
@@ -390,6 +405,7 @@ def main():
                                                 preventCorrectionInConfirm,preferDirectAnswerToRoute)
                     except:
                         appLogger.error(traceback.format_exc())
+                        exit()
                         continue
                     break
                 

@@ -97,10 +97,7 @@ class PartitionDistribution(object):
             self.num_time = config.getint('BeliefState','numberOfTime')
             self.totalCount = self.num_route * self.num_place * self.num_place * self.num_time
             self.numberOfPossibleActionsForConfirmation = config.getint('BeliefState','numberOfPossibleActionsForConfirmation')
-            self.conservativeUpdateFactor = config.getfloat(MY_ID,'conservativeUpdateFactor')
-            self.minPartitionProbability = config.getfloat(MY_ID,'minPartitionProbability')
-            self.compactByPruningFieldValuePair = config.getboolean(MY_ID,'compactByPruningFieldValuePair')
-
+            self.conservativeUpdateFactor =  config.getfloat(MY_ID,'conservativeUpdateFactor')
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
         self.appLogger.info('Config: maxPartitions = %d' % (self.maxPartitions))
@@ -195,9 +192,9 @@ class PartitionDistribution(object):
         #
         # Init
         #
-#        self.stats.InitUpdate()
+        self.stats.InitUpdate()
 
-#        self.stats.StartClock('mainUpdate')
+        self.stats.StartClock('mainUpdate')
         rawOnlistBeliefTotal = 0.0
         rawOfflistBeliefTotal = 0.0
 
@@ -391,60 +388,59 @@ class PartitionDistribution(object):
                 i += 1
 
             # 2. Compact tree by pruning
-            if not self.compactByPruningFieldValuePair:
-                if (partitionCount > self.stats.lastUpdateMaxPartitions):
-                    self.stats.lastUpdateMaxPartitions = partitionCount
-                if (self.maxPartitions > 0 and partitionCount > self.maxPartitions):
-                    leafPartitionEntryList = []
-                    i = 0
-                    for partitionEntry in self.partitionEntryList:
-                        partitionEntry.selfPointer = i
-                        if (len(partitionEntry.children) == 0 and partitionEntry.parent != None):
-                            leafPartitionEntryList.append(partitionEntry)
-                        i += 1
-                    leafPartitionCount = len(leafPartitionEntryList)
-                    leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntriesNewBelief)
-                    while (partitionCount > self.maxPartitions):
-                        for i in range(leafPartitionCount):
-                            partitionEntry = leafPartitionEntryList[i]
-                            # print '  Looking at partition %d...' % (partitionEntry.id)
-                            if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
-                                self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
-                                self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
-                                parent = partitionEntry.parent
-                                # merge histories
-                                parent.historyEntryList.extend(partitionEntry.historyEntryList)
-                                PartitionDistribution._CombineHistoryDuplicatesOffList(parent.historyEntryList)
-                                parent.newHistoryEntryList.extend(partitionEntry.newHistoryEntryList)
-                                PartitionDistribution._CombineHistoryDuplicatesOnList(parent.newHistoryEntryList)
-                                # merge belief
-                                parent.newBelief = parent.newBelief + partitionEntry.newBelief
-                                # delete pointer to child
-                                del parent.children[ parent.children.index(partitionEntry) ]
-                                self.partitionEntryList[ partitionEntry.selfPointer ] = None
-                                del leafPartitionEntryList[i]
-                                partitionCount -= 1
-                                leafPartitionCount -= 1
-                                # test if parent is now a leaf
-                                if (len(parent.children) == 0 and parent.parent != None):
-                                    # find the right place to insert the parent
-                                    insertedFlag = 0
-                                    for j in range(leafPartitionCount):
-                                        if (parent.newBelief < leafPartitionEntryList[j].newBelief):
-                                            leafPartitionEntryList.insert(j,parent)
-                                            insertedFlag = 1
-                                            break
-                                    if (insertedFlag == 0):
-                                        leafPartitionEntryList.append(parent)
-                                    leafPartitionCount += 1
-                                break
-                    # Clean up empty entries
-                    cleanPartitionEntryList = []
-                    for partitionEntry in self.partitionEntryList:
-                        if (partitionEntry != None):
-                            cleanPartitionEntryList.append(partitionEntry)
-                    self.partitionEntryList = cleanPartitionEntryList
-                
+            if (partitionCount > self.stats.lastUpdateMaxPartitions):
+                self.stats.lastUpdateMaxPartitions = partitionCount
+            if (self.maxPartitions > 0 and partitionCount > self.maxPartitions):
+                leafPartitionEntryList = []
+                i = 0
+                for partitionEntry in self.partitionEntryList:
+                    partitionEntry.selfPointer = i
+                    if (len(partitionEntry.children) == 0 and partitionEntry.parent != None):
+                        leafPartitionEntryList.append(partitionEntry)
+                    i += 1
+                leafPartitionCount = len(leafPartitionEntryList)
+                leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntriesNewBelief)
+                while (partitionCount > self.maxPartitions):
+                    for i in range(leafPartitionCount):
+                        partitionEntry = leafPartitionEntryList[i]
+                        # print '  Looking at partition %d...' % (partitionEntry.id)
+                        if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
+                            self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
+                            self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
+                            parent = partitionEntry.parent
+                            # merge histories
+                            parent.historyEntryList.extend(partitionEntry.historyEntryList)
+                            PartitionDistribution._CombineHistoryDuplicatesOffList(parent.historyEntryList)
+                            parent.newHistoryEntryList.extend(partitionEntry.newHistoryEntryList)
+                            PartitionDistribution._CombineHistoryDuplicatesOnList(parent.newHistoryEntryList)
+                            # merge belief
+                            parent.newBelief = parent.newBelief + partitionEntry.newBelief
+                            # delete pointer to child
+                            del parent.children[ parent.children.index(partitionEntry) ]
+                            self.partitionEntryList[ partitionEntry.selfPointer ] = None
+                            del leafPartitionEntryList[i]
+                            partitionCount -= 1
+                            leafPartitionCount -= 1
+                            # test if parent is now a leaf
+                            if (len(parent.children) == 0 and parent.parent != None):
+                                # find the right place to insert the parent
+                                insertedFlag = 0
+                                for j in range(leafPartitionCount):
+                                    if (parent.newBelief < leafPartitionEntryList[j].newBelief):
+                                        leafPartitionEntryList.insert(j,parent)
+                                        insertedFlag = 1
+                                        break
+                                if (insertedFlag == 0):
+                                    leafPartitionEntryList.append(parent)
+                                leafPartitionCount += 1
+                            break
+                # Clean up empty entries
+                cleanPartitionEntryList = []
+                for partitionEntry in self.partitionEntryList:
+                    if (partitionEntry != None):
+                        cleanPartitionEntryList.append(partitionEntry)
+                self.partitionEntryList = cleanPartitionEntryList
+
         rawBeliefTotal = rawOfflistBeliefTotal + rawOnlistBeliefTotal
 
         # 3. Normalize, clean up and sort
@@ -488,48 +484,9 @@ class PartitionDistribution(object):
                     historyEntry.origBelief = historyEntry.belief
             i += 1
         self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        
-        self._CompactByProbability(self.minPartitionProbability)
-        if self.compactByPruningFieldValuePair:
-            self._CompactByMaxPartitions(self.maxPartitions)
-        
-#        self.stats.EndClock('mainUpdate')
+        self.stats.EndClock('mainUpdate')
 
-    
-    def _CompactByFieldValue(self,field,value):
-        self.appLogger.info('** PartitionDistribution: **\n%s'%self)
-        self.appLogger.info('Try to compact %s=%s'%(field,value))
-        for partitionEntry in self.partitionEntryList:
-            if partitionEntry.parent == None:
-                rootEntry = partitionEntry
-                break
-        rootEntry.Prune(field,value)
-        cleanPartitionEntryList = []
-        for partitionEntry in self.partitionEntryList:
-            if not (partitionEntry != rootEntry and partitionEntry.parent == None):
-                cleanPartitionEntryList.append(partitionEntry)
-        self.partitionEntryList = cleanPartitionEntryList
-        for partitionEntry in self.partitionEntryList:
-            count = 1
-            fields = partitionEntry.partition.fields
-            for field in fields:
-                if fields[field].type == 'excludes':
-                    if field == 'route':
-                        num_field = self.num_route
-                    elif field in ['departure_place','arrival_place']:
-                        num_field = self.num_place
-                    elif field == 'travel_time':
-                        num_field = self.num_time
-                    else:
-                        raise RuntimeError,'Invalid field %s'%field
-                    count *= (num_field - len(fields[field].excludes))
-            partitionEntry.partition.count = count
-            partitionEntry.partition.prior = 1.0 * count/partitionEntry.partition.totalCount
-        self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        self.appLogger.info('** PartitionDistribution: **\n%s'%self)
-        
-
-    def _CompactByMaxPartitions(self,maxPartitions):
+    def Compact(self,maxPartitions):
         '''
         Compacts a partitionDistribution object down
         to at most maxPartitions.
@@ -537,112 +494,12 @@ class PartitionDistribution(object):
         This function does not need to be called as
         a part of the normal operation of the class.
         '''
-        self.appLogger.info('Compacts a partitionDistribution down based on maximum count of partitions')
-        if not self.compactByPruningFieldValuePair:
-            self.stats.InitUpdate()
-            self.stats.StartClock('compact')
-            assert maxPartitions > 0,'maxPartitions must be > 0'
-            partitionCount = len(self.partitionEntryList)
-            self.stats.lastUpdateMaxPartitions = partitionCount
-            if (maxPartitions > 0 and partitionCount > maxPartitions):
-                leafPartitionEntryList = []
-                i = 0
-                for partitionEntry in self.partitionEntryList:
-                    partitionEntry.selfPointer = i
-                    if (len(partitionEntry.children) == 0 and partitionEntry.parent != None):
-                        leafPartitionEntryList.append(partitionEntry)
-                    i += 1
-                leafPartitionCount = len(leafPartitionEntryList)
-                leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-                while (partitionCount > maxPartitions):
-                    for i in range(leafPartitionCount):
-                        partitionEntry = leafPartitionEntryList[i]
-                        if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
-                            self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
-                            self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
-                            parent = partitionEntry.parent
-                            # merge histories
-                            parent.historyEntryList.extend(partitionEntry.historyEntryList)
-                            PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
-                            # merge belief
-                            parent.belief = parent.belief + partitionEntry.belief
-                            # delete pointer to child
-                            del parent.children[ parent.children.index(partitionEntry) ]
-                            self.partitionEntryList[ partitionEntry.selfPointer ] = None
-                            del leafPartitionEntryList[i]
-                            partitionCount -= 1
-                            leafPartitionCount -= 1
-                            # test if parent is now a leaf
-                            if (len(parent.children) == 0 and parent.parent != None):
-                                # find the right place to insert the parent
-                                insertedFlag = 0
-                                for j in range(leafPartitionCount):
-                                    if (parent.belief < leafPartitionEntryList[j].belief):
-                                        leafPartitionEntryList.insert(j,parent)
-                                        insertedFlag = 1
-                                        break
-                                if (insertedFlag == 0):
-                                    leafPartitionEntryList.append(parent)
-                                leafPartitionCount += 1
-                            break
-                # Clean up empty entries
-                cleanPartitionEntryList = []
-                for partitionEntry in self.partitionEntryList:
-                    if (partitionEntry != None):
-                        cleanPartitionEntryList.append(partitionEntry)
-                self.partitionEntryList = cleanPartitionEntryList
-                for partitionEntry in self.partitionEntryList:
-                    partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
-                self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-            self.stats.EndClock('compact')
-        else:
-            for partitionEntry in self.partitionEntryList:
-                if partitionEntry.parent == None:
-                    rootEntry = partitionEntry
-                    break
-            marginals = {}
-            for field in rootEntry.partition.fields:
-                marginals[field] = []
-            for field in rootEntry.partition.fields:
-                marginalTotals = {}
-                for partitionEntry in self.partitionEntryList:
-                    if (partitionEntry.partition.fields[field].type == 'equals'):
-                        val = partitionEntry.partition.fields[field].equals
-                        if (val not in marginalTotals):
-                            marginalTotals[val] = partitionEntry.belief
-                        else:
-                            marginalTotals[val] += partitionEntry.belief
-                for val in marginalTotals:
-                    marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
-                marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
-            while len(self.partitionEntryList) > self.maxPartitions:
-                minBelief = 1.0
-                minField = ''
-                minValue = ''
-                for field in rootEntry.partition.fields:
-                    for marginal in marginals[field]:
-                        if marginal['belief'] < minBelief:
-                            minBelief = marginal['belief']
-                            minField = field
-                            minValue = marginal['equals']
-                if minField != '':
-                    self._CompactByFieldValue(minField,minValue)
-
-
-    def _CompactByProbability(self,minProbability):
-        '''
-        Compacts a partitionDistribution object down
-        to at most maxPartitions.
-
-        This function does not need to be called as
-        a part of the normal operation of the class.
-        '''
-        self.appLogger.info('Compacts a partitionDistribution down based on minimum partition probability')
-#        self.stats.InitUpdate()
-#        self.stats.StartClock('compact')
-        if not self.compactByPruningFieldValuePair:
-            partitionCount = len(self.partitionEntryList)
-            self.stats.lastUpdateMaxPartitions = partitionCount
+        self.stats.InitUpdate()
+        self.stats.StartClock('compact')
+        assert maxPartitions > 0,'maxPartitions must be > 0'
+        partitionCount = len(self.partitionEntryList)
+        self.stats.lastUpdateMaxPartitions = partitionCount
+        if (maxPartitions > 0 and partitionCount > maxPartitions):
             leafPartitionEntryList = []
             i = 0
             for partitionEntry in self.partitionEntryList:
@@ -652,239 +509,47 @@ class PartitionDistribution(object):
                 i += 1
             leafPartitionCount = len(leafPartitionEntryList)
             leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-            needToCleanup = False
-            while (leafPartitionCount > 0 and leafPartitionEntryList[0].belief < minProbability):
-                changed = False
+            while (partitionCount > maxPartitions):
                 for i in range(leafPartitionCount):
                     partitionEntry = leafPartitionEntryList[i]
-                    if partitionEntry.belief < minProbability:
-                        if partitionEntry.parent.partition.Recombine(partitionEntry.partition):
-                            self.appLogger.info('Combining child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
-                            self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
-                            parent = partitionEntry.parent
-                            # merge histories
-                            parent.historyEntryList.extend(partitionEntry.historyEntryList)
-                            PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
-                            # merge belief
-                            parent.belief = parent.belief + partitionEntry.belief
-                            # delete pointer to child
-                            del parent.children[ parent.children.index(partitionEntry) ]
-                            self.partitionEntryList[ partitionEntry.selfPointer ] = None
-                            del leafPartitionEntryList[i]
-                            partitionCount -= 1
-                            leafPartitionCount -= 1
-                            # test if parent is now a leaf
-                            if (len(parent.children) == 0 and parent.parent != None):
-                                # find the right place to insert the parent
-                                insertedFlag = 0
-                                for j in range(leafPartitionCount):
-                                    if (parent.belief < leafPartitionEntryList[j].belief):
-                                        leafPartitionEntryList.insert(j,parent)
-                                        insertedFlag = 1
-                                        break
-                                if (insertedFlag == 0):
-                                    leafPartitionEntryList.append(parent)
-                                leafPartitionCount += 1
-                            leafPartitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-                            needToCleanup = True
-                            changed = True
-                            break
-                        else:
-                            self.appLogger.info('Cannot combine child (id %d, belief %g) into its parent (id %d)' % (partitionEntry.id,partitionEntry.belief,partitionEntry.parent.id))
-                if not changed:
-                    break
-            
-            if needToCleanup:
-                # Clean up empty entries
-                cleanPartitionEntryList = []
-                for partitionEntry in self.partitionEntryList:
-                    if (partitionEntry != None):
-                        cleanPartitionEntryList.append(partitionEntry)
-                self.partitionEntryList = cleanPartitionEntryList
-        
-                rawBeliefTotal = 0.0
-                for partitionEntry in self.partitionEntryList:
-                    for historyEntry in partitionEntry.historyEntryList:
-                        rawBeliefTotal += historyEntry.belief
-                        
-                for partitionEntry in self.partitionEntryList:
-                    partitionEntry.belief = 0.0
-                    partitionEntry.newBelief = 0.0
-                    for historyEntry in partitionEntry.historyEntryList:
-                        historyEntry.belief = historyEntry.belief / rawBeliefTotal
-                        historyEntry.origBelief = historyEntry.belief
-                        if (historyEntry.belief < 0.0):
-                            s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
-                            s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
-                            raise RuntimeError,s
-                        partitionEntry.belief += historyEntry.belief
-                    partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
-                self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        else:
-            for partitionEntry in self.partitionEntryList:
-                if partitionEntry.parent == None:
-                    rootEntry = partitionEntry
-                    break
-            marginals = {}
-            for field in rootEntry.partition.fields:
-                marginals[field] = []
-            for field in rootEntry.partition.fields:
-                marginalTotals = {}
-                for partitionEntry in self.partitionEntryList:
-                    if (partitionEntry.partition.fields[field].type == 'equals'):
-                        val = partitionEntry.partition.fields[field].equals
-                        if (val not in marginalTotals):
-                            marginalTotals[val] = partitionEntry.belief
-                        else:
-                            marginalTotals[val] += partitionEntry.belief
-                for val in marginalTotals:
-                    marginals[field].append({'equals': val, 'belief': marginalTotals[val]})
-                marginals[field].sort(lambda x, y: cmp(x['belief'], y['belief']))
-            for field in rootEntry.partition.fields:
-                for marginal in marginals[field]:
-                    if marginal['belief'] < minProbability:
-                        self._CompactByFieldValue(field,marginal['equals'])
-                    else:
+                    if (partitionEntry.parent.partition.Recombine(partitionEntry.partition)):
+                        self.appLogger.info('Combining child (id %d) into its parent (id %d)' % (partitionEntry.id,partitionEntry.parent.id))
+                        self.appLogger.info('Parent (%d) is now: %s' % (partitionEntry.parent.id,partitionEntry.parent.partition))
+                        parent = partitionEntry.parent
+                        # merge histories
+                        parent.historyEntryList.extend(partitionEntry.historyEntryList)
+                        PartitionDistribution._CombineHistoryDuplicatesOnList(parent.historyEntryList)
+                        # merge belief
+                        parent.belief = parent.belief + partitionEntry.belief
+                        # delete pointer to child
+                        del parent.children[ parent.children.index(partitionEntry) ]
+                        self.partitionEntryList[ partitionEntry.selfPointer ] = None
+                        del leafPartitionEntryList[i]
+                        partitionCount -= 1
+                        leafPartitionCount -= 1
+                        # test if parent is now a leaf
+                        if (len(parent.children) == 0 and parent.parent != None):
+                            # find the right place to insert the parent
+                            insertedFlag = 0
+                            for j in range(leafPartitionCount):
+                                if (parent.belief < leafPartitionEntryList[j].belief):
+                                    leafPartitionEntryList.insert(j,parent)
+                                    insertedFlag = 1
+                                    break
+                            if (insertedFlag == 0):
+                                leafPartitionEntryList.append(parent)
+                            leafPartitionCount += 1
                         break
-
-
-    def _TraversePartitionTreeToCombine(self,parentEntry):
-        if len(parentEntry.children) == 0:
-            return False
-        else:
-            for childEntry in parentEntry.children: 
-                if self._TraversePartitionTreeToCombine(childEntry):
-                    return True
-            parent = parentEntry.partition
-            for childEntry in parentEntry.children:
-                child = childEntry.partition
-                fieldsToRecombine = []
-                nextChild = False
-                self.appLogger.info('Try to combine parent (id %d, belief %g) into its child (id %d)' % (parentEntry.id,parentEntry.belief,childEntry.id))
-                self.appLogger.info('Parent %s'%parent)
-                self.appLogger.info('Child %s'%child)
-                for field in parent.fields:
-                    self.appLogger.info('Inspect field %s'%field)
-                    if parent.fields[field].type == 'excludes':
-                        if child.fields[field].type == 'equals':
-                            nextChild = True
-                            self.appLogger.info('Parent excludes but child equals')
-                        else:
-                            if set(parent.fields[field].excludes) == set(child.fields[field].excludes):
-                                self.appLogger.info('Parent and child have the same excludes %s'%str(parent.fields[field].excludes))
-                                pass
-                            elif set(parent.fields[field].excludes).issubset(set(child.fields[field].excludes)) or\
-                            set(child.fields[field].excludes).issubset(set(parent.fields[field].excludes)):
-                                fieldsToRecombine.append(field)
-                                self.appLogger.info("Child's excludes subsets/supersets parent's")
-    #                            elif len(parent.fields[field].excludes) == len(child.fields[field].excludes) and \
-    #                            len(set(parent.fields[field].excludes).symmetric_difference(set(child.fields[field].excludes))) != 0:
-                            else:
-                                nextChild = True
-                                self.appLogger.info('Disjoint excludes')
-                    else:
-                        if child.fields[field].type == 'equals' and parent.fields[field].equals == child.fields[field].equals:
-                            self.appLogger.info('Parent and child have the same equals %s'%parent.fields[field].equals)
-                            pass
-                        else:
-                            raise RuntimeError,'Error: field %s: parent %s but child %s'%(field,parent,child)
-                    if nextChild:
-                        break
-                if nextChild:
-                    continue
-                
-                for field in fieldsToRecombine:
-                    if child.fields[field].type == 'excludes' and \
-                    set(child.fields[field].excludes).issubset(set(parent.fields[field].excludes)):
-                        child.fields[field].excludes = parent.fields[field].excludes 
-
-                self.appLogger.info('Combining parent (id %d, belief %g) into its child (id %d)' % (parentEntry.id,parentEntry.belief,childEntry.id))
-                self.appLogger.info('Child (%d) is now: %s' % (childEntry.id,childEntry.partition))
-                childEntry.historyEntryList.extend(parentEntry.historyEntryList)
-                PartitionDistribution._CombineHistoryDuplicatesOnList(childEntry.historyEntryList)
-                # merge belief
-                childEntry.belief = childEntry.belief + parentEntry.belief
-                for otherChildEntry in parentEntry.children:
-                    if otherChildEntry != childEntry:
-                        otherChildEntry.parent = childEntry
-                        childEntry.children.append(otherChildEntry)
-                childEntry.parent = parentEntry.parent
-                if childEntry.parent:
-                    childEntry.parent.children.append(childEntry)
-                    childEntry.parent.children.remove(parentEntry)
-                self.partitionEntryList.remove(parentEntry)
-                return True
-            else:
-                return False
-
-
-    def KillFieldBelief(self,field,value):
-        self.appLogger.info('Kill belief of every value for field %s'%field)
-
-#        for partitionEntry in self.partitionEntryList:
-#            if partitionEntry.partition.fields[field].type == 'equals':
-#                partitionEntry.belief = 0.0
-#                partitionEntry.newBelief = 0.0
-#                for historyEntry in partitionEntry.historyEntryList:
-#                    historyEntry.belief = 0.0
-#                    historyEntry.origBelief = 0.0
-#        self.CompactByProbability(self.minPartitionProbability)
-        if not self.compactByPruningFieldValuePair:
+            # Clean up empty entries
+            cleanPartitionEntryList = []
             for partitionEntry in self.partitionEntryList:
-                partitionEntry.partition.fields[field].type = 'excludes'
-                partitionEntry.partition.fields[field].excludes = {}
-                if partitionEntry.parent == None:
-                    rootEntry = partitionEntry
-    
-            needToCombine = True
-            while needToCombine:
-                self.appLogger.info('** PartitionDistribution: **\n%s'%self)
-                needToCombine = self._TraversePartitionTreeToCombine(rootEntry)
-                for partitionEntry in self.partitionEntryList:
-                    if partitionEntry.parent == None:
-                        rootEntry = partitionEntry
-                        break
-                else:
-                    raise RuntimeError,'No Root!!!'
-    
+                if (partitionEntry != None):
+                    cleanPartitionEntryList.append(partitionEntry)
+            self.partitionEntryList = cleanPartitionEntryList
             for partitionEntry in self.partitionEntryList:
-                count = 1
-                fields = partitionEntry.partition.fields
-                for field in fields:
-                    if fields[field].type == 'excludes':
-                        if field == 'route':
-                            num_field = self.num_route
-                        elif field in ['departure_place','arrival_place']:
-                            num_field = self.num_place
-                        elif field == 'travel_time':
-                            num_field = self.num_time
-                        else:
-                            raise RuntimeError,'Invalid field %s'%field
-                        count *= (num_field - len(fields[field].excludes))
-                partitionEntry.partition.count = count
-                partitionEntry.partition.prior = 1.0 * count/partitionEntry.partition.totalCount
-    
-            rawBeliefTotal = 0.0
-            for partitionEntry in self.partitionEntryList:
-                for historyEntry in partitionEntry.historyEntryList:
-                    rawBeliefTotal += historyEntry.belief
-                    
-            for partitionEntry in self.partitionEntryList:
-                partitionEntry.belief = 0.0
-                partitionEntry.newBelief = 0.0
-                for historyEntry in partitionEntry.historyEntryList:
-                    historyEntry.belief = historyEntry.belief / rawBeliefTotal
-                    historyEntry.origBelief = historyEntry.belief
-                    if (historyEntry.belief < 0.0):
-                        s =  'historyEntry.belief < 0: %e\n' % (historyEntry.belief)
-                        s += ' rawBeliefTotal = %e' % (rawBeliefTotal)
-                        raise RuntimeError,s
-                    partitionEntry.belief += historyEntry.belief
                 partitionEntry.historyEntryList.sort(PartitionDistribution._CompareHistoryEntries)
             self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
-        else:
-            self._CompactByFieldValue(field,value)
-            
+        self.stats.EndClock('compact')
 
     @staticmethod
     def _ComparePartitionEntries(a,b):
@@ -954,9 +619,8 @@ def _LogToStringSafely(n):
         return '%s' % (log(n))
 
 class _PartitionEntry(object):
-    __slots__ = ['appLogger', 'children', 'historyEntryList','newHistoryEntryList','id','partition','parent','belief','selfPointer','newBelief']
+    __slots__ = ['children', 'historyEntryList','newHistoryEntryList','id','partition','parent','belief','selfPointer','newBelief']
     def __init__(self,partition,belief,parent,nextPartitionEntryID):
-        self.appLogger = logging.getLogger('Learning')
         self.children = []
         self.historyEntryList = []
         self.newHistoryEntryList = []
@@ -967,61 +631,6 @@ class _PartitionEntry(object):
         self.parent = parent
         self.selfPointer = -1
         self.newBelief = None
-
-    
-    def Prune(self,field,value):
-        self.appLogger.info('Pruning in partition (id %d) = %s'%(self.id,self.partition))
-        if len(self.children) > 0:
-            for child in self.children:
-                child.Prune(field,value)
-        else:
-            self.appLogger.info('Leaf partition (id %d) completed'%self.id)
-            return
-        if self.partition.fields[field].type == 'excludes' and value in self.partition.fields[field].excludes:
-            for child in self.children:
-                if child.partition.fields[field].type == 'equals' and child.partition.fields[field].equals == value:
-                    partitionToCombine = child
-                    self.appLogger.info('Child (id %d) to prune = %s'%(partitionToCombine.id,partitionToCombine.partition))
-                    beliefs = []
-                    partitionToCombine._DeletePartition(beliefs)
-                    beliefs.append(partitionToCombine.belief)
-                    partitionToCombine.parent = None
-                    self.children.remove(partitionToCombine)
-                    self.appLogger.info('Child (id %d) removed'%partitionToCombine.id)
-                    self._UpdateBeliefAndRemoveComplements(beliefs,field,value)
-                    break
-#            else:
-#                raise RuntimeError,'No complement for %s=%s'%(field,value)
-#            beliefs = []
-#            partitionToCombine._DeletePartition(beliefs)
-#            beliefs.append(partitionToCombine.belief)
-#            partitionToCombine.parent = None
-#            self.children.remove(partitionToCombine)
-#            self.appLogger.info('Child (id %d) removed'%partitionToCombine.id)
-#            self._UpdateBeliefAndRemoveComplements(beliefs,field,value)
-        self.appLogger.info('Partition (id %d) completed'%self.id)
-
-
-    def _DeletePartition(self,beliefs):
-        for child in self.children:
-            child._DeletePartition(beliefs)
-            beliefs.append(child.belief)
-            child.parent = None
-            self.children.remove(child)
-            self.appLogger.info('Child (id %d) of partition (id %d) removed'%(child.id,self.id))
-        self.appLogger.info('Partition (id %d) completed'%self.id)
-    
-    def _UpdateBeliefAndRemoveComplements(self,beliefs,field,value):
-        self.belief += beliefs.pop(0)
-        del self.partition.fields[field].excludes[value]
-        self.appLogger.info('Belief of partition (id %d) updated'%self.id)
-        for child in self.children:
-            if child.partition.fields[field].type == 'excludes' and value in child.partition.fields[field].excludes:
-                self._UpdateBeliefAndRemoveComplements(beliefs,field,value)
-                if len(beliefs) == 0:
-                    break
-        self.appLogger.info('Partition (id %d) completed'%self.id)
-                
 
 class _HistoryEntry(object):
     __slots__ = ['belief','history','userActionLikelihoodTotal','origBelief','userActionLikelihoodTypes']
