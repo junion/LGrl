@@ -672,9 +672,65 @@ class BeliefState(object):
         Calls partitionDistribution.Update(asrResult,sysAction).  Call this after each
         asrResult is received.
         '''
+        marginals = self.GetMarginals()
+        if sysAction.type == 'ask' and sysAction.force == 'request' and sysAction.content == 'departure_place' and\
+        asrResult.userActions[0].type == 'ig' and 'departure_place' in asrResult.userActions[0].content and \
+        len(marginals['departure_place']) > 0 and marginals['departure_place'][-1]['belief'] > 0.0 and \
+        marginals['departure_place'][-1]['equals'] == asrResult.userActions[0].content['departure_place']:
+            for marginal in marginals['arrival_place']:
+                if marginal['equals'] == asrResult.userActions[0].content['departure_place']:
+                    self.appLogger.info('Remove the same value in arrival place')
+                    self.partitionDistribution.KillFieldBelief('arrival_place',asrResult.userActions[0].content['departure_place'])
+                    break
+        elif sysAction.type == 'ask' and sysAction.force == 'confirm' and 'departure_place' in sysAction.content and\
+        asrResult.userActions[0].type == 'ig' and 'confirm' in asrResult.userActions[0].content and \
+        len(marginals['departure_place']) > 0 and marginals['departure_place'][-1]['belief'] > 0.0 and \
+        marginals['departure_place'][-1]['equals'] == sysAction.content['departure_place']:
+            for marginal in marginals['arrival_place']:
+                if marginal['equals'] == sysAction.content['departure_place']:
+                    self.appLogger.info('Remove the same value in arrival place')
+                    self.partitionDistribution.KillFieldBelief('arrival_place',sysAction.content['departure_place'])
+                    break
+        elif sysAction.type == 'ask' and sysAction.force == 'confirm' and 'departure_place' in sysAction.content and\
+        asrResult.userActions[0].type == 'ig' and 'departure_place' in asrResult.userActions[0].content and \
+        len(marginals['departure_place']) > 0 and marginals['departure_place'][-1]['belief'] > 0.0 and \
+        marginals['departure_place'][-1]['equals'] == asrResult.userActions[0].content['departure_place']:
+            for marginal in marginals['arrival_place']:
+                if marginal['equals'] == asrResult.userActions[0].content['departure_place']:
+                    self.appLogger.info('Remove the same value in arrival place')
+                    self.partitionDistribution.KillFieldBelief('arrival_place',asrResult.userActions[0].content['departure_place'])
+                    break
+        elif sysAction.type == 'ask' and sysAction.force == 'request' and sysAction.content == 'arrival_place' and\
+        asrResult.userActions[0].type == 'ig' and 'arrival_place' in asrResult.userActions[0].content and \
+        len(marginals['arrival_place']) > 0 and marginals['arrival_place'][-1]['belief'] > 0.0 and \
+        marginals['arrival_place'][-1]['equals'] == asrResult.userActions[0].content['arrival_place']:
+            for marginal in marginals['departure_place']:
+                if marginal['equals'] == asrResult.userActions[0].content['arrival_place']:
+                    self.appLogger.info('Remove the same value in departure place')
+                    self.partitionDistribution.KillFieldBelief('departure_place',asrResult.userActions[0].content['arrival_place'])
+                    break
+        elif sysAction.type == 'ask' and sysAction.force == 'confirm' and 'arrival_place' in sysAction.content and\
+        asrResult.userActions[0].type == 'ig' and 'confirm' in asrResult.userActions[0].content and \
+        len(marginals['arrival_place']) > 0 and marginals['arrival_place'][-1]['belief'] > 0.0 and \
+        marginals['arrival_place'][-1]['equals'] == sysAction.content['arrival_place']:
+            for marginal in marginals['departure_place']:
+                if marginal['equals'] == sysAction.content['arrival_place']:
+                    self.appLogger.info('Remove the same value in departure place')
+                    self.partitionDistribution.KillFieldBelief('departure_place',sysAction.content['arrival_place'])
+                    break
+        elif sysAction.type == 'ask' and sysAction.force == 'confirm' and 'arrival_place' in sysAction.content and\
+        asrResult.userActions[0].type == 'ig' and 'arrival_place' in asrResult.userActions[0].content and \
+        len(marginals['arrival_place']) > 0 and marginals['arrival_place'][-1]['belief'] > 0.0 and \
+        marginals['arrival_place'][-1]['equals'] == asrResult.userActions[0].content['arrival_place']:
+            for marginal in marginals['departure_place']:
+                if marginal['equals'] == asrResult.userActions[0].content['arrival_place']:
+                    self.appLogger.info('Remove the same value in departure place')
+                    self.partitionDistribution.KillFieldBelief('departure_place',asrResult.userActions[0].content['arrival_place'])
+                    break
+
         self.partitionDistribution.Update(asrResult,sysAction)
         self.marginals = None
-
+        
     def GetTopUserGoalBelief(self):
         return self.partitionDistribution.partitionEntryList[-1].belief
 

@@ -501,7 +501,9 @@ utterElementsDict['inform_how_to_get_help']['Query'] = ''
 utterElementsDict['inform_how_to_get_help']['Result'] = ''
 utterElementsDict['inform_how_to_get_help']['Agent'] = ''
 utterElementsDict['inform_how_to_get_help']['Version'] = ''
-utterElementsDict['inform_how_to_get_help']['Option'] = ''
+utterElementsDict['inform_how_to_get_help']['Option'] = '''   :non-listening "true"
+   :non-repeatable "true"
+'''
 
 #===============================================================================
 # Request
