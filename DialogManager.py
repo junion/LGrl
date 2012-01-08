@@ -462,6 +462,12 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm_immediate %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+            elif field in asrResult.userActions[0].content:
+                try:
+                    self.appLogger.info('Exclude confirm %s because of the immediate value'%field)
+                    acts.remove('[ask] confirm %s'%field)
+                except:
+                    self.appLogger.info('Exception while removing confirm %s'%field)
 
         marginals = self.beliefState.GetMarginals()
 
