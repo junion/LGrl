@@ -462,7 +462,7 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm_immediate %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
-            elif field in asrResult.userActions[0].content:
+            elif asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
                 try:
                     self.appLogger.info('Exclude confirm %s because of the immediate value'%field)
                     acts.remove('[ask] confirm %s'%field)
@@ -541,7 +541,7 @@ class SBSarsaDialogManager(DialogManager):
                 acts = [] if '[inform]' not in acts else ['[inform]']
                 acts.append('[ask] request %s'%self.repeatedAskedField)
 #                acts.append('[ask] confirm %s'%self.repeatedAskedField)
-                self.appLogger.info('Limited to request/confirm %s because of confirm failure'%self.repeatedAskedField)
+                self.appLogger.info('Limited to request %s because of confirm failure'%self.repeatedAskedField)
             else:
                 try:
                     self.appLogger.info('Exclude request %s because of repeated failures'%self.repeatedAskedField)
@@ -561,15 +561,18 @@ class SBSarsaDialogManager(DialogManager):
                 if set(acts).issubset(set(['[ask] request all','[ask] confirm route','[inform]'])):
                     acts.append('[ask] request %s'%self.repeatedAskedField)
 #                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
-                    self.appLogger.info('Add request/confirm %s because of no other available actions'%self.repeatedAskedField)
+                    self.appLogger.info('Add request %s because of no other available actions'%self.repeatedAskedField)
             self.numberOfRepeatedConfirmFail += 1
         elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] request %s'%self.repeatedAskedField and \
         asrResult.userActions[0].type != 'non-understanding' and self.repeatedAskedField in asrResult.userActions[0].content:
             self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
             acts = [] if '[inform]' not in acts else []
 #            acts.append('[ask] request %s'%self.repeatedAskedField)
-            acts.append('[ask] confirm %s'%self.repeatedAskedField)
-            self.appLogger.info('Limited to request/confirm %s because of confirm failure'%self.repeatedAskedField)
+            if asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
+                acts.append('[ask] confirm_immediate %s'%self.repeatedAskedField)
+            else:
+                acts.append('[ask] confirm %s'%self.repeatedAskedField)
+            self.appLogger.info('Limited to confirm %s because of confirm failure'%self.repeatedAskedField)
         else:
             self.repeatedAskedField = ''
             self.numberOfRepeatedConfirmFail = 0
@@ -578,8 +581,10 @@ class SBSarsaDialogManager(DialogManager):
                 if asrResult.userActions[0].type != 'non-understanding' and askedField in asrResult.userActions[0].content and \
                  len(marginals[askedField]) > 0 and marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold:
                     acts = [] if '[inform]' not in acts else []
-                    acts.append('[ask] confirm %s'%askedField)
-                    acts.append('[ask] confirm_immediate %s'%askedField)
+                    if asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
+                        acts.append('[ask] confirm_immediate %s'%askedField)
+                    else:
+                        acts.append('[ask] confirm %s'%askedField)
                     self.appLogger.info('Limited to confirm(_immediate) %s to enforce request/confirm pattern'%askedField)
                     
                 
