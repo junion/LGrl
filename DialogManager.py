@@ -568,7 +568,7 @@ class SBSarsaDialogManager(DialogManager):
             self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
             acts = [] if '[inform]' not in acts else []
 #            acts.append('[ask] request %s'%self.repeatedAskedField)
-            if asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
+            if asrResult != None and asrResult.userActions[0].type == 'ig' and self.repeatedAskedField in asrResult.userActions[0].content:
                 acts.append('[ask] confirm_immediate %s'%self.repeatedAskedField)
             else:
                 acts.append('[ask] confirm %s'%self.repeatedAskedField)
@@ -581,7 +581,7 @@ class SBSarsaDialogManager(DialogManager):
                 if asrResult.userActions[0].type != 'non-understanding' and askedField in asrResult.userActions[0].content and \
                  len(marginals[askedField]) > 0 and marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold:
                     acts = [] if '[inform]' not in acts else []
-                    if asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
+                    if asrResult != None and asrResult.userActions[0].type == 'ig' and askedField in asrResult.userActions[0].content:
                         acts.append('[ask] confirm_immediate %s'%askedField)
                     else:
                         acts.append('[ask] confirm %s'%askedField)
