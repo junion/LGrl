@@ -482,20 +482,24 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
-                try:
-                    acts.remove('[ask] confirm_immediate %s'%field)
-                except:
-                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
+                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                    try:
+                        acts.remove('[ask] confirm_immediate %s'%field)
+                    except:
+                        self.appLogger.info('Exception while removing confirm_immediate %s'%field)
             elif field != 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold):
                 self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
                 try:
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
-                try:
-                    acts.remove('[ask] confirm_immediate %s'%field)
-                except:
-                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
+                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                    try:
+                        acts.remove('[ask] confirm_immediate %s'%field)
+                    except:
+                        self.appLogger.info('Exception while removing confirm_immediate %s'%field)
             elif marginals[field][-1]['belief'] > self.fieldAcceptThreshold:
                 self.appLogger.info('Exclude request and confirm(_immediate) %s because of high belief'%field)
                 self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
@@ -505,10 +509,12 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
-                try:
-                    acts.remove('[ask] confirm_immediate %s'%field)
-                except:
-                    self.appLogger.info('Exception while removing confirm_immediate %s'%field)
+                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
+                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                    try:
+                        acts.remove('[ask] confirm_immediate %s'%field)
+                    except:
+                        self.appLogger.info('Exception while removing confirm_immediate %s'%field)
             else:
                 self.appLogger.info('Max marginal of %s: %f'%(field,marginals[field][-1]['belief']))
 
