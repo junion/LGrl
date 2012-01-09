@@ -208,15 +208,22 @@ class PartitionDistribution(object):
         except:
             resetFraction = self.defaultResetFraction
         if (resetFraction > 0.0):
-            self.appLogger.info("Applying resetFraction of %s" % (resetFraction))
-            for partitionEntry in self.partitionEntryList:
-                for historyEntry in partitionEntry.historyEntryList:
-                    if (historyEntry.belief > 0.0):
-                        historyFraction = historyEntry.belief / partitionEntry.belief
-                        historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.prior)
-                        historyEntry.origBelief = historyEntry.belief
-                partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior)
-
+            for field in self.partitionEntryList[0].partition.fields:
+                marginalTotal = 0.0
+                for partitionEntry in self.partitionEntryList:
+                    if (partitionEntry.partition.fields[field].type == 'equals'):
+                        marginalTotal += partitionEntry.belief
+                if marginalTotal > 0.99:
+                    self.appLogger.info("Applying resetFraction of %s for high marginal of %s"%(resetFraction,field))
+                    for partitionEntry in self.partitionEntryList:
+                        for historyEntry in partitionEntry.historyEntryList:
+                            if (historyEntry.belief > 0.0):
+                                historyFraction = historyEntry.belief / partitionEntry.belief
+                                historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.prior)
+                                historyEntry.origBelief = historyEntry.belief
+                        partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior)
+                    break
+                
         # Initialize update
         # Add initial estimate of off-list probs
         self.appLogger.info('Start of update:')
