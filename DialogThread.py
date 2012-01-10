@@ -1076,10 +1076,10 @@ class DialogThread(threading.Thread):
                                 self.dialogResult.append('no_stop_matching(%d)'%self.turnNumber)
                         elif self.asrResult.userActions[0].type == 'ig' and 'confirm' in self.asrResult.userActions[0].content and \
                         self.asrResult.userActions[0].content['confirm'] == 'NO':
-                            if self.newDialogState == 'inform_confirm_okay_uncovered_place' or\
-                            self.newDialogState == 'inform_confirm_okay_uncovered_route' or\
-                            self.newDialogState == 'inform_confirm_okay_discontinued_route' or\
-                            self.newDialogState == 'inform_confirm_okay_no_stop_matching':
+                            if self.newDialogState == 'confirm_uncovered_place' or\
+                            self.newDialogState == 'confirm_uncovered_route' or\
+                            self.newDialogState == 'confirm_discontinued_route' or\
+                            self.newDialogState == 'confirm_no_stop_matching':
                                 self.asrResult = ASRResult.FromHelios([UserAction('non-understanding')],[1.0])
                                 userActionUnavailable = True
                     
