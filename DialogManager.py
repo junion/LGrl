@@ -265,7 +265,10 @@ class SBSarsaDialogManager(DialogManager):
 #                          self.beliefState.GetMarginals(),sysAction,reward,0,asrResult)
 #            if reward == self.taskSuccessReward:
 #                self.dialogResult = True
-        return deepcopy(sysAction)
+        sysActionToReturn = deepcopy(sysAction)
+        if sysActionToReturn.type == 'ask' and sysActionToReturn.force == 'confirm_immediate':
+            sysActionToReturn.force = 'confirm_immediate'
+        return sysActionToReturn
 
     def GetExceptionalEntityHandled(self):
         return self.exceptionalEntityHandled
@@ -692,10 +695,10 @@ class SBSarsaDialogManager(DialogManager):
             elif force == 'confirm_immediate':
                 surface = 'Is this right?'
                 value = asrResult.userActions[0].content[field]
-                sysAction = SystemAction('ask','confirm',{field:value},surface=surface,grammarName='')
+                sysAction = SystemAction('ask','confirm_immediate',{field:value},surface=surface,grammarName='')
                 self.fieldCounts[field] += 1
         
-        self.sysActHistory.append(str(sysAction).split('=')[0])
+        self.sysActHistory.append(str(sysAction).split('=')[0].replace('confirm_immediate','confirm'))
         return sysAction,Qval
 
 class OpenDialogManager(DialogManager):
