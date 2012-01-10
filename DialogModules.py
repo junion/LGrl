@@ -173,7 +173,7 @@ class SystemAction:
         '''
         self.config = GetConfig()
         assert (type in ['ask','inform','initial']),'Unknown SystemAction type: %s' % (type)
-        assert (force in [None,'request','confirm']),'Unknown SystemAction force: %s' % (force)
+        assert (force in [None,'request','confirm','confirm_immediate']),'Unknown SystemAction force: %s' % (force)
         self.type = type
         self.force = force
         self.content = content
