@@ -112,6 +112,8 @@ class Partition(object):
                 self.irrelevantUserActProb = existingPartition.irrelevantUserActProb
                 self.minRelevantUserActProb = existingPartition.minRelevantUserActProb
             self.totalCount = existingPartition.totalCount
+            self.countOfField = existingPartition.countOfField
+            self.priorOfField = {}
             self.fields = {}
             self.count = 1
             for field in self.fieldList:

@@ -212,7 +212,7 @@ class PartitionDistribution(object):
                                     historyFraction = historyEntry.belief / partitionEntry.belief
                                     historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.priorOfField[field])
                                     historyEntry.origBelief = historyEntry.belief
-                            partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior.priorOfField[field])
+                            partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.priorOfField[field])
                         else:
                             for historyEntry in partitionEntry.historyEntryList:
                                 if (historyEntry.belief > 0.0):
