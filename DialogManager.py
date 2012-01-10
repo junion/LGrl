@@ -463,9 +463,8 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm_immediate %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm_immediate %s'%field)
-            elif self.prevSysAction != None and self.prevSysAction.type == 'ask' and \
-            'confirm' in self.prevSysAction.content and self.prevSysAction['confirm'] == field and \
-            asrResult != None and asrResult.userActions[0].type == 'ig' and field in asrResult.userActions[0].content:
+            elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] confirm %s'%field and \
+            asrResult != None and asrResult.userActions[0].type != 'non-understanding' and field in asrResult.userActions[0].content:
                 try:
                     self.appLogger.info('Exclude confirm %s because of the immediate value'%field)
                     acts.remove('[ask] confirm %s'%field)

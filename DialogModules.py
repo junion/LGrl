@@ -1,22 +1,5 @@
 '''
-Basic low-level classes for the name dialer dialog systems.
 
-This module implements several low-level classes used for the
-name dialer dialog systems:
-
-  Grammar
-  UserAction
-  SystemAction
-  ASRResult
-
-This module requires that global logging, configuration, and
-database have been initialized.  See main README file.
-
-Part of the AT&T Statistical Dialog Toolkit (ASDT).
-
-Jason D. Williams
-jdw@research.att.com
-www.research.att.com/people/Williams_Jason_D
 '''
 
 from copy import deepcopy

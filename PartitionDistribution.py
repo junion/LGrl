@@ -1,17 +1,5 @@
 '''
-A module for tracking a distribution over partitions of dialog states.
 
-A PartitionDistribution object maintains a distribution over
-many "Partition" objects.  The Partition class is implemented by
-the system developer.  The Partition class must implement a set
-of methods (defined below), which the PartitionDistribution object
-calls.
-
-Part of the AT&T Statistical Dialog Toolkit (ASDT).
-
-Jason D. Williams
-jdw@research.att.com
-www.research.att.com/people/Williams_Jason_D
 '''
 
 import copy
@@ -100,6 +88,8 @@ class PartitionDistribution(object):
             self.conservativeUpdateFactor = config.getfloat(MY_ID,'conservativeUpdateFactor')
             self.minPartitionProbability = config.getfloat(MY_ID,'minPartitionProbability')
             self.compactByPruningFieldValuePair = config.getboolean(MY_ID,'compactByPruningFieldValuePair')
+            self.resetFractionApplyThreshold = config.getfloat(MY_ID,'resetFractionApplyThreshold')
+            self.applyResetFractionPerField = config.getboolean(MY_ID,'applyResetFractionPerField')
 
         self.appLogger.info('Config: defaultResetFraction = %f' % (self.defaultResetFraction))
         self.appLogger.info('Config: maxNBest = %d' % (self.maxNBest))
@@ -213,15 +203,23 @@ class PartitionDistribution(object):
                 for partitionEntry in self.partitionEntryList:
                     if (partitionEntry.partition.fields[field].type == 'equals'):
                         marginalTotal += partitionEntry.belief
-                if marginalTotal > 0.99:
+                if marginalTotal > self.resetFractionApplyThreshold:
                     self.appLogger.info("Applying resetFraction of %s for high marginal of %s"%(resetFraction,field))
                     for partitionEntry in self.partitionEntryList:
-                        for historyEntry in partitionEntry.historyEntryList:
-                            if (historyEntry.belief > 0.0):
-                                historyFraction = historyEntry.belief / partitionEntry.belief
-                                historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.prior)
-                                historyEntry.origBelief = historyEntry.belief
-                        partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior)
+                        if self.applyResetFractionPerField:
+                            for historyEntry in partitionEntry.historyEntryList:
+                                if (historyEntry.belief > 0.0):
+                                    historyFraction = historyEntry.belief / partitionEntry.belief
+                                    historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.priorOfField[field])
+                                    historyEntry.origBelief = historyEntry.belief
+                            partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior.priorOfField[field])
+                        else:
+                            for historyEntry in partitionEntry.historyEntryList:
+                                if (historyEntry.belief > 0.0):
+                                    historyFraction = historyEntry.belief / partitionEntry.belief
+                                    historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.prior)
+                                    historyEntry.origBelief = historyEntry.belief
+                            partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior)
                     break
                 
         # Initialize update

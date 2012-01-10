@@ -1,46 +1,5 @@
 '''
-Classes that implement the belief state for name dialer dialog systems.
 
-This modules contains the classes that implement the belief state ("Partition" and
-"History" classes).  In addition, the BeliefState class provides a convenience
-wrapper around the PartitionDistribution engine.
-
-This module requires that global logging, configuration, and database have been
-initialized.  See main README file.
-
-Configuration options:
-
-  [BeliefState]
-  useHistory: if 'true', tracks dialog history in each partition.  If 'false',
-  does not track any history information.
-
-  [UserModel]
-  request_silenceProb: when asked a 'request' question, probability that the user
-  is silent
-
-  request_directAnswerProb: when asked a 'request' question, probability that the user
-  provides a direct answer (i.e., just the field that was asked for).
-
-  request_allOverCompleteProb: when asked a 'request' question, probability that the
-  user provides the field asked for PLUS one or more additional fields.
-
-  request_oogProb: when asked a 'request' question, probability that the user
-  says something out of grammar.
-
-  confirm_directAnswerProb: when asked a 'confirm' question, probability that the user
-  just says "yes" or "no" (as appropriate)
-
-  confirm_silenceProb: when asked a 'confirm' question, probability that the user is
-  silent
-
-  confirm_oogProb: when asked a 'confirm' question, probability that the user says
-  something out of grammar.
-
-Part of the AT&T Statistical Dialog Toolkit (ASDT).
-
-Jason D. Williams
-jdw@research.att.com
-www.research.att.com/people/Williams_Jason_D
 '''
 
 import os
@@ -98,6 +57,9 @@ class Partition(object):
                 self.fields[field] = _FieldEntry()
             self.count = self.totalCount
             self.prior = 1.0
+            self.priorOfField = {'route':1.0,'departure_place':1.0,'arrival_place':1.0,'travel_time':1.0}
+            self.countOfField = {'route':self.num_route,'departure_place':self.num_place,'arrival_place':self.num_place,'travel_time':self.num_time}
+            
 #            self.appLogger.info('Partition 3')
             if not self.useLearnedUserModel:
                 umFields = ['request_nonUnderstandingProb',
@@ -160,14 +122,18 @@ class Partition(object):
                     
                 if self.fields[field].type == 'equals':
                     self.count *= 1
-                elif field == 'route':
-                    self.count *= (self.num_route - len(self.fields[field].excludes.keys()))
-                elif field in ['departure_place','arrival_place']:
-                    self.count *= (self.num_place - len(self.fields[field].excludes.keys()))
-                elif field == 'travel_time':
-                    self.count *= (self.num_time - len(self.fields[field].excludes.keys()))
+                    self.priorOfField[field] = 1.0/self.countOfField[field]
+#                elif field == 'route':
+#                    self.count *= (self.num_route - len(self.fields[field].excludes.keys()))
+#                elif field in ['departure_place','arrival_place']:
+#                    self.count *= (self.num_place - len(self.fields[field].excludes.keys()))
+#                elif field == 'travel_time':
+#                    self.count *= (self.num_time - len(self.fields[field].excludes.keys()))
+#                else:
+#                    raise RuntimeError,'Invalid field %s'%field
                 else:
-                    raise RuntimeError,'Invalid field %s'%field
+                    self.count *= (self.countOfField[field] - len(self.fields[field].excludes.keys()))
+                    self.priorOfField[field] = 1.0 - 1.0 * len(self.fields[field].excludes.keys())/self.countOfField[field]
 
             #self.count = db.GetListingCount(self.fields)
             self.prior = 1.0 * self.count / self.totalCount
@@ -198,6 +164,7 @@ class Partition(object):
                         self.fields[field].excludes[val] = True
                         self.count -= newPartition.count
                         self.prior = 1.0 * self.count / self.totalCount
+                        self.priorOfField[field] = 1.0 - 1.0 * len(self.fields[field].excludes.keys())/self.countOfField[field]
                         newPartitions.append(newPartition)
         return newPartitions
 
