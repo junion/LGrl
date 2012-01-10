@@ -267,7 +267,7 @@ class SBSarsaDialogManager(DialogManager):
 #                self.dialogResult = True
         sysActionToReturn = deepcopy(sysAction)
         if sysActionToReturn.type == 'ask' and sysActionToReturn.force == 'confirm_immediate':
-            sysActionToReturn.force = 'confirm_immediate'
+            sysActionToReturn.force = 'confirm'
         return sysActionToReturn
 
     def GetExceptionalEntityHandled(self):
