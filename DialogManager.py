@@ -199,7 +199,10 @@ class SBSarsaDialogManager(DialogManager):
     #        reward = self._GetReward(self.beliefState,self.prevSysAction)
 #        self.dialogReward += reward
 #        self.appLogger.info('prevSysAction for update %s'%str(self.prevSysAction))
-        self.beliefState.Update(asrResult,self.prevSysAction)
+        sysActionToBeliefUpdate = deepcopy(self.prevSysAction)
+        if sysActionToBeliefUpdate.type == 'ask' and sysActionToBeliefUpdate.force == 'confirm_immediate':
+            sysActionToBeliefUpdate.force = 'confirm'
+        self.beliefState.Update(asrResult,sysActionToBeliefUpdate)
         self.appLogger.info('** PartitionDistribution: **\n%s'%(self.beliefState))
         
         if exceptionalEntities != None:
@@ -484,8 +487,7 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
-                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
-                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
                     try:
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
@@ -496,8 +498,7 @@ class SBSarsaDialogManager(DialogManager):
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
-                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
-                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
                     try:
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
@@ -512,7 +513,7 @@ class SBSarsaDialogManager(DialogManager):
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
                 if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
-                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['belief']):
+                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['equals']):
                     try:
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
