@@ -3,7 +3,7 @@
 '''
 
 import copy
-from math import log
+from math import log,log10,trunc
 #import resource
 import logging
 from GlobalConfig import GetConfig
@@ -147,8 +147,12 @@ class PartitionDistribution(object):
                 confirmExist = True
             elif field == 'route':
                 count *= self.num_route
-            elif field in ['departure_place','arrival_place']:
+            elif field == 'departure_place':
                 count *= self.num_place
+            elif field == 'arrival_place':
+                if not ('departure_place' in userAction.content and \
+                userAction.content['departure_place'] == userAction.content['arrival_place']):
+                    count *= self.num_place
             elif field == 'travel_time':
                 count *= self.num_time
             else:
@@ -185,6 +189,10 @@ class PartitionDistribution(object):
         #
         # Init
         #
+        
+        if asrResult.userActions[0].type == 'non-understanding':
+            return
+        
 #        self.stats.InitUpdate()
 
 #        self.stats.StartClock('mainUpdate')
@@ -204,22 +212,39 @@ class PartitionDistribution(object):
                     if (partitionEntry.partition.fields[field].type == 'equals'):
                         marginalTotal += partitionEntry.belief
                 if marginalTotal > self.resetFractionApplyThreshold:
-                    self.appLogger.info("Applying resetFraction of %s for high marginal of %s"%(resetFraction,field))
-                    for partitionEntry in self.partitionEntryList:
-                        if self.applyResetFractionPerField:
-                            for historyEntry in partitionEntry.historyEntryList:
-                                if (historyEntry.belief > 0.0):
-                                    historyFraction = historyEntry.belief / partitionEntry.belief
-                                    historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.priorOfField[field])
-                                    historyEntry.origBelief = historyEntry.belief
-                            partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.priorOfField[field])
-                        else:
+                    self.appLogger.info("Applying resetFraction of %f for high marginal of %s"%(resetFraction,field))
+                    self.appLogger.info('** PartitionDistribution: **\n%s'%self)
+                    if not self.applyResetFractionPerField:
+                        for partitionEntry in self.partitionEntryList:
                             for historyEntry in partitionEntry.historyEntryList:
                                 if (historyEntry.belief > 0.0):
                                     historyFraction = historyEntry.belief / partitionEntry.belief
                                     historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.prior)
                                     historyEntry.origBelief = historyEntry.belief
                             partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.prior)
+                    else:
+                        partitionGroup = {}
+                        for partitionEntry in self.partitionEntryList:
+                            groupKey = trunc(log10(partitionEntry.partition.prior/partitionEntry.partition.priorOfField[field]))
+                            self.appLogger.info("Partition %d assigned to group %d"%(partitionEntry.id,groupKey))
+                            if groupKey in partitionGroup:
+                                partitionGroup[groupKey].append(partitionEntry)
+                            else:
+                                partitionGroup[groupKey] = [partitionEntry]
+                        for groupKey in partitionGroup:
+                            groupTotal = 0.0
+                            for partitionEntry in partitionGroup[groupKey]:
+                                groupTotal += partitionEntry.belief
+                            self.appLogger.info("Group (%d) total belief %f"%(groupKey,groupTotal))
+                            for partitionEntry in partitionGroup[groupKey]:
+                                self.appLogger.info("Apply reset fraction to partition %d in group %d"%(partitionEntry.id,groupKey))
+                                for historyEntry in partitionEntry.historyEntryList:
+                                    if (historyEntry.belief > 0.0):
+                                        historyFraction = historyEntry.belief / partitionEntry.belief
+                                        historyEntry.belief = historyEntry.belief - resetFraction*(historyEntry.belief - historyFraction * partitionEntry.partition.priorOfField[field] * groupTotal)
+                                        historyEntry.origBelief = historyEntry.belief
+                                partitionEntry.belief = partitionEntry.belief - resetFraction*(partitionEntry.belief - partitionEntry.partition.priorOfField[field] * groupTotal)
+                    self.appLogger.info('** PartitionDistribution: **\n%s'%self)
                     break
                 
         # Initialize update
@@ -1033,6 +1058,7 @@ class _PartitionEntry(object):
             self.appLogger.info('Child (id %d) of partition (id %d) removed'%(child.id,self.id))
         self.appLogger.info('Partition (id %d) completed'%self.id)
     
+    
     def _UpdateBeliefAndRemoveComplements(self,beliefs,field,value):
         self.appLogger.info('Update partition (id %d) %s'%(self.id,str(self.partition.fields[field].excludes)))
         self.belief += beliefs.pop(0)
@@ -1044,8 +1070,8 @@ class _PartitionEntry(object):
                 if len(beliefs) == 0:
                     break
         self.appLogger.info('Partition (id %d) completed'%self.id)
-                
-
+    
+    
 class _HistoryEntry(object):
     __slots__ = ['belief','history','userActionLikelihoodTotal','origBelief','userActionLikelihoodTypes']
     def __init__(self):

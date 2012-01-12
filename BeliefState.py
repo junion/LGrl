@@ -434,8 +434,16 @@ class Partition(object):
                         else:
                             val = userAction.content[ua_field]
                             if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
-                                self.appLogger.info('Mismatched %s for irrelevant field to confirmation'%userAction.content[ua_field])
-                                allFieldsMatchGoalFlag = False
+                                if not ((ua_field == 'arrival_place' and 'departure_place' in userAction.content and \
+                                userAction.content['departure_place'] == userAction.content['arrival_place'] and \
+                                self.fields['departure_place'].type == 'equals' and \
+                                self.fields['departure_place'].equals == userAction.content['departure_place']) or\
+                                (ua_field == 'departure_place' and 'arrival_place' in userAction.content and \
+                                userAction.content['departure_place'] == userAction.content['arrival_place'] and \
+                                self.fields['arrival_place'].type == 'equals' and \
+                                self.fields['arrival_place'].equals == userAction.content['arrival_place'])):
+                                    self.appLogger.info('Mismatched %s in field %s'%(val,ua_field))
+                                    allFieldsMatchGoalFlag = False
                 elif self.ignoreNonunderstandingFactor:
                     allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
@@ -446,7 +454,13 @@ class Partition(object):
                     else:
                         if userAction.type != 'non-understanding' and 'confirm' in userAction.content and directAnswer:
                             del userAction.content['confirm']
-                        result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
+                        if 'departure_place' in userAction.content and 'arrival_place' in userAction.content and \
+                        userAction.content['departure_place'] == userAction.content['arrival_place']:
+                            tempUserAction = deepcopy(userAction)
+                            del tempUserAction.content['arrival_place']
+                            result = self.userModel['C-x'][self._getClosestUserAct(tempUserAction)]
+                        else:
+                            result = self.userModel['C-x'][self._getClosestUserAct(userAction)]
                     self.appLogger.info('User action likelihood %g'%result)
                     result = self.minRelevantUserActProb if result < self.minRelevantUserActProb else result
                     self.appLogger.info('Set minimum user action likelihood %g'%result)
@@ -457,7 +471,16 @@ class Partition(object):
                         if ua_field != 'confirm':
                             val = userAction.content[ua_field]
                             if self.fields[ua_field].type == 'excludes' or not self.fields[ua_field].equals == val:
-                                allFieldsMatchGoalFlag = False
+                                if not ((ua_field == 'arrival_place' and 'departure_place' in userAction.content and \
+                                userAction.content['departure_place'] == userAction.content['arrival_place'] and \
+                                self.fields['departure_place'].type == 'equals' and \
+                                self.fields['departure_place'].equals == userAction.content['departure_place']) or\
+                                (ua_field == 'departure_place' and 'arrival_place' in userAction.content and \
+                                userAction.content['departure_place'] == userAction.content['arrival_place'] and \
+                                self.fields['arrival_place'].type == 'equals' and \
+                                self.fields['arrival_place'].equals == userAction.content['arrival_place'])):
+                                    self.appLogger.info('Mismatched %s in field %s'%(val,ua_field))
+                                    allFieldsMatchGoalFlag = False
                 elif self.ignoreNonunderstandingFactor:
                     allFieldsMatchGoalFlag = False
                 if allFieldsMatchGoalFlag:
@@ -472,10 +495,22 @@ class Partition(object):
                         result = self.userModel['R-ap'][self._getClosestUserAct(userAction)]
                     elif askedField == 'travel_time':
 #                        print self.userModel['R-tt']
-                        result = self.userModel['R-tt'][self._getClosestUserAct(userAction)]
+                        if 'departure_place' in userAction.content and 'arrival_place' in userAction.content and \
+                        userAction.content['departure_place'] == userAction.content['arrival_place']:
+                            tempUserAction = deepcopy(userAction)
+                            del tempUserAction.content['arrival_place']
+                            result = self.userModel['R-tt'][self._getClosestUserAct(tempUserAction)]
+                        else:
+                            result = self.userModel['R-tt'][self._getClosestUserAct(userAction)]
                     elif askedField == 'all':
 #                        print self.userModel['R-open']
-                        result = self.userModel['R-open'][self._getClosestUserAct(userAction)]
+                        if 'departure_place' in userAction.content and 'arrival_place' in userAction.content and \
+                        userAction.content['departure_place'] == userAction.content['arrival_place']:
+                            tempUserAction = deepcopy(userAction)
+                            del tempUserAction.content['arrival_place']
+                            result = self.userModel['R-open'][self._getClosestUserAct(tempUserAction)]
+                        else:
+                            result = self.userModel['R-open'][self._getClosestUserAct(userAction)]
                     self.appLogger.info('User action likelihood %g'%result)
                     result = self.minRelevantUserActProb if result < self.minRelevantUserActProb else result
                     self.appLogger.info('Set minimum user action likelihood %g'%result)
