@@ -171,8 +171,12 @@ class PartitionDistribution(object):
                 confirmExist = True
             elif field == 'route':
                 count *= self.num_route
-            elif field in ['departure_place','arrival_place']:
+            elif field == 'departure_place':
                 count *= self.num_place
+            elif field == 'arrival_place':
+                if not ('departure_place' in userAction.content and \
+                userAction.content['departure_place'] == userAction.content['arrival_place']):
+                    count *= self.num_place
             elif field == 'travel_time':
                 count *= self.num_time
             else:
