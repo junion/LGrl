@@ -229,8 +229,20 @@ class PartitionDistribution(object):
                     else:
                         partitionGroup = {}
                         for partitionEntry in self.partitionEntryList:
-                            groupKey = trunc(log10(partitionEntry.partition.prior/partitionEntry.partition.priorOfField[field]))
-                            self.appLogger.info("Partition %d assigned to group %d"%(partitionEntry.id,groupKey))
+#                            groupKey = trunc(log10(partitionEntry.partition.prior/partitionEntry.partition.priorOfField[field]))
+                            groupKey = ''
+                            for otherField in partitionEntry.partition.fields:
+                                if otherField != field:
+                                    groupKey += otherField
+                                    groupKey += '='
+                                    if partitionEntry.partition.fields[otherField].type == 'equals':
+                                        groupKey += partitionEntry.partition.fields[otherField].equals
+                                    elif partitionEntry.partition.fields[otherField].type == 'excludes':
+                                        groupKey += 'x('
+                                        groupKey += ','.join(partitionEntry.partition.fields[otherField].excludes)
+                                        groupKey += ')'
+                                    groupKey += ' '
+                            self.appLogger.info("Partition %d assigned to group %s"%(partitionEntry.id,groupKey))
                             if groupKey in partitionGroup:
                                 partitionGroup[groupKey].append(partitionEntry)
                             else:
@@ -239,9 +251,9 @@ class PartitionDistribution(object):
                             groupTotal = 0.0
                             for partitionEntry in partitionGroup[groupKey]:
                                 groupTotal += partitionEntry.belief
-                            self.appLogger.info("Group (%d) total belief %f"%(groupKey,groupTotal))
+                            self.appLogger.info("Group (%s) total belief %f"%(groupKey,groupTotal))
                             for partitionEntry in partitionGroup[groupKey]:
-                                self.appLogger.info("Apply reset fraction to partition %d in group %d"%(partitionEntry.id,groupKey))
+                                self.appLogger.info("Apply reset fraction to partition %d in group %s"%(partitionEntry.id,groupKey))
                                 for historyEntry in partitionEntry.historyEntryList:
                                     if (historyEntry.belief > 0.0):
                                         historyFraction = historyEntry.belief / partitionEntry.belief
