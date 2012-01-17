@@ -122,6 +122,7 @@ class SBSarsaDialogManager(DialogManager):
         self.useDirectedOpenQuestion = self.config.getboolean(MY_ID,'useDirectedOpenQuestion')
         self.routeRejectThresholdMultiplier = self.config.getfloat(MY_ID,'routeRejectThresholdMultiplier')
         self.imposeConfirmStrategy = self.config.getboolean(MY_ID,'imposeConfirmStrategy')
+        self.maxRepeatedConfirmFail = self.config.getint(MY_ID,'maxRepeatedConfirmFail')
          
     def ReloadConfig(self):
         self._LoadConfig()
@@ -550,7 +551,7 @@ class SBSarsaDialogManager(DialogManager):
             asrResult.userActions[0].content['confirm'] == 'NO':
                 self.repeatedAskedField = self.sysActHistory[-1].split(' ')[-1]
                 self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
-                if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < 2:
+                if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < self.maxRepeatedConfirmFail:
                     acts = [] if '[inform]' not in acts else ['[inform]']
                     acts.append('[ask] request %s'%self.repeatedAskedField)
     #                acts.append('[ask] confirm %s'%self.repeatedAskedField)
