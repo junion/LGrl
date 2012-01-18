@@ -550,7 +550,7 @@ class SBSarsaDialogManager(DialogManager):
             if len(self.sysActHistory) > 0 and self.sysActHistory[-1].find('confirm') > -1 and \
             asrResult.userActions[0].type != 'non-understanding' and 'confirm' in asrResult.userActions[0].content and \
             asrResult.userActions[0].content['confirm'] == 'NO' and \
-            len(marginals[askedField]) > 0 and marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold:
+            (len(marginals[askedField]) == 0 or marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold):
                 self.repeatedAskedField = self.sysActHistory[-1].split(' ')[-1]
                 self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
                 if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < self.maxRepeatedConfirmFail:
