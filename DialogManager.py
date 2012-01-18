@@ -546,39 +546,39 @@ class SBSarsaDialogManager(DialogManager):
                 self.appLogger.info('Exception while removing %s',self.sysActHistory[-1])
 
         if self.imposeConfirmStrategy:
-            askedField = self.sysActHistory[-1].split(' ')[-1] 
             if len(self.sysActHistory) > 0 and self.sysActHistory[-1].find('confirm') > -1 and \
             asrResult.userActions[0].type != 'non-understanding' and 'confirm' in asrResult.userActions[0].content and \
-            asrResult.userActions[0].content['confirm'] == 'NO' and \
-            (len(marginals[askedField]) == 0 or marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold):
-                self.repeatedAskedField = self.sysActHistory[-1].split(' ')[-1]
-                self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
-                if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < self.maxRepeatedConfirmFail:
-                    acts = [] if '[inform]' not in acts else ['[inform]']
-                    acts.append('[ask] request %s'%self.repeatedAskedField)
-    #                acts.append('[ask] confirm %s'%self.repeatedAskedField)
-                    self.appLogger.info('Limited to request %s because of confirm failure'%self.repeatedAskedField)
-                else:
-                    try:
-                        self.appLogger.info('Exclude request %s because of repeated failures'%self.repeatedAskedField)
-                        acts.remove('[ask] request %s'%self.repeatedAskedField)
-                    except:
-                        self.appLogger.info('Exception while removing request %s'%self.repeatedAskedField)
-                    try:
-                        self.appLogger.info('Exclude confirm %s because of repeated failures'%self.repeatedAskedField)
-                        acts.remove('[ask] confirm %s'%self.repeatedAskedField)
-                    except:
-                        self.appLogger.info('Exception while removing confirm %s'%self.repeatedAskedField)
-                    try:
-                        self.appLogger.info('Exclude confirm_immediate %s because of repeated failures'%self.repeatedAskedField)
-                        acts.remove('[ask] confirm_immediate %s'%self.repeatedAskedField)
-                    except:
-                        self.appLogger.info('Exception while removing confirm_immediate %s'%self.repeatedAskedField)
-                    if set(acts).issubset(set(['[ask] request all','[ask] confirm route','[inform]'])):
+            asrResult.userActions[0].content['confirm'] == 'NO':
+                askedField = self.sysActHistory[-1].split(' ')[-1] 
+                if (len(marginals[askedField]) == 0 or marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold):
+                    self.repeatedAskedField = self.sysActHistory[-1].split(' ')[-1]
+                    self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
+                    if self.repeatedAskedField != 'route' and self.numberOfRepeatedConfirmFail < self.maxRepeatedConfirmFail:
+                        acts = [] if '[inform]' not in acts else ['[inform]']
                         acts.append('[ask] request %s'%self.repeatedAskedField)
-    #                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
-                        self.appLogger.info('Add request %s because of no other available actions'%self.repeatedAskedField)
-                self.numberOfRepeatedConfirmFail += 1
+        #                acts.append('[ask] confirm %s'%self.repeatedAskedField)
+                        self.appLogger.info('Limited to request %s because of confirm failure'%self.repeatedAskedField)
+                    else:
+                        try:
+                            self.appLogger.info('Exclude request %s because of repeated failures'%self.repeatedAskedField)
+                            acts.remove('[ask] request %s'%self.repeatedAskedField)
+                        except:
+                            self.appLogger.info('Exception while removing request %s'%self.repeatedAskedField)
+                        try:
+                            self.appLogger.info('Exclude confirm %s because of repeated failures'%self.repeatedAskedField)
+                            acts.remove('[ask] confirm %s'%self.repeatedAskedField)
+                        except:
+                            self.appLogger.info('Exception while removing confirm %s'%self.repeatedAskedField)
+                        try:
+                            self.appLogger.info('Exclude confirm_immediate %s because of repeated failures'%self.repeatedAskedField)
+                            acts.remove('[ask] confirm_immediate %s'%self.repeatedAskedField)
+                        except:
+                            self.appLogger.info('Exception while removing confirm_immediate %s'%self.repeatedAskedField)
+                        if set(acts).issubset(set(['[ask] request all','[ask] confirm route','[inform]'])):
+                            acts.append('[ask] request %s'%self.repeatedAskedField)
+        #                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
+                            self.appLogger.info('Add request %s because of no other available actions'%self.repeatedAskedField)
+                    self.numberOfRepeatedConfirmFail += 1
             elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] request %s'%self.repeatedAskedField and \
             asrResult.userActions[0].type != 'non-understanding' and self.repeatedAskedField in asrResult.userActions[0].content:
                 self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
