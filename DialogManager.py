@@ -483,24 +483,26 @@ class SBSarsaDialogManager(DialogManager):
         self.appLogger.info('Marginals\n %s'%str(marginals))
         for field in self.fields: 
             if field == 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold * self.routeRejectThresholdMultiplier):
-                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
                 try:
+                    self.appLogger.info('Exclude confirm %s because of no value or very low marginal'%field)
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
                 if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
                     try:
+                        self.appLogger.info('Exclude confirm_immediate %s because of no value or very low marginal'%field)
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
                         self.appLogger.info('Exception while removing confirm_immediate %s'%field)
             elif field != 'route' and (len(marginals[field]) == 0 or marginals[field][-1]['belief'] < self.fieldRejectThreshold):
-                self.appLogger.info('Exclude confirm(_immediate) %s because of no value or very low marginal'%field)
                 try:
+                    self.appLogger.info('Exclude confirm %s because of no value or very low marginal'%field)
                     acts.remove('[ask] confirm %s'%field)
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
                 if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content:
                     try:
+                        self.appLogger.info('Exclude confirm_immediate %s because of no value or very low marginal'%field)
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
                         self.appLogger.info('Exception while removing confirm_immediate %s'%field)
@@ -514,7 +516,7 @@ class SBSarsaDialogManager(DialogManager):
                 except:
                     self.appLogger.info('Exception while removing confirm %s'%field)
                 if asrResult == None or asrResult.userActions[0].type != 'ig' or field not in asrResult.userActions[0].content or\
-                (len(marginals[field]) > 0 and asrResult.userActions[0].content[field] == marginals[field][-1]['equals']):
+                asrResult.userActions[0].content[field] == marginals[field][-1]['equals']:
                     try:
                         acts.remove('[ask] confirm_immediate %s'%field)
                     except:
@@ -582,13 +584,15 @@ class SBSarsaDialogManager(DialogManager):
             elif len(self.sysActHistory) > 0 and self.sysActHistory[-1] == '[ask] request %s'%self.repeatedAskedField and \
             asrResult.userActions[0].type != 'non-understanding' and self.repeatedAskedField in asrResult.userActions[0].content:
                 self.appLogger.info('Number of repeated confirm failure for %s = %d'%(self.repeatedAskedField,self.numberOfRepeatedConfirmFail))
-                acts = [] if '[inform]' not in acts else ['[inform]']
+#                acts = [] if '[inform]' not in acts else ['[inform]']
     #            acts.append('[ask] request %s'%self.repeatedAskedField)
                 if asrResult != None and asrResult.userActions[0].type == 'ig' and self.repeatedAskedField in asrResult.userActions[0].content:
+                    acts = [] if '[inform]' not in acts else ['[inform]']
                     acts.append('[ask] confirm_immediate %s'%self.repeatedAskedField)
-                else:
-                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
-                self.appLogger.info('Limited to confirm %s because of confirm failure'%self.repeatedAskedField)
+                    self.appLogger.info('Limited to confirm_immediate %s because of confirm failure'%self.repeatedAskedField)
+#                else:
+#                    acts.append('[ask] confirm %s'%self.repeatedAskedField)
+#                self.appLogger.info('Limited to confirm %s because of confirm failure'%self.repeatedAskedField)
             else:
                 self.repeatedAskedField = ''
                 self.numberOfRepeatedConfirmFail = 0
@@ -596,12 +600,14 @@ class SBSarsaDialogManager(DialogManager):
                     askedField = self.sysActHistory[-1].split(' ')[-1]
                     if asrResult.userActions[0].type != 'non-understanding' and askedField in asrResult.userActions[0].content and \
                      len(marginals[askedField]) > 0 and marginals[askedField][-1]['belief'] < self.fieldAcceptThreshold:
-                        acts = [] if '[inform]' not in acts else ['[inform]']
+#                        acts = [] if '[inform]' not in acts else ['[inform]']
                         if asrResult != None and asrResult.userActions[0].type == 'ig' and askedField in asrResult.userActions[0].content:
+                            acts = [] if '[inform]' not in acts else ['[inform]']
                             acts.append('[ask] confirm_immediate %s'%askedField)
-                        else:
-                            acts.append('[ask] confirm %s'%askedField)
-                        self.appLogger.info('Limited to confirm(_immediate) %s to enforce request/confirm pattern'%askedField)
+                            self.appLogger.info('Limited to confirm_immediate %s to enforce request/confirm pattern'%askedField)
+#                        else:
+#                            acts.append('[ask] confirm %s'%askedField)
+#                        self.appLogger.info('Limited to confirm(_immediate) %s to enforce request/confirm pattern'%askedField)
                     
                 
 #        if self.repeatedAskedField != '' and \
