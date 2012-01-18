@@ -196,6 +196,10 @@ class PartitionDistribution(object):
         
         if asrResult.userActions[0].type == 'non-understanding':
             return
+
+        self._CompactByProbability(self.minPartitionProbability)
+        if self.compactByPruningFieldValuePair:
+            self._CompactByMaxPartitions(self.maxPartitions)
         
 #        self.stats.InitUpdate()
 
@@ -535,9 +539,9 @@ class PartitionDistribution(object):
             i += 1
         self.partitionEntryList.sort(PartitionDistribution._ComparePartitionEntries)
         
-        self._CompactByProbability(self.minPartitionProbability)
-        if self.compactByPruningFieldValuePair:
-            self._CompactByMaxPartitions(self.maxPartitions)
+#        self._CompactByProbability(self.minPartitionProbability)
+#        if self.compactByPruningFieldValuePair:
+#            self._CompactByMaxPartitions(self.maxPartitions)
         
 #        self.stats.EndClock('mainUpdate')
 
