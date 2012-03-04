@@ -104,7 +104,7 @@ class UserAction():
 
         '''
         self.config = GetConfig()
-        assert (type in ['ig','oog','non-understanding']),'Unknown UserAction type: %s' % (type)
+        assert (type in ['ig','oog','non-understanding','hangup']),'Unknown UserAction type: %s' % (type)
         if (type == 'ig'):
             assert (not content == None),'Type == ig but content == None'
             db = GetDB()

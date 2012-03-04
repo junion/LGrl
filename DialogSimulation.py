@@ -154,6 +154,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
     appLogger.info('PartitionDistribution:\n%s' % (dialogManager.beliefState))
 
     dialogSuccess = False
+    dialogSubSuccess = False
     dialogReward = 0
     i = 0
     turns = []
@@ -165,6 +166,9 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
         userAction = userSimulation.TakeTurn(systemAction)
 
         appLogger.info('User Action: %s' % (userAction))
+
+        if userAction.userActions[0].type == 'hangup':
+            break
         
         if preventCorrectionInConfirm:
             if systemAction.type == 'ask' and systemAction.force == 'confirm' and\
@@ -186,7 +190,7 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
                     appLogger.info('For now, just remove route to focus on other fields')
                     del userAction.userActions[0].content['route']
 
-        if userAction.userActions[0].content == {}:
+        if userAction.userActions[0].type != 'hangup' and userAction.userActions[0].content == {}:
             userAction = ASRResult.Simulated(None,[UserAction('non-understanding')],[1.0])
         
         appLogger.info('User Action: %s' % (userAction))
@@ -211,16 +215,20 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
         })
         
         systemAction = nextSystemAction
-        
-        if i >= 50:#rewards['taskSuccessReward']:
+
+        if i >= 39:#rewards['taskSuccessReward']:
             break
         i += 1
-    reward,fieldMatch = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
-    dialogReward += reward
-    dialogManager.TakeTurn(None,reward)
-    if systemAction.type == 'inform' and reward == rewards['taskSuccessReward']:
-        dialogSuccess = True
-    dialogSubSuccess = GetSubSuccess(userSimulation.goal,dialogManager.beliefState,systemAction)
+    if userAction.userActions[0].type != 'hangup':
+        reward,fieldMatch = GetReward(rewards,userSimulation.goal,dialogManager.beliefState,systemAction)
+        dialogReward += reward
+        dialogManager.TakeTurn(None,reward)
+#        if systemAction.type == 'inform' and reward == rewards['taskSuccessReward']:
+        if systemAction.type == 'inform':
+            dialogSuccess = True
+        dialogSubSuccess = GetSubSuccess(userSimulation.goal,dialogManager.beliefState,systemAction)
+    else:
+        appLogger.info('User hung up')
     appLogger.info('\n------ Turn %d ------' % (i+1))
     appLogger.info('System Action: %s' % (systemAction))
     appLogger.info('User Goal: %s'%userSimulation.goal)
@@ -246,7 +254,7 @@ def main():
     config = GetConfig()
     config.read(['LGrl.conf'])
     config.set('Global','modelPath','.')
-    config.set('DialogManager','dialogStrategyLearning','true')
+    config.set('DialogManager','dialogStrategyLearning','false')
     
     rewards = {}
     rewards['taskSuccessReward'] = config.getint('DialogManager','taskSuccessReward')
@@ -257,15 +265,27 @@ def main():
     for testIndex in range(0,1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [1000]
+            iter = [100]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','minPartitionProbability','1e-4')
+            config.set('PartitionDistribution','minPartitionProbability','1e-6')
             config.set('PartitionDistribution','compactByPruningFieldValuePair','true')
-            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000')
+            config.set('PartitionDistribution','maxPartitions','256')
+            config.set('PartitionDistribution','defaultResetFraction','0.01')
+            config.set('PartitionDistribution','resetFractionApplyThreshold','0.99')
+            config.set('PartitionDistribution','applyResetFractionPerField','true')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000000')
             config.set('BeliefState','fixedASRConfusionProbability','0.3')
-            config.set('DialogManager','confidenceScoreCalibration','true')
             config.set('BeliefState','useLearnedUserModel','true')
+            config.set('BeliefState','useHistory','false')
+            config.set('BeliefState','minRelevantUserActProb','1e-3')
+            config.set('BeliefState','irrelevantUserActProb','1e-20')
+            config.set('DialogManager','confidenceScoreCalibration','true')
+            config.set('DialogManager','routeRejectThresholdMultiplier','0.1')
+            config.set('DialogManager','imposeConfirmStrategy','true')
+            config.set('DialogManager','maxRepeatedConfirmFail','1')
+            config.set('DialogManager','fieldAcceptThreshold','0.9')
+            config.set('DialogManager','basisWidth','0.25')
             config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','false')
             preventCorrectionInConfirm = True
             preferDirectAnswerToRoute = False
@@ -273,23 +293,50 @@ def main():
             iter = [1000]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','minPartitionProbability','1e-4')
+            config.set('PartitionDistribution','minPartitionProbability','1e-5')
+            config.set('PartitionDistribution','compactByPruningFieldValuePair','true')
+            config.set('PartitionDistribution','maxPartitions','256')
+            config.set('PartitionDistribution','defaultResetFraction','0.05')
+            config.set('PartitionDistribution','resetFractionApplyThreshold','0.97')
+            config.set('PartitionDistribution','applyResetFractionPerField','true')
             config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000')
             config.set('BeliefState','fixedASRConfusionProbability','0.3')
-            config.set('DialogManager','confidenceScoreCalibration','true')
             config.set('BeliefState','useLearnedUserModel','true')
+            config.set('BeliefState','useHistory','false')
+            config.set('BeliefState','minRelevantUserActProb','5e-2')
+            config.set('BeliefState','irrelevantUserActProb','1e-20')
+            config.set('DialogManager','confidenceScoreCalibration','true')
+            config.set('DialogManager','routeRejectThresholdMultiplier','0.1')
+            config.set('DialogManager','imposeConfirmStrategy','false')
+            config.set('DialogManager','fieldAcceptThreshold','0.9')
+            config.set('DialogManager','basisWidth','0.25')
+            config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','false')
             preventCorrectionInConfirm = True
-            preferDirectAnswerToRoute = True
+            preferDirectAnswerToRoute = False
         elif testIndex == 2:
             iter = [1000]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
-            config.set('PartitionDistribution','minPartitionProbability','1e-4')
-            config.set('BeliefState','numberOfPossibleActionsForConfirmation','10000')
+            config.set('PartitionDistribution','minPartitionProbability','1e-5')
+            config.set('PartitionDistribution','compactByPruningFieldValuePair','true')
+            config.set('PartitionDistribution','maxPartitions','256')
+            config.set('PartitionDistribution','defaultResetFraction','0.01')
+            config.set('PartitionDistribution','resetFractionApplyThreshold','0.99')
+            config.set('PartitionDistribution','applyResetFractionPerField','true')
+            config.set('BeliefState','numberOfPossibleActionsForConfirmation','1000000')
             config.set('BeliefState','fixedASRConfusionProbability','0.3')
-            config.set('DialogThread','preventCorrectionInConfirm','true')
-            config.set('DialogManager','confidenceScoreCalibration','false')
             config.set('BeliefState','useLearnedUserModel','true')
+            config.set('BeliefState','useHistory','false')
+            config.set('BeliefState','minRelevantUserActProb','1e-3')
+            config.set('BeliefState','irrelevantUserActProb','1e-20')
+            config.set('DialogManager','confidenceScoreCalibration','true')
+            config.set('DialogManager','routeRejectThresholdMultiplier','0.1')
+            config.set('DialogManager','imposeConfirmStrategy','false')
+            config.set('DialogManager','fieldAcceptThreshold','0.9')
+            config.set('DialogManager','basisWidth','0.25')
+            config.set('DialogThread','integrateExceptionalHandlingIntoBeliefTracking','false')
+            preventCorrectionInConfirm = True
+            preferDirectAnswerToRoute = False
         elif testIndex == 3:
             iter = [1000]
             errorRates = [-1]

@@ -79,7 +79,11 @@ class UserSimulation(object):
         json_usr = self.send_json({'System action':act_str,'Approx':True})
 #        print json_usr
         usr_act = json.loads(json_usr)
-        if usr_act['User action'][0] == 'Non-understanding':
+        if usr_act['User action'][0] == 'Hang up':
+            userActionHyps = [UserAction('hangup')]
+            probs = [1.0]
+            correctPosition = -1
+        elif usr_act['User action'][0] == 'Non-understanding':
             userActionHyps = [UserAction('non-understanding')]
             probs = [1.0]
             correctPosition = -1
