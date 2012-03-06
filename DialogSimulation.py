@@ -26,6 +26,7 @@ import datetime as dt
 
 import logging.config
 import logging
+import numpy as np
 from GlobalConfig import *
 from BeliefState import BeliefState
 from UserSimulation import UserSimulation
@@ -235,11 +236,11 @@ def SimulateOneDialog(userSimulation,dialogManager,rewards,errorRate=-1,preventC
 #    appLogger.info('Dialog %s'%('Success' if dialogManager.DialogResult()[0] else 'Fail'))
     appLogger.info('Dialog %s'%('Success' if dialogSuccess else 'Fail'))
     appLogger.info('Dialog %s in ignorance of route'%('Success' if dialogSubSuccess else 'Fail'))
-    turns.append({
-        'systemAction': systemAction,
-        'userAction':None,
-        'updateTime':None,
-    })
+#    turns.append({
+#        'systemAction': systemAction,
+#        'userAction':None,
+#        'updateTime':None,
+#    })
     log = {
            'userGoal': userSimulation.goal,
            'turns' : turns,
@@ -265,7 +266,7 @@ def main():
     for testIndex in range(0,1):
         logging.config.fileConfig('logging.conf')
         if testIndex == 0:
-            iter = [100]
+            iter = [496]
             errorRates = [-1]
             config.set('PartitionDistribution','offListBeliefUpdateMethod','heuristicPossibleActions')
             config.set('PartitionDistribution','minPartitionProbability','1e-6')
@@ -362,7 +363,7 @@ def main():
 #        iter = [200]
 #        errorRates = [0,1,2]
 #        errorRates = [-1]
-        interval = 10
+        interval = 1
 #        basisFunctionMax = [500]
         basisFunctionMax = ['500','500','500','500']
         totalDialogSuccessCount = 0
@@ -394,6 +395,9 @@ def main():
         totalIncorrectTravelTimeCount = 0
         intervalIncorrectTravelTimeCount = 0
         intervalIncorrectTravelTimeCounts = []
+        dialogLengthDict = {}
+        successDialogLengthDict = {}
+        failDialogLengthDict = {}
         
         startTime = dt.datetime.now()
         intervalStartTime = dt.datetime.now()
@@ -461,9 +465,23 @@ def main():
                 totalDialogLength.append(len(log['turns']))
                 intervalDialogLength.append(len(log['turns']))
                 
+                if len(log['turns']) in dialogLengthDict:
+                    dialogLengthDict[len(log['turns'])] += 1
+                else:
+                    dialogLengthDict[len(log['turns'])] = 1
+                    
                 if log['result'][0]: 
                     totalDialogSuccessCount += 1
                     intervalDialogSuccessCount += 1
+                    if len(log['turns']) in successDialogLengthDict:
+                        successDialogLengthDict[len(log['turns'])] += 1
+                    else:
+                        successDialogLengthDict[len(log['turns'])] = 1
+                else:
+                    if len(log['turns']) in failDialogLengthDict:
+                        failDialogLengthDict[len(log['turns'])] += 1
+                    else:
+                        failDialogLengthDict[len(log['turns'])] = 1
                 if log['subSuccess']: 
                     totalDialogSubSuccessCount += 1
                     intervalDialogSubSuccessCount += 1
@@ -576,6 +594,23 @@ def main():
         appLogger.info('Start time: %s'%startTime.isoformat(' '))
         appLogger.info('End time: %s'%endTime.isoformat(' '))
         appLogger.info('Total elapsed time: %s'%(endTime - startTime))
+        
+        appLogger.info('Dialog length distribution: \n%s'%str(dialogLengthDict))
+        appLogger.info('Success dialog length distribution: \n%s'%str(successDialogLengthDict))
+        appLogger.info('Fail dialog length distribution: \n%s'%str(failDialogLengthDict))
+        
+        lengthList = []
+        for key in dialogLengthDict:
+            lengthList.extend([key]*dialogLengthDict[key])
+        appLogger.info('Dialog length average: %f (+/- %f)'%(np.average(lengthList),np.std(lengthList)))
+        lengthList = []
+        for key in successDialogLengthDict:
+            lengthList.extend([key]*successDialogLengthDict[key])
+        appLogger.info('Success dialog length average: %f (+/- %f)'%(np.average(lengthList),np.std(lengthList)))
+        lengthList = []
+        for key in failDialogLengthDict:
+            lengthList.extend([key]*failDialogLengthDict[key])
+        appLogger.info('Fail dialog average: %f (+/- %f)'%(np.average(lengthList),np.std(lengthList)))
         
         logging.shutdown()
         try:
